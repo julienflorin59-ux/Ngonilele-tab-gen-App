@@ -6,6 +6,7 @@ import matplotlib.image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import io
 import os
+import urllib.parse # Indispensable pour le lien email
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -15,27 +16,81 @@ BANQUE_TABLATURES = {
 1   4D
 +   4G
 """,
-    "Exemple : Rythme de base": """
-1   4D
-+   4G
-+   5D
-+   5G
-+   4G
-=   2D
-+   3G
-+   6D   x2
-+   2G
-=   5G
-""",
-    "Exemple : Avec Texte et Pages": """
-1   4D   I
-+   TXT  Intro
+    "Manitoumani : -M- & Lamomali": """
+
+1  4D   I
 +   4G   I
-+   PAGE
-+   TXT  Refrain
 +   5D   I
-"""
-}
++   5G   I
++   4G   I
+=   2D   P
++   3G   P
++   6D   I x2
++   2G   P
+=   5G   I
++  3G   P
++  6D   I x2
++  2G   P
+=  5G   I
++ 3G   P
++ 6D   I x2
++ 2G   P
+= 5G   I
++   TXT  REPETER 2x (Reprendre au début)
++   PAGE
++   4D   I
++   4G   I
++   5D   I
++   5G   I
++   4G   I
+=   1D   P
++   2G   P
++   6D   I  x2
++   2G   P
+=   4G   I
++   1D   P
++   2G   P
++   6D   I  x2
++   2G   P
+=   4G   I
++ S
++ S
++ PAGE
++   1G
++   3D
++   3G
++   5D
++   1G
++   3D
++   3G
++   5D
++ S
++ S
++ S
++ S
++ S
++ S
++ S
++ 4D   I
++ PAGE
++   4G   I
++   5D   I
++   5G   I
++   4G   I
+=   2D   P
++   3G   P
++   6D   I x2
++   2G   P
+=   5G   I
++  3G   P
++  6D   I x2
++  2G   P
+=  5G   I
++ 3G   P
++ 6D   I x2
++ 2G   P
+= 5G   I
+"""}
 
 # ==============================================================================
 # ⚙️ CONFIGURATION DE LA PAGE
@@ -245,19 +300,23 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
-# 1. INITIALISATION DE LA MEMOIRE (Une seule fois au démarrage)
+# Gestion de la mémoire (State)
 if 'code_actuel' not in st.session_state:
     st.session_state.code_actuel = BANQUE_TABLATURES["Exemple : Rythme de base"]
 if 'gen_active' not in st.session_state:
     st.session_state.gen_active = False
 
-# Fonction pour charger un morceau (callback)
+# Fonction pour charger un morceau (Mise à jour via clé)
 def charger_morceau():
     choix = st.session_state.selection_banque
     if choix in BANQUE_TABLATURES:
         st.session_state.code_actuel = BANQUE_TABLATURES[choix].strip()
 
-# 2. BARRE LATÉRALE
+# Fonction de Callback pour le texte
+def mise_a_jour_texte():
+    st.session_state.code_actuel = st.session_state.widget_input
+
+# 1. BARRE LATÉRALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     
@@ -267,7 +326,7 @@ with st.sidebar:
         "Choisir un morceau :", 
         options=list(BANQUE_TABLATURES.keys()), 
         key='selection_banque',
-        on_change=charger_morceau # Met à jour st.session_state.code_actuel automatiquement
+        on_change=charger_morceau
     )
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
@@ -279,8 +338,31 @@ with st.sidebar:
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Si coché, l'image téléchargée sera sur fond blanc avec icônes blanches.")
+    
+    # --- SECTION CONTRIBUTION ---
+    st.markdown("---")
+    st.markdown("### 🤝 Contribuer")
+    st.write("Vous avez créé un super morceau ? Envoyez-le moi pour l'ajouter à la banque !")
+    
+    # Prépare le lien mailto
+    mon_email = "julienflorin59@gmail.com" # ⚠️ REMPLACE CECI PAR TON EMAIL !
+    sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
+    corps_mail = f"Bonjour,\n\nVoici une proposition de tablature :\n\nTitre : {titre_partition}\n\nCode :\n{st.session_state.code_actuel}"
+    
+    # Encodage URL propre
+    sujet_encoded = urllib.parse.quote(sujet_mail)
+    corps_encoded = urllib.parse.quote(corps_mail)
+    mailto_link = f"mailto:{mon_email}?subject={sujet_encoded}&body={corps_encoded}"
+    
+    st.markdown(f'''
+    <a href="{mailto_link}" target="_blank">
+        <button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">
+            📧 Envoyer ma partition
+        </button>
+    </a>
+    ''', unsafe_allow_html=True)
 
-# 3. ONGLETS PRINCIPAUX
+# 2. ONGLETS PRINCIPAUX
 tab1, tab2 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage"])
 
 with tab2:
@@ -316,13 +398,11 @@ with tab1:
             
         uploaded_file = st.file_uploader("📂 Charger un fichier sauvegardé (.txt)", type="txt")
         if uploaded_file is not None:
-            # On met à jour le state directement lors de l'upload
             stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
             content = stringio.read()
-            # Astuce pour forcer le refresh si l'upload change
             if content != st.session_state.code_actuel:
                 st.session_state.code_actuel = content
-                st.rerun() # On relance l'app pour afficher le nouveau texte
+                st.rerun()
         
         # --- AIDE ---
         with st.expander("ℹ️ Aide syntaxe (Code)"):
@@ -337,20 +417,19 @@ with tab1:
             - **x2** : Répéter (ex: `+ 6D I x2`).
             """)
         
-        # ZONE DE TEXTE (LIAISON NATIVE)
-        # On utilise le parametre "key" pour lier directement au session_state
-        # C'est la méthode la plus stable pour éviter les bugs de synchro
+        # ZONE DE TEXTE (LIAISON NATIVE avec session_state)
         st.text_area(
             "Saisissez votre tablature ici :", 
+            value=st.session_state.code_actuel, 
             height=500, 
-            key="code_actuel" # <--- LA CLEF MAGIQUE : relie le widget à st.session_state.code_actuel
+            key="widget_input",
+            on_change=mise_a_jour_texte
         )
 
         # BOUTON SAUVEGARDE TXT
-        # On passe directement la valeur du session_state, encodée proprement
         st.download_button(
             label="💾 Sauvegarder le code (.txt)",
-            data=st.session_state.code_actuel.encode('utf-8'),
+            data=st.session_state.code_actuel,
             file_name=f"{titre_partition.replace(' ', '_')}.txt",
             mime="text/plain"
         )
@@ -367,8 +446,6 @@ with tab1:
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
-            
-            # On utilise le code_actuel directement depuis le state
             sequence = parser_texte(st.session_state.code_actuel)
             
             # 1. LEGENDE
