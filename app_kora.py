@@ -153,7 +153,7 @@ def generer_page_1_legende(titre, styles):
     dessiner_contenu_legende(ax, 0.5, styles)
     
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
-    return fig
+    return fig, ax
 
 def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
@@ -175,6 +175,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     prop_annotation = get_font(16, 'bold')
 
     # Image de fond
+    img_bg_obj = None
     if options_visuelles['use_bg'] and os.path.exists(CHEMIN_IMAGE_FOND):
         try:
             img_fond = mpimg.imread(CHEMIN_IMAGE_FOND)
@@ -183,7 +184,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
             hauteur_finale = (largeur_finale / ratio) * 1.4
             y_center = (y_top + y_bot) / 2
             extent = [-largeur_finale/2, largeur_finale/2, y_center - hauteur_finale/2, y_center + hauteur_finale/2]
-            ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
+            img_bg_obj = ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
         except: pass
 
     # Titres et Structure
@@ -239,7 +240,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
 
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
-    return fig
+    return fig, ax, img_bg_obj
 
 # ==============================================================================
 # 🎛️ INTERFACE STREAMLIT
@@ -253,6 +254,9 @@ with st.sidebar:
         bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
+        st.markdown("---")
+        # --- MODIFICATION ICI ---
+        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Si coché, l'image téléchargée sera sur fond blanc (sans texture) pour économiser l'encre.")
 
 # 2. ONGLETS PRINCIPAUX
 tab1, tab2 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage"])
@@ -281,7 +285,7 @@ with tab1:
     with col_input:
         st.subheader("Code")
         
-        # --- AIDE MISE À JOUR ---
+        # --- AIDE ---
         with st.expander("ℹ️ Aide : Comment écrire la partition ?"):
             st.markdown("""
             - **Chiffre** (ex: `1`) : Début d'une mesure (Temps 1).
@@ -293,7 +297,7 @@ with tab1:
             - **TXT** : Ajouter un texte (ex: `+ TXT Refrain`).
             - **x2** : Répéter (ex: `+ 6D I x2`).
             """)
-        # ------------------------
+        # ------------
         
         texte_input = st.text_area("Saisissez votre tablature ici :", TEXTE_DEFAUT, height=600)
         
@@ -302,17 +306,25 @@ with tab1:
         if st.button("🔄 Générer la partition", type="primary"):
             
             styles = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-            # CORRECTION ICI : J'ai renommé la variable pour éviter l'erreur
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
             
             sequence = parser_texte(texte_input)
             
             # --- 1. GÉNÉRATION DE LA PAGE LÉGENDE (PAGE 1) ---
             st.markdown("### Page 1 : Légende")
-            fig_leg = generer_page_1_legende(titre_partition, styles)
+            fig_leg, ax_leg = generer_page_1_legende(titre_partition, styles)
             st.pyplot(fig_leg)
+            
+            # Gestion du fond blanc pour téléchargement (Légende)
+            if force_white_print:
+                fig_leg.patch.set_facecolor('white')
+                ax_leg.set_facecolor('white')
+                save_color = 'white'
+            else:
+                save_color = bg_color
+
             buf_leg = io.BytesIO()
-            fig_leg.savefig(buf_leg, format="png", dpi=200, facecolor=bg_color, bbox_inches='tight')
+            fig_leg.savefig(buf_leg, format="png", dpi=200, facecolor=save_color, bbox_inches='tight')
             buf_leg.seek(0)
             st.download_button(label="⬇️ Télécharger Légende", data=buf_leg, file_name=f"{titre_partition}_Legende.png", mime="image/png")
             plt.close(fig_leg)
@@ -330,10 +342,20 @@ with tab1:
             else:
                 for idx, page in enumerate(pages_data):
                     st.markdown(f"### Page {idx+2}")
-                    fig = generer_page_notes(page, idx+2, titre_partition, acc_config, styles, options_visuelles)
+                    fig, ax, img_bg = generer_page_notes(page, idx+2, titre_partition, acc_config, styles, options_visuelles)
                     st.pyplot(fig)
+                    
+                    # Gestion du fond blanc pour téléchargement (Notes)
+                    if force_white_print:
+                        fig.patch.set_facecolor('white')
+                        ax.set_facecolor('white')
+                        if img_bg: img_bg.set_visible(False) # Cache l'image de texture
+                        save_color = 'white'
+                    else:
+                        save_color = bg_color
+
                     buf = io.BytesIO()
-                    fig.savefig(buf, format="png", dpi=200, facecolor=bg_color, bbox_inches='tight')
+                    fig.savefig(buf, format="png", dpi=200, facecolor=save_color, bbox_inches='tight')
                     buf.seek(0)
                     st.download_button(label=f"⬇️ Télécharger Page {idx+2}", data=buf, file_name=f"{titre_partition}_Page_{idx+2}.png", mime="image/png")
                     plt.close(fig)
