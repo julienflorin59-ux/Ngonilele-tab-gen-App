@@ -17,41 +17,41 @@ BANQUE_TABLATURES = {
 +   4G
 """,
     "Manitoumani -M- & Lamomali": """
-1   4D   I
-+   4G   I
-+   5D   I
-+   5G   I
-+   4G   I
-=   2D   P
-+   3G   P
-+   6D   I x2
-+   2G   P
-=   5G   I
-+  3G   P
-+  6D   I x2
-+  2G   P
-=  5G   I
-+ 3G   P
-+ 6D   I x2
-+ 2G   P
-= 5G   I
+1   4D   
++   4G   
++   5D   
++   5G   
++   4G   
+=   2D   
++   3G   
++   6D    x2
++   2G   
+=   5G   
++  3G   
++  6D    x2
++  2G   
+=  5G   
++ 3G   
++ 6D    x2
++ 2G   
+= 5G   
 +   TXT  REPETER 2x (Reprendre au début)
 +   PAGE
-+   4D   I
-+   4G   I
-+   5D   I
-+   5G   I
-+   4G   I
-=   1D   P
-+   2G   P
-+   6D   I  x2
-+   2G   P
-=   4G   I
-+   1D   P
-+   2G   P
-+   6D   I  x2
-+   2G   P
-=   4G   I
++   4D   
++   4G   
++   5D   
++   5G   
++   4G   
+=   1D   
++   2G   
++   6D     x2
++   2G   
+=   4G   
++   1D   
++   2G   
++   6D     x2
++   2G   
+=   4G   
 + S
 + S
 + PAGE
@@ -70,25 +70,25 @@ BANQUE_TABLATURES = {
 + S
 + S
 + S
-+ 4D   I
++ 4D   
 + PAGE
-+   4G   I
-+   5D   I
-+   5G   I
-+   4G   I
-=   2D   P
-+   3G   P
-+   6D   I x2
-+   2G   P
-=   5G   I
-+  3G   P
-+  6D   I x2
-+  2G   P
-=  5G   I
-+ 3G   P
-+ 6D   I x2
-+ 2G   P
-= 5G   I
++   4G   
++   5D   
++   5G   
++   4G   
+=   2D   
++   3G   
++   6D    x2
++   2G   
+=   5G   
++  3G   
++  6D    x2
++  2G   
+=  5G   
++ 3G   
++ 6D    x2
++ 2G   
+= 5G   
 """
 }
 
