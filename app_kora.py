@@ -245,23 +245,19 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
-# Gestion de la mémoire (State)
+# 1. INITIALISATION DE LA MEMOIRE (Une seule fois au démarrage)
 if 'code_actuel' not in st.session_state:
     st.session_state.code_actuel = BANQUE_TABLATURES["Exemple : Rythme de base"]
 if 'gen_active' not in st.session_state:
     st.session_state.gen_active = False
 
-# Fonction pour charger un morceau (Mise à jour via clé)
+# Fonction pour charger un morceau (callback)
 def charger_morceau():
     choix = st.session_state.selection_banque
     if choix in BANQUE_TABLATURES:
         st.session_state.code_actuel = BANQUE_TABLATURES[choix].strip()
 
-# Fonction de Callback pour le texte (LA CORRECTION EST ICI)
-def mise_a_jour_texte():
-    st.session_state.code_actuel = st.session_state.widget_input
-
-# 1. BARRE LATÉRALE
+# 2. BARRE LATÉRALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     
@@ -271,7 +267,7 @@ with st.sidebar:
         "Choisir un morceau :", 
         options=list(BANQUE_TABLATURES.keys()), 
         key='selection_banque',
-        on_change=charger_morceau
+        on_change=charger_morceau # Met à jour st.session_state.code_actuel automatiquement
     )
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
@@ -284,7 +280,7 @@ with st.sidebar:
         st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Si coché, l'image téléchargée sera sur fond blanc avec icônes blanches.")
 
-# 2. ONGLETS PRINCIPAUX
+# 3. ONGLETS PRINCIPAUX
 tab1, tab2 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage"])
 
 with tab2:
@@ -320,8 +316,13 @@ with tab1:
             
         uploaded_file = st.file_uploader("📂 Charger un fichier sauvegardé (.txt)", type="txt")
         if uploaded_file is not None:
+            # On met à jour le state directement lors de l'upload
             stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
-            st.session_state.code_actuel = stringio.read()
+            content = stringio.read()
+            # Astuce pour forcer le refresh si l'upload change
+            if content != st.session_state.code_actuel:
+                st.session_state.code_actuel = content
+                st.rerun() # On relance l'app pour afficher le nouveau texte
         
         # --- AIDE ---
         with st.expander("ℹ️ Aide syntaxe (Code)"):
@@ -336,19 +337,20 @@ with tab1:
             - **x2** : Répéter (ex: `+ 6D I x2`).
             """)
         
-        # ZONE DE TEXTE AVEC CALLBACK (C'est ici que ça se joue)
+        # ZONE DE TEXTE (LIAISON NATIVE)
+        # On utilise le parametre "key" pour lier directement au session_state
+        # C'est la méthode la plus stable pour éviter les bugs de synchro
         st.text_area(
             "Saisissez votre tablature ici :", 
-            value=st.session_state.code_actuel, 
             height=500, 
-            key="widget_input",
-            on_change=mise_a_jour_texte
+            key="code_actuel" # <--- LA CLEF MAGIQUE : relie le widget à st.session_state.code_actuel
         )
 
-        # BOUTON SAUVEGARDE TXT (Version simple et robuste)
+        # BOUTON SAUVEGARDE TXT
+        # On passe directement la valeur du session_state, encodée proprement
         st.download_button(
             label="💾 Sauvegarder le code (.txt)",
-            data=st.session_state.code_actuel,
+            data=st.session_state.code_actuel.encode('utf-8'),
             file_name=f"{titre_partition.replace(' ', '_')}.txt",
             mime="text/plain"
         )
@@ -365,6 +367,8 @@ with tab1:
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
+            
+            # On utilise le code_actuel directement depuis le state
             sequence = parser_texte(st.session_state.code_actuel)
             
             # 1. LEGENDE
