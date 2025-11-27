@@ -19,7 +19,7 @@ st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le rés
 # 🧠 MOTEUR LOGIQUE
 # ==============================================================================
 
-# --- Données par défaut (SIMPLIFIÉES) ---
+# --- Données par défaut ---
 TEXTE_DEFAUT = """
 1   4D
 +   4G
@@ -49,9 +49,15 @@ AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G
 
 # --- Chemins ---
 CHEMIN_POLICE = 'ML.ttf' 
+CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
+
+# Icones "Style Beige"
 CHEMIN_ICON_POUCE = 'icon_pouce.png'
 CHEMIN_ICON_INDEX = 'icon_index.png'
-CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
+
+# Icones "Style Blanc"
+CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
+CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
 
 def get_font(size, weight='normal', style='normal'):
     if os.path.exists(CHEMIN_POLICE):
@@ -99,10 +105,14 @@ def parser_texte(texte):
 # 🎨 MOTEUR D'AFFICHAGE
 # ==============================================================================
 
-def dessiner_contenu_legende(ax, y_pos, styles):
+def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
     prop_annotation = get_font(16, 'bold'); prop_legende = get_font(12, 'bold')
     
+    # Choix des icônes selon le mode
+    path_pouce = CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE
+    path_index = CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX
+
     # Cadre
     rect = patches.FancyBboxPatch((-7.5, y_pos - 3.6), 15, 3.3, boxstyle="round,pad=0.1", linewidth=1.5, edgecolor=c_txt, facecolor=c_fond, zorder=0)
     ax.add_patch(rect)
@@ -112,13 +122,13 @@ def dessiner_contenu_legende(ax, y_pos, styles):
     y_row1 = y_pos - 1.2; y_row2 = y_pos - 1.8; y_row3 = y_pos - 2.4; y_row4 = y_pos - 3.0
     
     # Pouce
-    if os.path.exists(CHEMIN_ICON_POUCE):
-        ab = AnnotationBbox(OffsetImage(mpimg.imread(CHEMIN_ICON_POUCE), zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
+    if os.path.exists(path_pouce):
+        ab = AnnotationBbox(OffsetImage(mpimg.imread(path_pouce), zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row1, "= Pouce", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
     # Index
-    if os.path.exists(CHEMIN_ICON_INDEX):
-        ab = AnnotationBbox(OffsetImage(mpimg.imread(CHEMIN_ICON_INDEX), zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
+    if os.path.exists(path_index):
+        ab = AnnotationBbox(OffsetImage(mpimg.imread(path_index), zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
     # Ordre de jeu
@@ -143,7 +153,7 @@ def dessiner_contenu_legende(ax, y_pos, styles):
     ax.text(x_droite, y_text_top - line_height*3, "2D = 2ème corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     ax.text(x_droite, y_text_top - line_height*4, "(Etc...)", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
 
-def generer_page_1_legende(titre, styles):
+def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']
     prop_titre = get_font(32, 'bold')
     
@@ -151,14 +161,18 @@ def generer_page_1_legende(titre, styles):
     ax.set_facecolor(c_fond)
     
     ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
-    dessiner_contenu_legende(ax, 0.5, styles)
+    dessiner_contenu_legende(ax, 0.5, styles, mode_white)
     
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
-    return fig, ax
+    return fig
 
-def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles):
+def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     
+    # Choix des icônes selon le mode
+    path_pouce = CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE
+    path_index = CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX
+
     t_min = notes_page[0]['temps']
     t_max = notes_page[-1]['temps']
     lignes_sur_page = t_max - t_min + 1
@@ -175,9 +189,8 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold')
     prop_annotation = get_font(16, 'bold')
 
-    # Image de fond
-    img_bg_obj = None
-    if options_visuelles['use_bg'] and os.path.exists(CHEMIN_IMAGE_FOND):
+    # Image de fond (Désactivée si mode white)
+    if not mode_white and options_visuelles['use_bg'] and os.path.exists(CHEMIN_IMAGE_FOND):
         try:
             img_fond = mpimg.imread(CHEMIN_IMAGE_FOND)
             h_px, w_px = img_fond.shape[:2]; ratio = w_px / h_px
@@ -185,7 +198,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
             hauteur_finale = (largeur_finale / ratio) * 1.4
             y_center = (y_top + y_bot) / 2
             extent = [-largeur_finale/2, largeur_finale/2, y_center - hauteur_finale/2, y_center + hauteur_finale/2]
-            img_bg_obj = ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
+            ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
         except: pass
 
     # Titres et Structure
@@ -226,7 +239,10 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
             ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
             if 'doigt' in n:
-                doigt = n['doigt']; img_path = CHEMIN_ICON_INDEX if doigt == 'I' else CHEMIN_ICON_POUCE
+                doigt = n['doigt']; 
+                # Selection de l'image (standard ou blanc selon le mode)
+                img_path = path_index if doigt == 'I' else path_pouce
+                
                 succes_img = False
                 if os.path.exists(img_path):
                     try:
@@ -241,7 +257,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
 
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
-    return fig, ax, img_bg_obj
+    return fig
 
 # ==============================================================================
 # 🎛️ INTERFACE STREAMLIT
@@ -251,12 +267,12 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
 with st.sidebar:
     st.header("🎚️ Réglages")
     titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
-    with st.expander("🎨 Apparence"):
+    with st.expander("🎨 Apparence", expanded=True):
         bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
-        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Si coché, l'image téléchargée sera sur fond blanc (sans texture) pour économiser l'encre.")
+        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Si coché, l'image téléchargée sera sur fond blanc avec icônes blanches.")
 
 # 2. ONGLETS PRINCIPAUX
 tab1, tab2 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage"])
@@ -305,32 +321,35 @@ with tab1:
         st.subheader("Aperçu")
         if st.button("🔄 Générer la partition", type="primary"):
             
-            styles = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-            options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
+            # Styles Normaux (Ecran)
+            styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
+            # Styles Print (Blanc)
+            styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             
+            options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
             sequence = parser_texte(texte_input)
             
             # --- 1. GÉNÉRATION DE LA PAGE LÉGENDE (PAGE 1) ---
             st.markdown("### Page 1 : Légende")
-            fig_leg, ax_leg = generer_page_1_legende(titre_partition, styles)
-            st.pyplot(fig_leg)
             
-            # Gestion du fond blanc pour téléchargement (Légende)
+            # Version Ecran (pour affichage)
+            fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
+            st.pyplot(fig_leg_ecran)
+            
+            # Version Téléchargement
             if force_white_print:
-                fig_leg.patch.set_facecolor('white')
-                ax_leg.set_facecolor('white')
-                # Nettoyage complet pour la légende (Cadre + cercles)
-                for patch in ax_leg.patches:
-                    patch.set_facecolor('white')
-                save_color = 'white'
+                fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
             else:
-                save_color = bg_color
+                fig_leg_dl = fig_leg_ecran
 
             buf_leg = io.BytesIO()
-            fig_leg.savefig(buf_leg, format="png", dpi=200, facecolor=save_color, bbox_inches='tight')
+            fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight')
             buf_leg.seek(0)
             st.download_button(label="⬇️ Télécharger Légende", data=buf_leg, file_name=f"{titre_partition}_Legende.png", mime="image/png")
-            plt.close(fig_leg)
+            
+            # Nettoyage
+            plt.close(fig_leg_ecran)
+            if force_white_print: plt.close(fig_leg_dl)
             
             # --- 2. GÉNÉRATION DES PAGES DE NOTES (PAGE 2+) ---
             pages_data = []; current_page = []
@@ -345,20 +364,22 @@ with tab1:
             else:
                 for idx, page in enumerate(pages_data):
                     st.markdown(f"### Page {idx+2}")
-                    fig, ax, img_bg = generer_page_notes(page, idx+2, titre_partition, acc_config, styles, options_visuelles)
-                    st.pyplot(fig)
                     
-                    # Gestion du fond blanc pour téléchargement (Notes)
+                    # Version Ecran
+                    fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
+                    st.pyplot(fig_ecran)
+                    
+                    # Version Téléchargement
                     if force_white_print:
-                        fig.patch.set_facecolor('white')
-                        ax.set_facecolor('white')
-                        if img_bg: img_bg.set_visible(False)
-                        save_color = 'white'
+                         fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
                     else:
-                        save_color = bg_color
+                         fig_dl = fig_ecran
 
                     buf = io.BytesIO()
-                    fig.savefig(buf, format="png", dpi=200, facecolor=save_color, bbox_inches='tight')
+                    fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight')
                     buf.seek(0)
                     st.download_button(label=f"⬇️ Télécharger Page {idx+2}", data=buf, file_name=f"{titre_partition}_Page_{idx+2}.png", mime="image/png")
-                    plt.close(fig)
+                    
+                    # Nettoyage
+                    plt.close(fig_ecran)
+                    if force_white_print: plt.close(fig_dl)
