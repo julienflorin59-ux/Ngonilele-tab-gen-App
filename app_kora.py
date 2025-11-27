@@ -19,21 +19,21 @@ st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le rés
 # 🧠 MOTEUR LOGIQUE
 # ==============================================================================
 
-# --- Données par défaut ---
+# --- Données par défaut (SIMPLIFIÉES) ---
 TEXTE_DEFAUT = """
-1   4D   I
-+   4G   I
-+   5D   I
-+   5G   I
-+   4G   I
-=   2D   P
-+   3G   P
-+   6D   I x2
-+   2G   P
-=   5G   I
+1   4D
++   4G
++   5D
++   5G
++   4G
+=   2D
++   3G
++   6D   x2
++   2G
+=   5G
 +   PAGE
 +   TXT  Partie 2
-+   4D   I
++   4D
 """
 
 POSITIONS_X = {
@@ -141,6 +141,7 @@ def dessiner_contenu_legende(ax, y_pos, styles):
     ax.text(x_droite, y_text_top - line_height, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     ax.text(x_droite, y_text_top - line_height*2, "1D = 1ère corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     ax.text(x_droite, y_text_top - line_height*3, "2D = 2ème corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    ax.text(x_droite, y_text_top - line_height*4, "(Etc...)", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
 
 def generer_page_1_legende(titre, styles):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']
@@ -255,7 +256,6 @@ with st.sidebar:
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
-        # --- MODIFICATION ICI ---
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Si coché, l'image téléchargée sera sur fond blanc (sans texture) pour économiser l'encre.")
 
 # 2. ONGLETS PRINCIPAUX
@@ -319,6 +319,9 @@ with tab1:
             if force_white_print:
                 fig_leg.patch.set_facecolor('white')
                 ax_leg.set_facecolor('white')
+                # Nettoyage complet pour la légende (Cadre + cercles)
+                for patch in ax_leg.patches:
+                    patch.set_facecolor('white')
                 save_color = 'white'
             else:
                 save_color = bg_color
@@ -349,7 +352,7 @@ with tab1:
                     if force_white_print:
                         fig.patch.set_facecolor('white')
                         ax.set_facecolor('white')
-                        if img_bg: img_bg.set_visible(False) # Cache l'image de texture
+                        if img_bg: img_bg.set_visible(False)
                         save_color = 'white'
                     else:
                         save_color = bg_color
