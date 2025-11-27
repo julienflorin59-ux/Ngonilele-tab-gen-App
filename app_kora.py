@@ -109,11 +109,9 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
     prop_annotation = get_font(16, 'bold'); prop_legende = get_font(12, 'bold')
     
-    # Choix des icônes selon le mode
     path_pouce = CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE
     path_index = CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX
 
-    # Cadre
     rect = patches.FancyBboxPatch((-7.5, y_pos - 3.6), 15, 3.3, boxstyle="round,pad=0.1", linewidth=1.5, edgecolor=c_txt, facecolor=c_fond, zorder=0)
     ax.add_patch(rect)
     ax.text(0, y_pos - 0.6, "LÉGENDE", ha='center', va='center', fontsize=14, fontweight='bold', color=c_txt, fontproperties=prop_annotation)
@@ -121,31 +119,26 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     x_icon_center = -5.5; x_text_align = -4.5
     y_row1 = y_pos - 1.2; y_row2 = y_pos - 1.8; y_row3 = y_pos - 2.4; y_row4 = y_pos - 3.0
     
-    # Pouce
     if os.path.exists(path_pouce):
         ab = AnnotationBbox(OffsetImage(mpimg.imread(path_pouce), zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row1, "= Pouce", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
-    # Index
     if os.path.exists(path_index):
         ab = AnnotationBbox(OffsetImage(mpimg.imread(path_index), zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
-    # Ordre de jeu
     offsets = [-0.7, 0, 0.7]
     for i, off in enumerate(offsets):
         c = plt.Circle((x_icon_center + off, y_row3), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2); ax.add_patch(c)
         ax.text(x_icon_center + off, y_row3, str(i+1), ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
     ax.text(x_text_align, y_row3, "= Ordre de jeu", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
-    # Simultané
     x_simul_end = x_icon_center + 1.4
     ax.plot([x_icon_center - 0.7, x_simul_end - 0.7], [y_row4, y_row4], color=c_txt, lw=3, zorder=1)
     ax.add_patch(plt.Circle((x_icon_center - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2))
     ax.add_patch(plt.Circle((x_simul_end - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2))
     ax.text(x_text_align, y_row4, "= Notes simultanées", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
-    # Cordes
     x_droite = 1.5; y_text_top = y_pos - 1.2; line_height = 0.45
     ax.text(x_droite, y_text_top, "1G = 1ère corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     ax.text(x_droite, y_text_top - line_height, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
@@ -156,23 +149,18 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']
     prop_titre = get_font(32, 'bold')
-    
     fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond)
     ax.set_facecolor(c_fond)
-    
     ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     dessiner_contenu_legende(ax, 0.5, styles, mode_white)
-    
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
     return fig
 
 def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
-    
-    # Choix des icônes selon le mode
     path_pouce = CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE
     path_index = CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX
-
+    
     t_min = notes_page[0]['temps']
     t_max = notes_page[-1]['temps']
     lignes_sur_page = t_max - t_min + 1
@@ -189,7 +177,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold')
     prop_annotation = get_font(16, 'bold')
 
-    # Image de fond (Désactivée si mode white)
+    # Image de fond
     if not mode_white and options_visuelles['use_bg'] and os.path.exists(CHEMIN_IMAGE_FOND):
         try:
             img_fond = mpimg.imread(CHEMIN_IMAGE_FOND)
@@ -240,9 +228,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
             if 'doigt' in n:
                 doigt = n['doigt']; 
-                # Selection de l'image (standard ou blanc selon le mode)
                 img_path = path_index if doigt == 'I' else path_pouce
-                
                 succes_img = False
                 if os.path.exists(img_path):
                     try:
@@ -319,7 +305,15 @@ with tab1:
         
     with col_view:
         st.subheader("Aperçu")
+        
+        # --- LOGIQUE DE SESSION POUR PERSISTANCE ---
+        if 'gen_active' not in st.session_state:
+            st.session_state.gen_active = False
+
         if st.button("🔄 Générer la partition", type="primary"):
+            st.session_state.gen_active = True
+
+        if st.session_state.gen_active:
             
             # Styles Normaux (Ecran)
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
