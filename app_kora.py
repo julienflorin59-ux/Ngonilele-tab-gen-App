@@ -8,7 +8,7 @@ import io
 import os
 
 # ==============================================================================
-# 🎵 BANQUE DE DONNÉES (AJOUTE TES MORCEAUX ICI)
+# 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": """
@@ -339,10 +339,10 @@ with tab1:
         if texte_input != st.session_state.code_actuel:
             st.session_state.code_actuel = texte_input
 
-        # BOUTON SAUVEGARDE TXT
+        # BOUTON SAUVEGARDE TXT (CORRIGÉ POUR ÉVITER L'ERREUR KEYERROR)
         st.download_button(
             label="💾 Sauvegarder le code (.txt)",
-            data=st.session_state.code_actuel,
+            data=st.session_state.code_actuel.encode('utf-8'),
             file_name=f"{titre_partition.replace(' ', '_')}.txt",
             mime="text/plain"
         )
