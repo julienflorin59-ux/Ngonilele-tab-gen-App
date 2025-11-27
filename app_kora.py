@@ -281,7 +281,7 @@ with tab1:
     with col_input:
         st.subheader("Code")
         
-        # --- AIDE MISE À JOUR (Sans les doigts) ---
+        # --- AIDE MISE À JOUR ---
         with st.expander("ℹ️ Aide : Comment écrire la partition ?"):
             st.markdown("""
             - **Chiffre** (ex: `1`) : Début d'une mesure (Temps 1).
@@ -293,7 +293,7 @@ with tab1:
             - **TXT** : Ajouter un texte (ex: `+ TXT Refrain`).
             - **x2** : Répéter (ex: `+ 6D I x2`).
             """)
-        # ------------------------------------
+        # ------------------------
         
         texte_input = st.text_area("Saisissez votre tablature ici :", TEXTE_DEFAUT, height=600)
         
@@ -302,7 +302,9 @@ with tab1:
         if st.button("🔄 Générer la partition", type="primary"):
             
             styles = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-            opts = {'use_bg': use_bg_img, 'alpha': bg_alpha}
+            # CORRECTION ICI : J'ai renommé la variable pour éviter l'erreur
+            options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
+            
             sequence = parser_texte(texte_input)
             
             # --- 1. GÉNÉRATION DE LA PAGE LÉGENDE (PAGE 1) ---
