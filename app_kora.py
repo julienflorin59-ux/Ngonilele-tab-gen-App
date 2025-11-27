@@ -251,11 +251,15 @@ if 'code_actuel' not in st.session_state:
 if 'gen_active' not in st.session_state:
     st.session_state.gen_active = False
 
-# Fonction pour charger un morceau
+# Fonction pour charger un morceau (Mise à jour via clé)
 def charger_morceau():
     choix = st.session_state.selection_banque
     if choix in BANQUE_TABLATURES:
         st.session_state.code_actuel = BANQUE_TABLATURES[choix].strip()
+
+# Fonction de Callback pour le texte (LA CORRECTION EST ICI)
+def mise_a_jour_texte():
+    st.session_state.code_actuel = st.session_state.widget_input
 
 # 1. BARRE LATÉRALE
 with st.sidebar:
@@ -332,17 +336,19 @@ with tab1:
             - **x2** : Répéter (ex: `+ 6D I x2`).
             """)
         
-        # ZONE DE TEXTE (Reliée à la mémoire)
-        texte_input = st.text_area("Saisissez votre tablature ici :", value=st.session_state.code_actuel, height=500, key="text_area_code")
-        
-        # Mise à jour manuelle
-        if texte_input != st.session_state.code_actuel:
-            st.session_state.code_actuel = texte_input
+        # ZONE DE TEXTE AVEC CALLBACK (C'est ici que ça se joue)
+        st.text_area(
+            "Saisissez votre tablature ici :", 
+            value=st.session_state.code_actuel, 
+            height=500, 
+            key="widget_input",
+            on_change=mise_a_jour_texte
+        )
 
-        # BOUTON SAUVEGARDE TXT - VERSION SIMPLE (String directe)
+        # BOUTON SAUVEGARDE TXT (Version simple et robuste)
         st.download_button(
             label="💾 Sauvegarder le code (.txt)",
-            data=st.session_state.code_actuel, # Pas de .encode(), pas de io.BytesIO()
+            data=st.session_state.code_actuel,
             file_name=f"{titre_partition.replace(' ', '_')}.txt",
             mime="text/plain"
         )
