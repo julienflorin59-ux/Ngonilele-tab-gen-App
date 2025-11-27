@@ -12,10 +12,13 @@ import urllib.parse
 # 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
+    # 1. MORCEAU PAR DÉFAUT
     "--- Nouveau / Vide ---": """
 1   4D
 +   4G
 """,
+
+    # 2. MANITOUMANI
     "Manitoumani -M- & Lamomali": """
 1   4D   
 +   4G   
@@ -32,7 +35,7 @@ BANQUE_TABLATURES = {
 +  2G   
 =  5G   
 + 3G   
-+ 6D    x2
++ 6D   x2
 + 2G   
 = 5G   
 +   TXT  REPETER 2x (Reprendre au début)
@@ -46,7 +49,7 @@ BANQUE_TABLATURES = {
 +   2G   
 +   6D     x2
 +   2G   
-=   4G   
+=   4G  
 +   1D   
 +   2G   
 +   6D     x2
@@ -84,7 +87,7 @@ BANQUE_TABLATURES = {
 +  3G   
 +  6D    x2
 +  2G   
-=  5G   
+=  5G  
 + 3G   
 + 6D    x2
 + 2G   
@@ -92,13 +95,39 @@ BANQUE_TABLATURES = {
 """
 }
 
+# --- Chemins ---
+CHEMIN_POLICE = 'ML.ttf' 
+CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
+CHEMIN_ICON_POUCE = 'icon_pouce.png'
+CHEMIN_ICON_INDEX = 'icon_index.png'
+CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
+CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
+CHEMIN_LOGO_APP = 'ico_ngonilele.png' # <--- TON NOUVEAU LOGO
+
 # ==============================================================================
 # ⚙️ CONFIGURATION DE LA PAGE
 # ==============================================================================
-st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon="🪕")
+# On essaie de charger l'icône pour l'onglet du navigateur
+icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 
-st.title("🪕 Générateur de Tablature Ngonilélé")
-st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
+st.set_page_config(
+    page_title="Générateur Tablature Ngonilélé", 
+    layout="wide", 
+    page_icon=icon_page
+)
+
+# --- EN-TÊTE AVEC LOGO PERSONNALISÉ ---
+col_logo, col_titre = st.columns([1, 5]) # Une petite colonne pour l'image, une grande pour le titre
+
+with col_logo:
+    if os.path.exists(CHEMIN_LOGO_APP):
+        st.image(CHEMIN_LOGO_APP, width=100) # Tu peux ajuster la taille (80, 100, 120...)
+    else:
+        st.header("🪕") # Si l'image n'est pas trouvée, on met l'émoji
+
+with col_titre:
+    st.title("Générateur de Tablature Ngonilélé")
+    st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -114,14 +143,6 @@ COULEURS_CORDES_REF = {
 }
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
-
-# --- Chemins ---
-CHEMIN_POLICE = 'ML.ttf' 
-CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
-CHEMIN_ICON_POUCE = 'icon_pouce.png'
-CHEMIN_ICON_INDEX = 'icon_index.png'
-CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
-CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
 
 def get_font(size, weight='normal', style='normal'):
     if os.path.exists(CHEMIN_POLICE):
@@ -316,8 +337,9 @@ if 'gen_active' not in st.session_state:
 def charger_morceau():
     choix = st.session_state.selection_banque
     if choix in BANQUE_TABLATURES:
-        st.session_state.code_actuel = BANQUE_TABLATURES[choix].strip()
-        st.session_state.widget_input = st.session_state.code_actuel
+        nouveau_code = BANQUE_TABLATURES[choix].strip()
+        st.session_state.code_actuel = nouveau_code
+        st.session_state.widget_input = nouveau_code
 
 # Fonction de Callback pour le texte
 def mise_a_jour_texte():
@@ -339,7 +361,6 @@ with st.sidebar:
     st.markdown("---")
     
     titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
-    # --- MODIFICATION ICI : expanded=False ---
     with st.expander("🎨 Apparence", expanded=False):
         bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
@@ -352,7 +373,7 @@ with st.sidebar:
     st.markdown("### 🤝 Contribuer")
     st.write("Vous avez créé un super morceau ? Envoyez-le moi pour l'ajouter à la banque !")
     
-    mon_email = "julienflorin59@gmail.com" # ⚠️ REMPLACE PAR TON EMAIL
+    mon_email = "VOTRE_EMAIL@GMAIL.COM" # ⚠️ REMPLACE PAR TON EMAIL
     sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
     corps_mail = f"Bonjour,\n\nVoici une proposition de tablature :\n\nTitre : {titre_partition}\n\nCode :\n{st.session_state.code_actuel}"
     
