@@ -14,13 +14,82 @@ import urllib.parse
 BANQUE_TABLATURES = {
     # Mettez vos morceaux ici. Le premier de la liste sera celui affiché par défaut.
     "Nouveau / Vide": """
-1   4D
-+   4G
+
 """,
-    "Mon Premier Morceau": """
-1   4D
-+   4G
-=   2D
+    "Manitoumani -M- & Lamomali": """
+
+1  4D   I
++   4G   I
++   5D   I
++   5G   I
++   4G   I
+=   2D   P
++   3G   P
++   6D   I x2
++   2G   P
+=   5G   I
++  3G   P
++  6D   I x2
++  2G   P
+=  5G   I
++ 3G   P
++ 6D   I x2
++ 2G   P
+= 5G   I
++   TXT  REPETER 2x (Reprendre au début)
++   PAGE
++   4D   I
++   4G   I
++   5D   I
++   5G   I
++   4G   I
+=   1D   P
++   2G   P
++   6D   I  x2
++   2G   P
+=   4G   I
++   1D   P
++   2G   P
++   6D   I  x2
++   2G   P
+=   4G   I
++ S
++ S
++ PAGE
++   1G
++   3D
++   3G
++   5D
++   1G
++   3D
++   3G
++   5D
++ S
++ S
++ S
++ S
++ S
++ S
++ S
++ 4D   I
++ PAGE
++   4G   I
++   5D   I
++   5G   I
++   4G   I
+=   2D   P
++   3G   P
++   6D   I x2
++   2G   P
+=   5G   I
++  3G   P
++  6D   I x2
++  2G   P
+=  5G   I
++ 3G   P
++ 6D   I x2
++ 2G   P
+= 5G   I
 """,
 }
 
