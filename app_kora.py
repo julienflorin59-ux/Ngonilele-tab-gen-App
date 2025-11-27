@@ -339,7 +339,8 @@ with tab1:
         if texte_input != st.session_state.code_actuel:
             st.session_state.code_actuel = texte_input
 
-        # BOUTON SAUVEGARDE TXT (CORRIGÉ POUR ÉVITER L'ERREUR KEYERROR)
+        # BOUTON SAUVEGARDE TXT
+        # --- CORRECTION ICI : .encode('utf-8') pour éviter l'erreur KeyError ---
         st.download_button(
             label="💾 Sauvegarder le code (.txt)",
             data=st.session_state.code_actuel.encode('utf-8'),
