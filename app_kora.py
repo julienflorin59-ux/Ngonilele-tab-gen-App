@@ -373,7 +373,7 @@ with st.sidebar:
     st.markdown("### 🤝 Contribuer")
     st.write("Vous avez créé un super morceau ? Envoyez-le moi pour l'ajouter à la banque !")
     
-    mon_email = "VOTRE_EMAIL@GMAIL.COM" # ⚠️ REMPLACE PAR TON EMAIL
+    mon_email = "julienflorin59@gmail.com" # ⚠️ REMPLACE PAR TON EMAIL
     sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
     corps_mail = f"Bonjour,\n\nVoici une proposition de tablature :\n\nTitre : {titre_partition}\n\nCode :\n{st.session_state.code_actuel}"
     
