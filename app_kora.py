@@ -6,91 +6,23 @@ import matplotlib.image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import io
 import os
-import urllib.parse # Indispensable pour le lien email
+import urllib.parse
 
 # ==============================================================================
-# 🎵 BANQUE DE DONNÉES
+# 🎵 BANQUE DE DONNÉES (MODIFIEZ CELA COMME VOUS VOULEZ)
 # ==============================================================================
 BANQUE_TABLATURES = {
-    "--- Nouveau / Vide ---": """
+    # Mettez vos morceaux ici. Le premier de la liste sera celui affiché par défaut.
+    "Nouveau / Vide": """
 1   4D
 +   4G
 """,
-    "Manitoumani : -M- & Lamomali": """
-
-1  4D   I
-+   4G   I
-+   5D   I
-+   5G   I
-+   4G   I
-=   2D   P
-+   3G   P
-+   6D   I x2
-+   2G   P
-=   5G   I
-+  3G   P
-+  6D   I x2
-+  2G   P
-=  5G   I
-+ 3G   P
-+ 6D   I x2
-+ 2G   P
-= 5G   I
-+   TXT  REPETER 2x (Reprendre au début)
-+   PAGE
-+   4D   I
-+   4G   I
-+   5D   I
-+   5G   I
-+   4G   I
-=   1D   P
-+   2G   P
-+   6D   I  x2
-+   2G   P
-=   4G   I
-+   1D   P
-+   2G   P
-+   6D   I  x2
-+   2G   P
-=   4G   I
-+ S
-+ S
-+ PAGE
-+   1G
-+   3D
-+   3G
-+   5D
-+   1G
-+   3D
-+   3G
-+   5D
-+ S
-+ S
-+ S
-+ S
-+ S
-+ S
-+ S
-+ 4D   I
-+ PAGE
-+   4G   I
-+   5D   I
-+   5G   I
-+   4G   I
-=   2D   P
-+   3G   P
-+   6D   I x2
-+   2G   P
-=   5G   I
-+  3G   P
-+  6D   I x2
-+  2G   P
-=  5G   I
-+ 3G   P
-+ 6D   I x2
-+ 2G   P
-= 5G   I
-"""}
+    "Mon Premier Morceau": """
+1   4D
++   4G
+=   2D
+""",
+}
 
 # ==============================================================================
 # ⚙️ CONFIGURATION DE LA PAGE
@@ -301,8 +233,16 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
 # ==============================================================================
 
 # Gestion de la mémoire (State)
+# --- CORRECTION DE L'ERREUR KEYERROR ---
+# On sélectionne dynamiquement la première clé de la banque, quel que soit son nom.
+if len(BANQUE_TABLATURES) > 0:
+    PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
+else:
+    PREMIER_TITRE = "Défaut"
+    BANQUE_TABLATURES[PREMIER_TITRE] = ""
+
 if 'code_actuel' not in st.session_state:
-    st.session_state.code_actuel = BANQUE_TABLATURES["Exemple : Rythme de base"]
+    st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
 if 'gen_active' not in st.session_state:
     st.session_state.gen_active = False
 
@@ -344,12 +284,10 @@ with st.sidebar:
     st.markdown("### 🤝 Contribuer")
     st.write("Vous avez créé un super morceau ? Envoyez-le moi pour l'ajouter à la banque !")
     
-    # Prépare le lien mailto
-    mon_email = "julienflorin59@gmail.com" # ⚠️ REMPLACE CECI PAR TON EMAIL !
+    mon_email = "VOTRE_EMAIL@GMAIL.COM" # ⚠️ METS TON EMAIL ICI
     sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
     corps_mail = f"Bonjour,\n\nVoici une proposition de tablature :\n\nTitre : {titre_partition}\n\nCode :\n{st.session_state.code_actuel}"
     
-    # Encodage URL propre
     sujet_encoded = urllib.parse.quote(sujet_mail)
     corps_encoded = urllib.parse.quote(corps_mail)
     mailto_link = f"mailto:{mon_email}?subject={sujet_encoded}&body={corps_encoded}"
