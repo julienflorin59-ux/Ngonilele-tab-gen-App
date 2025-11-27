@@ -339,13 +339,14 @@ with tab1:
         if texte_input != st.session_state.code_actuel:
             st.session_state.code_actuel = texte_input
 
-        # BOUTON SAUVEGARDE TXT
-        # --- CORRECTION ICI : .encode('utf-8') pour éviter l'erreur KeyError ---
+        # BOUTON SAUVEGARDE TXT (CORRECTION BYTESIO)
+        file_to_download = io.BytesIO(st.session_state.code_actuel.encode('utf-8'))
         st.download_button(
             label="💾 Sauvegarder le code (.txt)",
-            data=st.session_state.code_actuel.encode('utf-8'),
+            data=file_to_download,
             file_name=f"{titre_partition.replace(' ', '_')}.txt",
-            mime="text/plain"
+            mime="text/plain",
+            key="btn_dl_txt"
         )
         
     with col_view:
