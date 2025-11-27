@@ -31,6 +31,9 @@ TEXTE_DEFAUT = """
 +   6D   I x2
 +   2G   P
 =   5G   I
++   PAGE
++   TXT  Partie 2
++   4D   I
 """
 
 POSITIONS_X = {
@@ -44,12 +47,10 @@ COULEURS_CORDES_REF = {
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
 
-# --- Gestion des fichiers locaux (Optionnel) ---
-# Si vous avez les fichiers sur votre PC, mettez les chemins ici. Sinon, le code utilisera des défauts.
+# --- Chemins ---
 CHEMIN_POLICE = 'ML.ttf' 
 CHEMIN_ICON_POUCE = 'icon_pouce.png'
 CHEMIN_ICON_INDEX = 'icon_index.png'
-# J'ai renommé le fichier attendu ici :
 CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
 
 def get_font(size, weight='normal', style='normal'):
@@ -95,10 +96,66 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎨 MOTEUR D'AFFICHAGE (Adapté pour Streamlit)
+# 🎨 MOTEUR D'AFFICHAGE
 # ==============================================================================
 
-def generer_page_matplotlib(notes_page, idx, titre, config_acc, styles, options_visuelles):
+def dessiner_contenu_legende(ax, y_pos, styles):
+    c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
+    prop_annotation = get_font(16, 'bold'); prop_legende = get_font(12, 'bold')
+    
+    # Cadre
+    rect = patches.FancyBboxPatch((-7.5, y_pos - 3.6), 15, 3.3, boxstyle="round,pad=0.1", linewidth=1.5, edgecolor=c_txt, facecolor=c_fond, zorder=0)
+    ax.add_patch(rect)
+    ax.text(0, y_pos - 0.6, "LÉGENDE", ha='center', va='center', fontsize=14, fontweight='bold', color=c_txt, fontproperties=prop_annotation)
+    
+    x_icon_center = -5.5; x_text_align = -4.5
+    y_row1 = y_pos - 1.2; y_row2 = y_pos - 1.8; y_row3 = y_pos - 2.4; y_row4 = y_pos - 3.0
+    
+    # Pouce
+    if os.path.exists(CHEMIN_ICON_POUCE):
+        ab = AnnotationBbox(OffsetImage(mpimg.imread(CHEMIN_ICON_POUCE), zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
+    ax.text(x_text_align, y_row1, "= Pouce", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    
+    # Index
+    if os.path.exists(CHEMIN_ICON_INDEX):
+        ab = AnnotationBbox(OffsetImage(mpimg.imread(CHEMIN_ICON_INDEX), zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
+    ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    
+    # Ordre de jeu
+    offsets = [-0.7, 0, 0.7]
+    for i, off in enumerate(offsets):
+        c = plt.Circle((x_icon_center + off, y_row3), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2); ax.add_patch(c)
+        ax.text(x_icon_center + off, y_row3, str(i+1), ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
+    ax.text(x_text_align, y_row3, "= Ordre de jeu", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    
+    # Simultané
+    x_simul_end = x_icon_center + 1.4
+    ax.plot([x_icon_center - 0.7, x_simul_end - 0.7], [y_row4, y_row4], color=c_txt, lw=3, zorder=1)
+    ax.add_patch(plt.Circle((x_icon_center - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2))
+    ax.add_patch(plt.Circle((x_simul_end - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2))
+    ax.text(x_text_align, y_row4, "= Notes simultanées", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    
+    # Cordes
+    x_droite = 1.5; y_text_top = y_pos - 1.2; line_height = 0.45
+    ax.text(x_droite, y_text_top, "1G = 1ère corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    ax.text(x_droite, y_text_top - line_height, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    ax.text(x_droite, y_text_top - line_height*2, "1D = 1ère corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    ax.text(x_droite, y_text_top - line_height*3, "2D = 2ème corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+
+def generer_page_1_legende(titre, styles):
+    c_fond = styles['FOND']; c_txt = styles['TEXTE']
+    prop_titre = get_font(32, 'bold')
+    
+    fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond)
+    ax.set_facecolor(c_fond)
+    
+    ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
+    dessiner_contenu_legende(ax, 0.5, styles)
+    
+    ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
+    return fig
+
+def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     
     t_min = notes_page[0]['temps']
@@ -112,12 +169,9 @@ def generer_page_matplotlib(notes_page, idx, titre, config_acc, styles, options_
     y_top = 2.5; y_bot = - (t_max - t_min) - 1.5; y_top_cordes = y_top
 
     # Fonts
-    prop_titre = get_font(32, 'bold')
-    prop_texte = get_font(20, 'bold')
-    prop_note_us = get_font(24, 'bold')
-    prop_note_eu = get_font(18, 'normal', 'italic')
-    prop_numero = get_font(14, 'bold')
-    prop_standard = get_font(14, 'bold')
+    prop_titre = get_font(32, 'bold'); prop_texte = get_font(20, 'bold')
+    prop_note_us = get_font(24, 'bold'); prop_note_eu = get_font(18, 'normal', 'italic')
+    prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold')
     prop_annotation = get_font(16, 'bold')
 
     # Image de fond
@@ -154,9 +208,7 @@ def generer_page_matplotlib(notes_page, idx, titre, config_acc, styles, options_
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
 
-    notes_par_temps_relatif = {}
-    rayon = 0.30
-    
+    notes_par_temps_relatif = {}; rayon = 0.30
     for n in notes_page:
         t_absolu = n['temps']; y = -(t_absolu - t_min)
         if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
@@ -171,21 +223,17 @@ def generer_page_matplotlib(notes_page, idx, titre, config_acc, styles, options_
             ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3))
             ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
-            
-            # Doigts (Images ou Texte)
             if 'doigt' in n:
-                doigt = n['doigt']
-                img_path = CHEMIN_ICON_INDEX if doigt == 'I' else CHEMIN_ICON_POUCE
+                doigt = n['doigt']; img_path = CHEMIN_ICON_INDEX if doigt == 'I' else CHEMIN_ICON_POUCE
                 succes_img = False
                 if os.path.exists(img_path):
                     try:
                         ab = AnnotationBbox(OffsetImage(mpimg.imread(img_path), zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8)
                         ax.add_artist(ab); succes_img = True
                     except: pass
-                if not succes_img:
-                    ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
+                if not succes_img: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
 
-    # Liaisons simultanées
+    # Liaisons
     for y, group in notes_par_temps_relatif.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
@@ -197,11 +245,10 @@ def generer_page_matplotlib(notes_page, idx, titre, config_acc, styles, options_
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
-# 1. BARRE LATÉRALE (Contrôles Globaux)
+# 1. BARRE LATÉRALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
-    
     with st.expander("🎨 Apparence"):
         bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
@@ -215,17 +262,13 @@ with tab2:
     col_g, col_d = st.columns(2)
     acc_config = {}
     notes_gamme = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
-    
-    # Valeurs par défaut
     DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
-
     with col_g:
         st.write("**Main Gauche**")
         for i in range(1, 7):
             k = f"{i}G"
             val = st.selectbox(f"Corde {k}", notes_gamme, index=notes_gamme.index(DEF_ACC[k]), key=k)
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
-    
     with col_d:
         st.write("**Main Droite**")
         for i in range(1, 7):
@@ -235,9 +278,24 @@ with tab2:
 
 with tab1:
     col_input, col_view = st.columns([1, 2])
-    
     with col_input:
         st.subheader("Code")
+        
+        # --- NOUVEAUTÉ : AIDE DÉROULANTE ---
+        with st.expander("ℹ️ Aide : Comment écrire la partition ?"):
+            st.markdown("""
+            - **Chiffre** (ex: `1`) : Début d'une mesure (Temps 1).
+            - **+** : Temps suivant.
+            - **=** : Même temps (simultané).
+            - **4G, 2D...** : La corde (Chiffre + G/D).
+            - **I / P** : Index / Pouce.
+            - **S** : Silence (laisse un espace vide).
+            - **PAGE** : Force un saut de page ici.
+            - **TXT** : Ajouter un texte (ex: `+ TXT Refrain`).
+            - **x2** : Répéter (ex: `+ 6D I x2`).
+            """)
+        # ------------------------------------
+        
         texte_input = st.text_area("Saisissez votre tablature ici :", TEXTE_DEFAUT, height=600)
         
     with col_view:
@@ -246,10 +304,19 @@ with tab1:
             
             styles = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             opts = {'use_bg': use_bg_img, 'alpha': bg_alpha}
-            
             sequence = parser_texte(texte_input)
             
-            # Découpage en pages
+            # --- 1. GÉNÉRATION DE LA PAGE LÉGENDE (PAGE 1) ---
+            st.markdown("### Page 1 : Légende")
+            fig_leg = generer_page_1_legende(titre_partition, styles)
+            st.pyplot(fig_leg)
+            buf_leg = io.BytesIO()
+            fig_leg.savefig(buf_leg, format="png", dpi=200, facecolor=bg_color, bbox_inches='tight')
+            buf_leg.seek(0)
+            st.download_button(label="⬇️ Télécharger Légende", data=buf_leg, file_name=f"{titre_partition}_Legende.png", mime="image/png")
+            plt.close(fig_leg)
+            
+            # --- 2. GÉNÉRATION DES PAGES DE NOTES (PAGE 2+) ---
             pages_data = []; current_page = []
             for n in sequence:
                 if n['corde'] == 'PAGE_BREAK':
@@ -261,17 +328,11 @@ with tab1:
                 st.warning("Aucune note détectée.")
             else:
                 for idx, page in enumerate(pages_data):
-                    fig = generer_page_matplotlib(page, idx+1, titre_partition, acc_config, styles, opts)
+                    st.markdown(f"### Page {idx+2}")
+                    fig = generer_page_notes(page, idx+2, titre_partition, acc_config, styles, options_visuelles)
                     st.pyplot(fig)
-                    
-                    # Bouton de téléchargement pour chaque page
                     buf = io.BytesIO()
                     fig.savefig(buf, format="png", dpi=200, facecolor=bg_color, bbox_inches='tight')
                     buf.seek(0)
-                    st.download_button(
-                        label=f"⬇️ Télécharger Page {idx+1}",
-                        data=buf,
-                        file_name=f"{titre_partition}_Page_{idx+1}.png",
-                        mime="image/png"
-                    )
+                    st.download_button(label=f"⬇️ Télécharger Page {idx+2}", data=buf, file_name=f"{titre_partition}_Page_{idx+2}.png", mime="image/png")
                     plt.close(fig)
