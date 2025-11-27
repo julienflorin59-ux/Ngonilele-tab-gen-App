@@ -12,12 +12,10 @@ import urllib.parse
 # 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
-    # 1. MORCEAU PAR DÉFAUT
     "--- Nouveau / Vide ---": """
-
+1   4D
++   4G
 """,
-
-    # 2. MANITOUMANI (Ajouté ici correctement)
     "Manitoumani -M- & Lamomali": """
 1   4D   I
 +   4G   I
@@ -92,7 +90,6 @@ BANQUE_TABLATURES = {
 + 2G   P
 = 5G   I
 """
-    # N'oubliez pas la virgule finale si vous ajoutez d'autres morceaux !
 }
 
 # ==============================================================================
@@ -320,7 +317,7 @@ def charger_morceau():
     choix = st.session_state.selection_banque
     if choix in BANQUE_TABLATURES:
         st.session_state.code_actuel = BANQUE_TABLATURES[choix].strip()
-        st.session_state.widget_input = st.session_state.code_actuel # Synchro forcée
+        st.session_state.widget_input = st.session_state.code_actuel
 
 # Fonction de Callback pour le texte
 def mise_a_jour_texte():
@@ -342,7 +339,8 @@ with st.sidebar:
     st.markdown("---")
     
     titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
-    with st.expander("🎨 Apparence", expanded=True):
+    # --- MODIFICATION ICI : expanded=False ---
+    with st.expander("🎨 Apparence", expanded=False):
         bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
@@ -354,7 +352,7 @@ with st.sidebar:
     st.markdown("### 🤝 Contribuer")
     st.write("Vous avez créé un super morceau ? Envoyez-le moi pour l'ajouter à la banque !")
     
-    mon_email = "VOTRE_EMAIL@GMAIL.COM" # ⚠️ METS TON EMAIL ICI
+    mon_email = "julienflorin59@gmail.com" # ⚠️ REMPLACE PAR TON EMAIL
     sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
     corps_mail = f"Bonjour,\n\nVoici une proposition de tablature :\n\nTitre : {titre_partition}\n\nCode :\n{st.session_state.code_actuel}"
     
@@ -426,10 +424,9 @@ with tab1:
             - **x2** : Répéter (ex: `+ 6D I x2`).
             """)
         
-        # ZONE DE TEXTE (LIAISON NATIVE avec session_state)
+        # ZONE DE TEXTE (LIAISON NATIVE)
         st.text_area(
             "Saisissez votre tablature ici :", 
-            value=st.session_state.code_actuel, 
             height=500, 
             key="widget_input",
             on_change=mise_a_jour_texte
