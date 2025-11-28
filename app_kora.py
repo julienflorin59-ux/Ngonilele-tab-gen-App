@@ -9,18 +9,9 @@ import os
 import urllib.parse
 import numpy as np
 
-# --- GESTION DES IMPORTS (ROBUSTE) ---
-try:
-    from moviepy.editor import ImageClip, CompositeVideoClip
-    HAS_MOVIEPY = True
-except ImportError:
-    HAS_MOVIEPY = False
-
-try:
-    from pydub import AudioSegment
-    HAS_PYDUB = True
-except ImportError:
-    HAS_PYDUB = False
+# --- IMPORTS DIRECTS (On fait confiance à requirements.txt) ---
+from moviepy.editor import ImageClip, CompositeVideoClip
+from pydub import AudioSegment
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -120,56 +111,43 @@ DOSSIER_SAMPLES = 'samples'
 
 # Chargement icone page
 icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
-st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
+
+st.set_page_config(
+    page_title="Générateur Tablature Ngonilélé", 
+    layout="wide", 
+    page_icon=icon_page,
+    initial_sidebar_state="collapsed" # On force le menu fermé au démarrage
+)
 
 # ==============================================================================
-# 🎨 CSS HACK V4 : LE BOUTON ROUGE "NUCLÉAIRE"
+# 🎨 CSS HACK V5 : LE BOUTON ROUGE (CIBLAGE LARGE)
 # ==============================================================================
-# Ce CSS force l'affichage du bouton de menu en rouge, peu importe l'état du téléphone.
 st.markdown("""
     <style>
-    /* Force le bouton du menu à être rouge et carré */
-    button[kind="header"] {
+    /* Force TOUS les boutons de header à gauche (souvent le menu) à être rouges */
+    header > div:first-child button {
         background-color: #FF4B4B !important;
         border: 2px solid white !important;
         color: white !important;
-        padding: 5px !important;
-        border-radius: 5px !important;
+        border-radius: 8px !important;
         opacity: 1 !important;
-        z-index: 99999 !important;
-        display: block !important;
-        visibility: visible !important;
-        height: 3rem !important;
-        width: 3rem !important;
+        padding: 0.5rem !important;
     }
     
-    /* Cible spécifiquement la flèche pour qu'elle soit blanche */
-    button[kind="header"] svg {
-        fill: white !important;
-        stroke: white !important;
+    /* Cible spécifique pour Streamlit récent */
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: #FF4B4B !important;
+        border: 2px solid white !important;
+        color: white !important;
     }
 
-    /* Ajoute un label MENU flottant à côté */
-    button[kind="header"]::after {
+    /* Ajout du label "MENU" */
+    [data-testid="stSidebarCollapsedControl"]::after {
         content: "MENU";
-        position: absolute;
-        left: 110%;
-        top: 50%;
-        transform: translateY(-50%);
-        background: #FF4B4B;
-        color: white;
-        padding: 2px 5px;
-        border-radius: 4px;
-        font-size: 10px;
         font-weight: bold;
-    }
-    
-    /* Sur mobile, on force l'affichage du header si Streamlit essaie de le cacher */
-    @media (max-width: 640px) {
-        .stApp > header {
-            display: block !important;
-            visibility: visible !important;
-        }
+        font-size: 12px;
+        color: white;
+        margin-left: 5px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -242,22 +220,18 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO (PYDUB)
+# 🎹 MOTEUR AUDIO
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
-    if not HAS_PYDUB: return None
     if not sequence: return None
     samples_loaded = {}
-    
-    # Vérification du dossier
-    if not os.path.exists(DOSSIER_SAMPLES):
-        st.error(f"Le dossier '{DOSSIER_SAMPLES}' n'existe pas dans le GitHub.")
-        return None
-        
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
+    
+    # Chargement des sons
     for corde in cordes_utilisees:
         nom_fichier = f"{corde}.mp3"
         chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
+        # Essai majuscule puis minuscule
         if os.path.exists(chemin): 
             samples_loaded[corde] = AudioSegment.from_mp3(chemin)
         else:
@@ -265,16 +239,18 @@ def generer_audio_mix(sequence, bpm):
             if os.path.exists(chemin_min): 
                 samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
             else:
-                st.warning(f"Fichier son manquant : {nom_fichier}")
+                # Pour éviter de bloquer, on ignore le son manquant mais on logue
+                print(f"⚠️ Son manquant : {nom_fichier}")
 
     if not samples_loaded:
-        st.error("Aucun fichier MP3 valide trouvé.")
+        st.error("Aucun fichier MP3 chargé. Vérifiez le dossier 'samples'.")
         return None
 
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     mix = AudioSegment.silent(duration=duree_totale_ms)
+    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
@@ -282,6 +258,7 @@ def generer_audio_mix(sequence, bpm):
             pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
+            
     buffer = io.BytesIO()
     mix.export(buffer, format="mp3")
     buffer.seek(0)
@@ -412,7 +389,6 @@ def generer_image_longue(sequence, config_acc, styles):
     return buf
 
 def creer_video_scrolling(image_buffer, duration_sec=10, fps=24):
-    if not HAS_MOVIEPY: return None
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
     window_h = int(w * 9 / 16); 
@@ -514,84 +490,4 @@ with tab1:
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
-            sequence = parser_texte(st.session_state.code_actuel)
-            
-            st.markdown("### Page 1 : Légende")
-            fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
-            st.pyplot(fig_leg_ecran)
-            if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
-            else: fig_leg_dl = fig_leg_ecran
-            buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
-            st.download_button(label="⬇️ Télécharger Légende", data=buf_leg, file_name=f"{titre_partition}_Legende.png", mime="image/png")
-            plt.close(fig_leg_ecran); 
-            if force_white_print: plt.close(fig_leg_dl)
-            
-            pages_data = []; current_page = []
-            for n in sequence:
-                if n['corde'] == 'PAGE_BREAK':
-                    if current_page: pages_data.append(current_page); current_page = []
-                else: current_page.append(n)
-            if current_page: pages_data.append(current_page)
-            
-            if not pages_data: st.warning("Aucune note détectée.")
-            else:
-                for idx, page in enumerate(pages_data):
-                    st.markdown(f"### Page {idx+2}")
-                    fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
-                    st.pyplot(fig_ecran)
-                    if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
-                    else: fig_dl = fig_ecran
-                    buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
-                    st.download_button(label=f"⬇️ Télécharger Page {idx+2}", data=buf, file_name=f"{titre_partition}_Page_{idx+2}.png", mime="image/png")
-                    plt.close(fig_ecran); 
-                    if force_white_print: plt.close(fig_dl)
-
-# --- TAB VIDEO ---
-with tab3:
-    st.subheader("Générateur de Vidéo Défilante")
-    st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
-    col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
-        seq = parser_texte(st.session_state.code_actuel)
-        if seq:
-            nb_temps = seq[-1]['temps'] - seq[0]['temps']
-            duree_estimee = nb_temps * (60/bpm)
-            st.write(f"Durée : {int(duree_estimee)}s")
-        else: duree_estimee = 10
-    with col_v2:
-        btn_video = st.button("🎥 Générer Vidéo")
-
-    if btn_video:
-        if not HAS_MOVIEPY: st.error("Le module 'moviepy' n'est pas installé.")
-        else:
-            with st.spinner("Génération..."):
-                styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                sequence = parser_texte(st.session_state.code_actuel)
-                img_buffer = generer_image_longue(sequence, acc_config, styles_video)
-            if img_buffer:
-                with st.spinner("Encodage..."):
-                    try:
-                        video_path = creer_video_scrolling(img_buffer, duration_sec=duree_estimee)
-                        st.success("Terminé !")
-                        st.video(video_path)
-                        with open(video_path, "rb") as file: st.download_button(label="⬇️ Télécharger .mp4", data=file, file_name="ngoni_scroll.mp4", mime="video/mp4")
-                    except Exception as e: st.error(f"Erreur : {e}")
-
-# --- TAB AUDIO ---
-with tab4:
-    st.subheader("Générateur Audio 🎧")
-    st.info("Nécessite le dossier 'samples' avec 1G.mp3, 2G.mp3... 6D.mp3")
-    col_a1, col_a2 = st.columns(2)
-    with col_a1: bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
-    with col_a2: btn_audio = st.button("🎵 Générer Audio")
-    if btn_audio:
-        if not HAS_PYDUB: st.error("Le module 'pydub' n'est pas installé.")
-        else:
-            with st.spinner("Mixage..."):
-                sequence = parser_texte(st.session_state.code_actuel)
-                mp3_buffer = generer_audio_mix(sequence, bpm_audio)
-                if mp3_buffer:
-                    st.success("Terminé !")
-                    st.audio(mp3_buffer, format="audio/mp3")
-                    st.download_button(label="⬇️ Télécharger le MP3", data=mp3_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg")
+            sequence = parser_
