@@ -9,14 +9,13 @@ import os
 import urllib.parse
 import numpy as np
 
-# Gestion MoviePy (Vidéo)
+# --- GESTION DES IMPORTS (ROBUSTE) ---
 try:
     from moviepy.editor import ImageClip, CompositeVideoClip
     HAS_MOVIEPY = True
 except ImportError:
     HAS_MOVIEPY = False
 
-# Gestion Pydub (Audio)
 try:
     from pydub import AudioSegment
     HAS_PYDUB = True
@@ -124,45 +123,53 @@ icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
 
 # ==============================================================================
-# 🎨 CSS HACK V3 (VERSION BLINDÉE)
+# 🎨 CSS HACK V4 : LE BOUTON ROUGE "NUCLÉAIRE"
 # ==============================================================================
+# Ce CSS force l'affichage du bouton de menu en rouge, peu importe l'état du téléphone.
 st.markdown("""
     <style>
-    /* Cible le bouton par son attribut data-testid */
-    [data-testid="stSidebarCollapsedControl"] {
+    /* Force le bouton du menu à être rouge et carré */
+    button[kind="header"] {
         background-color: #FF4B4B !important;
-        color: white !important;
         border: 2px solid white !important;
-        border-radius: 8px !important;
-        padding: 0.5rem !important;
-        margin-top: 1rem !important;
-        margin-left: 1rem !important;
-        box-shadow: 2px 2px 8px rgba(0,0,0,0.5) !important;
-        z-index: 999999 !important; /* Force à passer au dessus */
+        color: white !important;
+        padding: 5px !important;
+        border-radius: 5px !important;
         opacity: 1 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-width: 40px !important;
-        min-height: 40px !important;
-    }
-
-    /* Force la couleur de l'icône SVG à l'intérieur */
-    [data-testid="stSidebarCollapsedControl"] svg {
-        fill: white !important;
-        stroke: white !important;
-        width: 20px !important;
-        height: 20px !important;
+        z-index: 99999 !important;
+        display: block !important;
+        visibility: visible !important;
+        height: 3rem !important;
+        width: 3rem !important;
     }
     
-    /* Ajoute le texte MENU après l'icône */
-    [data-testid="stSidebarCollapsedControl"]::after {
+    /* Cible spécifiquement la flèche pour qu'elle soit blanche */
+    button[kind="header"] svg {
+        fill: white !important;
+        stroke: white !important;
+    }
+
+    /* Ajoute un label MENU flottant à côté */
+    button[kind="header"]::after {
         content: "MENU";
-        color: white !important;
-        font-weight: 900 !important;
-        font-size: 14px !important;
-        margin-left: 5px !important;
-        text-shadow: 1px 1px 2px black !important;
+        position: absolute;
+        left: 110%;
+        top: 50%;
+        transform: translateY(-50%);
+        background: #FF4B4B;
+        color: white;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: bold;
+    }
+    
+    /* Sur mobile, on force l'affichage du header si Streamlit essaie de le cacher */
+    @media (max-width: 640px) {
+        .stApp > header {
+            display: block !important;
+            visibility: visible !important;
+        }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -175,8 +182,6 @@ with col_logo:
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
-    # On garde le message texte au cas où le CSS échoue sur certains vieux téléphones
-    st.info("📱 **Sur mobile :** Cliquez sur le bouton **ROUGE 'MENU'** en haut à gauche.")
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -243,18 +248,29 @@ def generer_audio_mix(sequence, bpm):
     if not HAS_PYDUB: return None
     if not sequence: return None
     samples_loaded = {}
-    fichiers_dispos = os.listdir(DOSSIER_SAMPLES) if os.path.exists(DOSSIER_SAMPLES) else []
+    
+    # Vérification du dossier
+    if not os.path.exists(DOSSIER_SAMPLES):
+        st.error(f"Le dossier '{DOSSIER_SAMPLES}' n'existe pas dans le GitHub.")
+        return None
+        
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     for corde in cordes_utilisees:
         nom_fichier = f"{corde}.mp3"
         chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
-        if os.path.exists(chemin): samples_loaded[corde] = AudioSegment.from_mp3(chemin)
+        if os.path.exists(chemin): 
+            samples_loaded[corde] = AudioSegment.from_mp3(chemin)
         else:
             chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
-            if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
+            if os.path.exists(chemin_min): 
+                samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
+            else:
+                st.warning(f"Fichier son manquant : {nom_fichier}")
+
     if not samples_loaded:
-        st.error(f"Aucun fichier MP3 trouvé dans le dossier '{DOSSIER_SAMPLES}'.")
+        st.error("Aucun fichier MP3 valide trouvé.")
         return None
+
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
@@ -298,7 +314,8 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
 
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font(32, 'bold')
-    fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond); ax.set_facecolor(c_fond)
+    fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond)
+    ax.set_facecolor(c_fond)
     ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     dessiner_contenu_legende(ax, 0.5, styles, mode_white)
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
