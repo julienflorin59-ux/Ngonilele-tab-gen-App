@@ -9,25 +9,20 @@ import os
 import urllib.parse
 import numpy as np
 
-# --- IMPORTS SÉCURISÉS ---
-# On importe pydub en premier pour vérifier le son
-try:
-    from pydub import AudioSegment
-    HAS_PYDUB = True
-except ImportError:
-    HAS_PYDUB = False
-
-# On importe MoviePy. Attention, avec la version 1.0.3, l'import est spécifique
+# --- GESTION DES IMPORTS SÉCURISÉE (ANTI-CRASH) ---
+HAS_MOVIEPY = False
 try:
     from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
     HAS_MOVIEPY = True
-except ImportError:
-    # Fallback si l'installation est bancale
-    HAS_MOVIEPY = False
 except Exception as e:
-    # Pour attraper les erreurs type "Numpy version"
-    print(f"Erreur critique MoviePy : {e}")
-    HAS_MOVIEPY = False
+    print(f"⚠️ Erreur Import MoviePy (Vidéo désactivée): {e}")
+
+HAS_PYDUB = False
+try:
+    from pydub import AudioSegment
+    HAS_PYDUB = True
+except Exception as e:
+    print(f"⚠️ Erreur Import Pydub (Audio désactivé): {e}")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -130,28 +125,33 @@ icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
 
 # ==============================================================================
-# 🎨 CSS HACK V5
+# 🎨 CSS HACK V5 : LE BOUTON ROUGE
 # ==============================================================================
 st.markdown("""
     <style>
-    button[kind="header"] {
+    /* Cible le bouton du menu (plusieurs sélecteurs pour être sûr) */
+    [data-testid="stSidebarCollapsedControl"], button[kind="header"] {
         background-color: #FF4B4B !important;
         border: 2px solid white !important;
         color: white !important;
         padding: 5px !important;
-        border-radius: 5px !important;
+        border-radius: 8px !important;
         opacity: 1 !important;
-        z-index: 99999 !important;
+        z-index: 999999 !important;
         display: block !important;
         visibility: visible !important;
-        height: 3rem !important;
-        width: 3rem !important;
+        height: 44px !important;
+        width: 44px !important;
     }
-    button[kind="header"] svg {
+    
+    /* La flèche à l'intérieur */
+    [data-testid="stSidebarCollapsedControl"] svg, button[kind="header"] svg {
         fill: white !important;
         stroke: white !important;
     }
-    button[kind="header"]::after {
+
+    /* Le label "MENU" */
+    [data-testid="stSidebarCollapsedControl"]::after, button[kind="header"]::after {
         content: "MENU";
         position: absolute;
         left: 110%;
@@ -159,16 +159,11 @@ st.markdown("""
         transform: translateY(-50%);
         background: #FF4B4B;
         color: white;
-        padding: 2px 5px;
+        padding: 2px 6px;
         border-radius: 4px;
-        font-size: 10px;
+        font-size: 11px;
         font-weight: bold;
-    }
-    @media (max-width: 640px) {
-        .stApp > header {
-            display: block !important;
-            visibility: visible !important;
-        }
+        pointer-events: none;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -244,40 +239,27 @@ def parser_texte(texte):
 # 🎹 MOTEUR AUDIO (PYDUB)
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
-    if not HAS_PYDUB:
-        st.error("❌ Le module 'pydub' n'est pas chargé.")
-        return None
-    if not sequence:
-        st.warning("⚠️ La partition est vide.")
-        return None
+    if not HAS_PYDUB: return None
+    if not sequence: return None
+    samples_loaded = {}
     
     if not os.path.exists(DOSSIER_SAMPLES):
-        st.error(f"❌ Dossier introuvable : '{DOSSIER_SAMPLES}'. Vérifiez le nom sur GitHub.")
+        st.error(f"Dossier '{DOSSIER_SAMPLES}' introuvable.")
         return None
-
-    samples_loaded = {}
+        
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
-    
-    missing_files = []
     
     for corde in cordes_utilisees:
         nom_fichier = f"{corde}.mp3"
         chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
-        
         if os.path.exists(chemin): 
             samples_loaded[corde] = AudioSegment.from_mp3(chemin)
         else:
             chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
-            if os.path.exists(chemin_min): 
-                samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
-            else:
-                missing_files.append(nom_fichier)
-
-    if missing_files:
-        st.warning(f"⚠️ Sons manquants : {', '.join(missing_files)}")
+            if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
 
     if not samples_loaded:
-        st.error("❌ Aucun fichier MP3 valide n'a pu être chargé.")
+        st.error("Aucun fichier MP3 valide trouvé.")
         return None
 
     ms_par_temps = 60000 / bpm
@@ -378,6 +360,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
+# --- VIDEO ---
 def generer_image_longue(sequence, config_acc, styles):
     if not sequence: return None
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
@@ -423,51 +406,27 @@ def generer_image_longue(sequence, config_acc, styles):
     return buf
 
 def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
-    # Ecrire l'image temporaire
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
-    
-    # Ecrire l'audio temporaire
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-
-    # Charger l'image
-    clip_img = ImageClip("temp_score.png")
-    w, h = clip_img.size
-    
-    # Hauteur fenêtre
-    window_h = int(w * 9 / 16)
+    clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
+    window_h = int(w * 9 / 16); 
     if window_h > h: window_h = h
     video_h = 600 
-    
-    # Animation (Défilement bas -> haut pour simuler la lecture)
-    # Y part de 0 (haut de l'image aligné haut video) et va vers -(h - video_h)
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
-    
-    # Ajouter l'audio
     audio_clip = AudioFileClip("temp_audio.mp3")
-    # IMPORTANT : Couper l'audio si trop long ou trop court pour éviter des erreurs
     audio_clip = audio_clip.subclip(0, duration_sec)
-    
     video_with_audio = moving_clip.set_audio(audio_clip)
-    
-    # Rendu
-    final = CompositeVideoClip([video_with_audio], size=(w, video_h))
-    final.fps = fps
-    
+    final = CompositeVideoClip([video_with_audio], size=(w, video_h)); final.fps = fps
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
-    
-    # Clean
-    audio_clip.close()
-    final.close()
-    
+    audio_clip.close(); final.close()
     return output_filename
 
 # ==============================================================================
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
-# Session State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -483,7 +442,6 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
-# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -506,7 +464,6 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
-# ONGLETS
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
@@ -590,53 +547,53 @@ with tab3:
     st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
     
     if not HAS_MOVIEPY:
-        st.error("❌ Le module 'moviepy' n'est pas installé. (Vérifiez requirements.txt : moviepy==1.0.3)")
-    if not HAS_PYDUB:
-        st.error("❌ Le module 'pydub' n'est pas installé. (Vérifiez requirements.txt)")
-        
-    col_v1, col_v2 = st.columns(2)
-    with col_v1:
-        bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
-        seq = parser_texte(st.session_state.code_actuel)
-        if seq:
-            nb_temps = seq[-1]['temps'] - seq[0]['temps']
-            duree_estimee = nb_temps * (60/bpm)
-            st.write(f"Durée : {int(duree_estimee)}s")
-        else: duree_estimee = 10
-    with col_v2:
-        btn_video = st.button("🎥 Générer Vidéo + Audio")
+        st.error("❌ Le module 'moviepy' n'est pas installé.")
+    elif not HAS_PYDUB:
+        st.error("❌ Le module 'pydub' n'est pas installé.")
+    else:
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
+            seq = parser_texte(st.session_state.code_actuel)
+            if seq:
+                nb_temps = seq[-1]['temps'] - seq[0]['temps']
+                duree_estimee = nb_temps * (60/bpm)
+                st.write(f"Durée : {int(duree_estimee)}s")
+            else: duree_estimee = 10
+        with col_v2:
+            btn_video = st.button("🎥 Générer Vidéo + Audio")
 
-    if btn_video and HAS_MOVIEPY and HAS_PYDUB:
-        with st.spinner("Génération de la piste Audio..."):
-            sequence = parser_texte(st.session_state.code_actuel)
-            audio_buffer = generer_audio_mix(sequence, bpm)
-            
-        if audio_buffer:
-            with st.spinner("Génération de l'image..."):
-                styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                img_buffer = generer_image_longue(sequence, acc_config, styles_video)
-            
-            if img_buffer:
-                with st.spinner("Montage Final (Soyez patient)..."):
-                    try:
-                        video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duree_estimee)
-                        st.success("Vidéo terminée ! 🥳")
-                        st.video(video_path)
-                        with open(video_path, "rb") as file:
-                            st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video.mp4", mime="video/mp4")
-                    except Exception as e:
-                        st.error(f"Erreur lors du montage : {e}")
+        if btn_video:
+            with st.spinner("Génération de la piste Audio..."):
+                sequence = parser_texte(st.session_state.code_actuel)
+                audio_buffer = generer_audio_mix(sequence, bpm)
+                
+            if audio_buffer:
+                with st.spinner("Génération de l'image..."):
+                    styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
+                    img_buffer = generer_image_longue(sequence, acc_config, styles_video)
+                
+                if img_buffer:
+                    with st.spinner("Montage Final (Soyez patient)..."):
+                        try:
+                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duree_estimee)
+                            st.success("Vidéo terminée ! 🥳")
+                            st.video(video_path)
+                            with open(video_path, "rb") as file:
+                                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video.mp4", mime="video/mp4")
+                        except Exception as e:
+                            st.error(f"Erreur lors du montage : {e}")
 
 # --- TAB AUDIO ---
 with tab4:
     st.subheader("Générateur Audio Seul 🎧")
-    col_a1, col_a2 = st.columns(2)
-    with col_a1: bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
-    with col_a2: btn_audio = st.button("🎵 Générer MP3")
-    if btn_audio:
-        if not HAS_PYDUB:
-             st.error("❌ Le module 'pydub' n'est pas installé.")
-        else:
+    if not HAS_PYDUB:
+         st.error("❌ Le module 'pydub' n'est pas installé.")
+    else:
+        col_a1, col_a2 = st.columns(2)
+        with col_a1: bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
+        with col_a2: btn_audio = st.button("🎵 Générer MP3")
+        if btn_audio:
             with st.spinner("Mixage..."):
                 sequence = parser_texte(st.session_state.code_actuel)
                 mp3_buffer = generer_audio_mix(sequence, bpm_audio)
