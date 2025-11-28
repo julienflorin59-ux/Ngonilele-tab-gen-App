@@ -1,10 +1,61 @@
 import streamlit as st
+import sys
 import os
 import io
 import shutil
+import urllib.parse
+import numpy as np
 
 # ==============================================================================
-# ⚙️ CONFIGURATION DE LA PAGE & CHEMINS
+# 🚑 CORRECTIF PYTHON 3.13 (PROBLEME AUDIOOP)
+# ==============================================================================
+# Python 3.13 a supprimé le module 'audioop'. Pydub en a besoin.
+# On force l'utilisation du remplaçant 'pyaudioop' s'il est installé.
+try:
+    import pyaudioop
+    # On injecte pyaudioop dans les modules système sous le nom 'audioop'
+    sys.modules["audioop"] = pyaudioop
+except ImportError:
+    pass
+
+# ==============================================================================
+# 🔍 CHARGEMENT DES MODULES (VIDEO & AUDIO)
+# ==============================================================================
+debug_messages = []
+
+# Test FFmpeg
+if not shutil.which("ffmpeg"):
+    debug_messages.append("⚠️ ALERTE : FFmpeg n'est pas détecté. Vérifiez 'packages.txt' sur GitHub.")
+
+# Test MoviePy
+HAS_MOVIEPY = False
+try:
+    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
+    HAS_MOVIEPY = True
+except ImportError as e:
+    debug_messages.append(f"❌ Erreur Import MoviePy : {e}")
+except Exception as e:
+    debug_messages.append(f"❌ Crash MoviePy : {e}")
+
+# Test Pydub
+HAS_PYDUB = False
+try:
+    from pydub import AudioSegment
+    HAS_PYDUB = True
+except ImportError as e:
+    debug_messages.append(f"❌ Erreur Import Pydub : {e} (Essayez d'ajouter 'pyaudioop' dans requirements.txt)")
+except Exception as e:
+    debug_messages.append(f"❌ Crash Pydub : {e}")
+
+# Autres imports
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.font_manager as fm
+import matplotlib.image as mpimg
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
+# ==============================================================================
+# ⚙️ CONFIGURATION PAGE & CHEMINS
 # ==============================================================================
 CHEMIN_LOGO_APP = 'ico_ngonilele.png'
 CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
@@ -18,45 +69,7 @@ icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
 
 # ==============================================================================
-# 🔍 ZONE DE CHARGEMENT DES MODULES (AVEC RAPPORT D'ERREUR)
-# ==============================================================================
-HAS_MOVIEPY = False
-HAS_PYDUB = False
-debug_messages = []
-
-# 1. Test FFmpeg
-if not shutil.which("ffmpeg"):
-    debug_messages.append("⚠️ ALERTE : FFmpeg n'est pas détecté sur le système. Vérifiez que le fichier 'packages.txt' existe sur GitHub.")
-
-# 2. Test MoviePy
-try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
-    HAS_MOVIEPY = True
-except ImportError as e:
-    debug_messages.append(f"❌ Erreur Import MoviePy : {e}")
-except Exception as e:
-    debug_messages.append(f"❌ Crash MoviePy : {e}")
-
-# 3. Test Pydub
-try:
-    from pydub import AudioSegment
-    HAS_PYDUB = True
-except ImportError as e:
-    debug_messages.append(f"❌ Erreur Import Pydub : {e}")
-except Exception as e:
-    debug_messages.append(f"❌ Crash Pydub : {e}")
-
-# 4. Autres imports
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib.font_manager as fm
-import matplotlib.image as mpimg
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import urllib.parse
-import numpy as np
-
-# ==============================================================================
-# 🎨 CSS HACK (MENU ROUGE)
+# 🎨 CSS HACK V5 (MENU ROUGE)
 # ==============================================================================
 st.markdown("""
     <style>
@@ -175,11 +188,12 @@ with col_logo:
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
-    # Affiche les erreurs de chargement ici s'il y en a
+    
+    # Affichage des erreurs critiques
     if debug_messages:
-        with st.expander("⚠️ Rapport de chargement (Debug)", expanded=True):
+        with st.expander("⚠️ Rapport technique (Debug)", expanded=True):
             for msg in debug_messages:
-                st.write(msg)
+                st.error(msg)
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -276,6 +290,7 @@ def generer_audio_mix(sequence, bpm):
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
+    
     mix = AudioSegment.silent(duration=duree_totale_ms)
     
     for n in sequence:
@@ -570,9 +585,9 @@ with tab3:
     st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
     
     if not HAS_MOVIEPY:
-        st.error("❌ Le module 'moviepy' n'est pas installé.")
+        st.error("❌ Le module 'moviepy' n'est pas installé. (Vérifiez requirements.txt)")
     elif not HAS_PYDUB:
-        st.error("❌ Le module 'pydub' n'est pas installé.")
+        st.error("❌ Le module 'pydub' n'est pas installé. (Vérifiez requirements.txt)")
     else:
         col_v1, col_v2 = st.columns(2)
         with col_v1:
