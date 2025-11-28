@@ -9,21 +9,25 @@ import os
 import urllib.parse
 import numpy as np
 
-# --- GESTION DES IMPORTS SÉCURISÉE ---
-HAS_MOVIEPY = False
-try:
-    # On importe AudioFileClip en plus pour le son de la vidéo
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
-    HAS_MOVIEPY = True
-except Exception as e:
-    print(f"Erreur Import MoviePy: {e}")
-
-HAS_PYDUB = False
+# --- IMPORTS SÉCURISÉS ---
+# On importe pydub en premier pour vérifier le son
 try:
     from pydub import AudioSegment
     HAS_PYDUB = True
+except ImportError:
+    HAS_PYDUB = False
+
+# On importe MoviePy. Attention, avec la version 1.0.3, l'import est spécifique
+try:
+    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
+    HAS_MOVIEPY = True
+except ImportError:
+    # Fallback si l'installation est bancale
+    HAS_MOVIEPY = False
 except Exception as e:
-    print(f"Erreur Import Pydub: {e}")
+    # Pour attraper les erreurs type "Numpy version"
+    print(f"Erreur critique MoviePy : {e}")
+    HAS_MOVIEPY = False
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -247,17 +251,10 @@ def generer_audio_mix(sequence, bpm):
         st.warning("⚠️ La partition est vide.")
         return None
     
-    # DEBUG : Vérification du dossier
     if not os.path.exists(DOSSIER_SAMPLES):
         st.error(f"❌ Dossier introuvable : '{DOSSIER_SAMPLES}'. Vérifiez le nom sur GitHub.")
-        st.write(f"Dossier courant : {os.getcwd()}")
-        st.write(f"Contenu du dossier courant : {os.listdir('.')}")
         return None
 
-    # DEBUG : Vérification des fichiers
-    fichiers_trouves = os.listdir(DOSSIER_SAMPLES)
-    # st.write(f"📂 Fichiers trouvés dans samples : {fichiers_trouves}") # Décommenter pour debug
-    
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     
@@ -267,7 +264,6 @@ def generer_audio_mix(sequence, bpm):
         nom_fichier = f"{corde}.mp3"
         chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
         
-        # Essai majuscule/minuscule
         if os.path.exists(chemin): 
             samples_loaded[corde] = AudioSegment.from_mp3(chemin)
         else:
@@ -279,7 +275,6 @@ def generer_audio_mix(sequence, bpm):
 
     if missing_files:
         st.warning(f"⚠️ Sons manquants : {', '.join(missing_files)}")
-        # On continue quand même avec les sons qu'on a
 
     if not samples_loaded:
         st.error("❌ Aucun fichier MP3 valide n'a pu être chargé.")
@@ -289,7 +284,6 @@ def generer_audio_mix(sequence, bpm):
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     
-    # Base silencieuse
     mix = AudioSegment.silent(duration=duree_totale_ms)
     
     for n in sequence:
@@ -384,7 +378,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-# --- VIDEO ---
 def generer_image_longue(sequence, config_acc, styles):
     if not sequence: return None
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
@@ -430,40 +423,41 @@ def generer_image_longue(sequence, config_acc, styles):
     return buf
 
 def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
-    # Etape 1 : Ecrire l'image temporaire
+    # Ecrire l'image temporaire
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     
-    # Etape 2 : Ecrire l'audio temporaire
+    # Ecrire l'audio temporaire
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
 
-    # Etape 3 : Créer le clip vidéo
+    # Charger l'image
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
     
-    # Calcul de la fenêtre de vue
+    # Hauteur fenêtre
     window_h = int(w * 9 / 16)
     if window_h > h: window_h = h
-    video_h = 600 # Hauteur de sortie
+    video_h = 600 
     
-    # Mouvement vertical
+    # Animation (Défilement bas -> haut pour simuler la lecture)
+    # Y part de 0 (haut de l'image aligné haut video) et va vers -(h - video_h)
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
     
-    # Etape 4 : Ajouter l'audio
+    # Ajouter l'audio
     audio_clip = AudioFileClip("temp_audio.mp3")
-    # On coupe l'audio à la durée exacte de la vidéo pour éviter les bugs
+    # IMPORTANT : Couper l'audio si trop long ou trop court pour éviter des erreurs
     audio_clip = audio_clip.subclip(0, duration_sec)
     
     video_with_audio = moving_clip.set_audio(audio_clip)
     
-    # Etape 5 : Rendu final
+    # Rendu
     final = CompositeVideoClip([video_with_audio], size=(w, video_h))
     final.fps = fps
     
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
     
-    # Nettoyage
+    # Clean
     audio_clip.close()
     final.close()
     
@@ -592,13 +586,13 @@ with tab1:
 
 # --- TAB VIDEO ---
 with tab3:
-    st.subheader("Générateur de Vidéo Défilante")
+    st.subheader("Générateur de Vidéo Défilante 🎥")
     st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
     
     if not HAS_MOVIEPY:
-        st.error("❌ Le module 'moviepy' n'est pas installé. (Voir requirements.txt)")
+        st.error("❌ Le module 'moviepy' n'est pas installé. (Vérifiez requirements.txt : moviepy==1.0.3)")
     if not HAS_PYDUB:
-        st.error("❌ Le module 'pydub' n'est pas installé. (Voir requirements.txt)")
+        st.error("❌ Le module 'pydub' n'est pas installé. (Vérifiez requirements.txt)")
         
     col_v1, col_v2 = st.columns(2)
     with col_v1:
@@ -610,42 +604,41 @@ with tab3:
             st.write(f"Durée : {int(duree_estimee)}s")
         else: duree_estimee = 10
     with col_v2:
-        btn_video = st.button("🎥 Générer Vidéo")
+        btn_video = st.button("🎥 Générer Vidéo + Audio")
 
     if btn_video and HAS_MOVIEPY and HAS_PYDUB:
-        with st.spinner("Génération Audio..."):
+        with st.spinner("Génération de la piste Audio..."):
             sequence = parser_texte(st.session_state.code_actuel)
             audio_buffer = generer_audio_mix(sequence, bpm)
             
         if audio_buffer:
-            with st.spinner("Génération Visuelle..."):
+            with st.spinner("Génération de l'image..."):
                 styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
                 img_buffer = generer_image_longue(sequence, acc_config, styles_video)
             
             if img_buffer:
-                with st.spinner("Encodage Final (Vidéo + Son)..."):
+                with st.spinner("Montage Final (Soyez patient)..."):
                     try:
                         video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duree_estimee)
-                        st.success("Terminé !")
+                        st.success("Vidéo terminée ! 🥳")
                         st.video(video_path)
                         with open(video_path, "rb") as file:
-                            st.download_button(label="⬇️ Télécharger .mp4", data=file, file_name="ngoni_scroll.mp4", mime="video/mp4")
+                            st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video.mp4", mime="video/mp4")
                     except Exception as e:
-                        st.error(f"Erreur : {e}")
+                        st.error(f"Erreur lors du montage : {e}")
 
 # --- TAB AUDIO ---
 with tab4:
-    st.subheader("Générateur Audio 🎧")
+    st.subheader("Générateur Audio Seul 🎧")
     col_a1, col_a2 = st.columns(2)
     with col_a1: bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
-    with col_a2: btn_audio = st.button("🎵 Générer Audio")
+    with col_a2: btn_audio = st.button("🎵 Générer MP3")
     if btn_audio:
         if not HAS_PYDUB:
              st.error("❌ Le module 'pydub' n'est pas installé.")
         else:
             with st.spinner("Mixage..."):
                 sequence = parser_texte(st.session_state.code_actuel)
-                # On ajoute l'affichage des erreurs si samples manquants
                 mp3_buffer = generer_audio_mix(sequence, bpm_audio)
                 if mp3_buffer:
                     st.success("Terminé !")
