@@ -1,5 +1,8 @@
 streamlit
 matplotlib
 moviepy==1.0.3
+decorator==4.4.2
+imageio==2.4.1
+imageio-ffmpeg==0.4.2
 pydub
-numpy
+numpy<2.0.0
