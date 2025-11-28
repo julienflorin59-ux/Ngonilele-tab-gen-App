@@ -24,7 +24,7 @@ except ImportError:
     HAS_PYDUB = False
 
 # ==============================================================================
-# 🎵 BANQUE DE DONNÉES (NETTOYÉE : SANS I NI P)
+# 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": """
@@ -124,20 +124,37 @@ icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
 
 # ==============================================================================
-# 🎨 CSS HACK : RENDRE LE BOUTON MENU VISIBLE SUR MOBILE (ROUGE)
+# 🎨 CSS HACK V2 : MENU ULTRA VISIBLE + TEXTE "MENU"
 # ==============================================================================
 st.markdown("""
     <style>
-    /* Cible le bouton qui ouvre le menu (la flèche/guillemet) */
+    /* Cible le bouton sidebar par son ID de test */
     [data-testid="stSidebarCollapsedControl"] {
-        background-color: #FF4B4B !important; /* Fond Rouge */
-        color: white !important; /* Flèche Blanche */
-        border-radius: 8px !important; /* Bords arrondis */
-        border: 2px solid white !important; /* Bordure blanche */
-        padding: 4px !important;
+        background-color: #FF4B4B !important;
+        color: white !important;
+        border: 2px solid white !important;
+        border-radius: 8px !important;
+        padding: 5px 10px !important; /* Plus large */
         margin-top: 10px !important;
         margin-left: 10px !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important; /* Ombre portée */
+        box-shadow: 0px 4px 6px rgba(0,0,0,0.3) !important;
+        min-width: 80px !important; /* Force la largeur */
+    }
+    
+    /* Cible l'icône flèche à l'intérieur pour la forcer en blanc */
+    [data-testid="stSidebarCollapsedControl"] svg {
+        fill: white !important;
+        stroke: white !important;
+    }
+
+    /* ASTUCE MAGIQUE : Ajoute le mot "MENU" après la flèche */
+    [data-testid="stSidebarCollapsedControl"]::after {
+        content: "MENU";
+        font-weight: bold;
+        font-size: 14px;
+        margin-left: 8px;
+        color: white !important;
+        vertical-align: middle;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -150,8 +167,8 @@ with col_logo:
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
-    # Message d'aide pour le menu mobile
-    st.info("👈 **Menu** : Cliquez sur la flèche **ROUGE** en haut à gauche pour choisir un morceau, changer l'accordage ou m'envoyer votre création !")
+    # On garde l'info au cas où
+    st.caption("Si le menu n'apparait pas, cliquez en haut à gauche.")
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -262,10 +279,11 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     ax.text(x_text_align, y_row1, "= Pouce", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     if os.path.exists(path_index): ab = AnnotationBbox(OffsetImage(mpimg.imread(path_index), zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    offsets = [-0.7, 0, 0.7]; 
+    offsets = [-0.7, 0, 0.7]
     for i, off in enumerate(offsets): c = plt.Circle((x_icon_center + off, y_row3), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2); ax.add_patch(c); ax.text(x_icon_center + off, y_row3, str(i+1), ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
     ax.text(x_text_align, y_row3, "= Ordre de jeu", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    x_simul_end = x_icon_center + 1.4; ax.plot([x_icon_center - 0.7, x_simul_end - 0.7], [y_row4, y_row4], color=c_txt, lw=3, zorder=1)
+    x_simul_end = x_icon_center + 1.4
+    ax.plot([x_icon_center - 0.7, x_simul_end - 0.7], [y_row4, y_row4], color=c_txt, lw=3, zorder=1)
     ax.add_patch(plt.Circle((x_icon_center - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2)); ax.add_patch(plt.Circle((x_simul_end - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2))
     ax.text(x_text_align, y_row4, "= Notes simultanées", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     x_droite = 1.5; y_text_top = y_pos - 1.2; line_height = 0.45
@@ -273,7 +291,8 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
 
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font(32, 'bold')
-    fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond); ax.set_facecolor(c_fond)
+    fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond)
+    ax.set_facecolor(c_fond)
     ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     dessiner_contenu_legende(ax, 0.5, styles, mode_white)
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
