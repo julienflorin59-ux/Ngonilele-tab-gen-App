@@ -1,28 +1,87 @@
 import streamlit as st
+import os
+import io
+import shutil
+
+# ==============================================================================
+# ⚙️ CONFIGURATION DE LA PAGE & CHEMINS
+# ==============================================================================
+CHEMIN_LOGO_APP = 'ico_ngonilele.png'
+CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
+CHEMIN_ICON_POUCE = 'icon_pouce.png'
+CHEMIN_ICON_INDEX = 'icon_index.png'
+CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
+CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
+DOSSIER_SAMPLES = 'samples'
+
+icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
+st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
+
+# ==============================================================================
+# 🔍 ZONE DE CHARGEMENT DES MODULES (AVEC RAPPORT D'ERREUR)
+# ==============================================================================
+HAS_MOVIEPY = False
+HAS_PYDUB = False
+debug_messages = []
+
+# 1. Test FFmpeg
+if not shutil.which("ffmpeg"):
+    debug_messages.append("⚠️ ALERTE : FFmpeg n'est pas détecté sur le système. Vérifiez que le fichier 'packages.txt' existe sur GitHub.")
+
+# 2. Test MoviePy
+try:
+    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
+    HAS_MOVIEPY = True
+except ImportError as e:
+    debug_messages.append(f"❌ Erreur Import MoviePy : {e}")
+except Exception as e:
+    debug_messages.append(f"❌ Crash MoviePy : {e}")
+
+# 3. Test Pydub
+try:
+    from pydub import AudioSegment
+    HAS_PYDUB = True
+except ImportError as e:
+    debug_messages.append(f"❌ Erreur Import Pydub : {e}")
+except Exception as e:
+    debug_messages.append(f"❌ Crash Pydub : {e}")
+
+# 4. Autres imports
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.font_manager as fm
 import matplotlib.image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import io
-import os
 import urllib.parse
 import numpy as np
 
-# --- GESTION DES IMPORTS SÉCURISÉE (ANTI-CRASH) ---
-HAS_MOVIEPY = False
-try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
-    HAS_MOVIEPY = True
-except Exception as e:
-    print(f"⚠️ Erreur Import MoviePy (Vidéo désactivée): {e}")
-
-HAS_PYDUB = False
-try:
-    from pydub import AudioSegment
-    HAS_PYDUB = True
-except Exception as e:
-    print(f"⚠️ Erreur Import Pydub (Audio désactivé): {e}")
+# ==============================================================================
+# 🎨 CSS HACK (MENU ROUGE)
+# ==============================================================================
+st.markdown("""
+    <style>
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: #FF4B4B !important;
+        border: 2px solid white !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+        margin: 10px !important;
+        z-index: 100000 !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] svg {
+        fill: white !important;
+        stroke: white !important;
+    }
+    [data-testid="stSidebarCollapsedControl"]::after {
+        content: "MENU";
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        margin-left: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -108,66 +167,6 @@ BANQUE_TABLATURES = {
 """
 }
 
-# ==============================================================================
-# ⚙️ CONFIGURATION ET CHEMINS
-# ==============================================================================
-CHEMIN_POLICE = 'ML.ttf' 
-CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
-CHEMIN_ICON_POUCE = 'icon_pouce.png'
-CHEMIN_ICON_INDEX = 'icon_index.png'
-CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
-CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
-CHEMIN_LOGO_APP = 'ico_ngonilele.png'
-DOSSIER_SAMPLES = 'samples' 
-
-# Chargement icone page
-icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
-st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
-
-# ==============================================================================
-# 🎨 CSS HACK V5 : LE BOUTON ROUGE
-# ==============================================================================
-st.markdown("""
-    <style>
-    /* Cible le bouton du menu (plusieurs sélecteurs pour être sûr) */
-    [data-testid="stSidebarCollapsedControl"], button[kind="header"] {
-        background-color: #FF4B4B !important;
-        border: 2px solid white !important;
-        color: white !important;
-        padding: 5px !important;
-        border-radius: 8px !important;
-        opacity: 1 !important;
-        z-index: 999999 !important;
-        display: block !important;
-        visibility: visible !important;
-        height: 44px !important;
-        width: 44px !important;
-    }
-    
-    /* La flèche à l'intérieur */
-    [data-testid="stSidebarCollapsedControl"] svg, button[kind="header"] svg {
-        fill: white !important;
-        stroke: white !important;
-    }
-
-    /* Le label "MENU" */
-    [data-testid="stSidebarCollapsedControl"]::after, button[kind="header"]::after {
-        content: "MENU";
-        position: absolute;
-        left: 110%;
-        top: 50%;
-        transform: translateY(-50%);
-        background: #FF4B4B;
-        color: white;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: bold;
-        pointer-events: none;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 # En-tête
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
@@ -176,6 +175,11 @@ with col_logo:
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
+    # Affiche les erreurs de chargement ici s'il y en a
+    if debug_messages:
+        with st.expander("⚠️ Rapport de chargement (Debug)", expanded=True):
+            for msg in debug_messages:
+                st.write(msg)
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -236,19 +240,20 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO (PYDUB)
+# 🎹 MOTEUR AUDIO
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
     if not HAS_PYDUB: return None
     if not sequence: return None
-    samples_loaded = {}
     
     if not os.path.exists(DOSSIER_SAMPLES):
-        st.error(f"Dossier '{DOSSIER_SAMPLES}' introuvable.")
+        st.error(f"❌ Dossier '{DOSSIER_SAMPLES}' introuvable.")
         return None
-        
+
+    samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     
+    missing_files = []
     for corde in cordes_utilisees:
         nom_fichier = f"{corde}.mp3"
         chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
@@ -256,16 +261,21 @@ def generer_audio_mix(sequence, bpm):
             samples_loaded[corde] = AudioSegment.from_mp3(chemin)
         else:
             chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
-            if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
+            if os.path.exists(chemin_min): 
+                samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
+            else:
+                missing_files.append(nom_fichier)
+                
+    if missing_files:
+        st.warning(f"⚠️ Sons manquants : {', '.join(missing_files)}")
 
     if not samples_loaded:
-        st.error("Aucun fichier MP3 valide trouvé.")
+        st.error("Aucun fichier MP3 valide chargé.")
         return None
 
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
-    
     mix = AudioSegment.silent(duration=duree_totale_ms)
     
     for n in sequence:
@@ -406,18 +416,28 @@ def generer_image_longue(sequence, config_acc, styles):
     return buf
 
 def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
+    # 1. Image temp
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
+    # 2. Audio temp
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-    clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
-    window_h = int(w * 9 / 16); 
+
+    clip_img = ImageClip("temp_score.png")
+    w, h = clip_img.size
+    window_h = int(w * 9 / 16)
     if window_h > h: window_h = h
-    video_h = 600 
+    video_h = 600
+    
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
+    
     audio_clip = AudioFileClip("temp_audio.mp3")
     audio_clip = audio_clip.subclip(0, duration_sec)
+    
     video_with_audio = moving_clip.set_audio(audio_clip)
-    final = CompositeVideoClip([video_with_audio], size=(w, video_h)); final.fps = fps
+    
+    final = CompositeVideoClip([video_with_audio], size=(w, video_h))
+    final.fps = fps
+    
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
     audio_clip.close(); final.close()
@@ -427,6 +447,7 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
+# Session State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -442,6 +463,7 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
+# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -464,6 +486,7 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
+# ONGLETS
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
