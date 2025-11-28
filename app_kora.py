@@ -1,100 +1,26 @@
 import streamlit as st
-import sys
-import os
-import io
-import shutil
-import urllib.parse
-import numpy as np
-
-# ==============================================================================
-# 🚑 CORRECTIF PYTHON 3.13 (PROBLEME AUDIOOP)
-# ==============================================================================
-# Python 3.13 a supprimé le module 'audioop'. Pydub en a besoin.
-# On force l'utilisation du remplaçant 'pyaudioop' s'il est installé.
-try:
-    import pyaudioop
-    # On injecte pyaudioop dans les modules système sous le nom 'audioop'
-    sys.modules["audioop"] = pyaudioop
-except ImportError:
-    pass
-
-# ==============================================================================
-# 🔍 CHARGEMENT DES MODULES (VIDEO & AUDIO)
-# ==============================================================================
-debug_messages = []
-
-# Test FFmpeg
-if not shutil.which("ffmpeg"):
-    debug_messages.append("⚠️ ALERTE : FFmpeg n'est pas détecté. Vérifiez 'packages.txt' sur GitHub.")
-
-# Test MoviePy
-HAS_MOVIEPY = False
-try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
-    HAS_MOVIEPY = True
-except ImportError as e:
-    debug_messages.append(f"❌ Erreur Import MoviePy : {e}")
-except Exception as e:
-    debug_messages.append(f"❌ Crash MoviePy : {e}")
-
-# Test Pydub
-HAS_PYDUB = False
-try:
-    from pydub import AudioSegment
-    HAS_PYDUB = True
-except ImportError as e:
-    debug_messages.append(f"❌ Erreur Import Pydub : {e} (Essayez d'ajouter 'pyaudioop' dans requirements.txt)")
-except Exception as e:
-    debug_messages.append(f"❌ Crash Pydub : {e}")
-
-# Autres imports
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.font_manager as fm
 import matplotlib.image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import io
+import os
+import urllib.parse
+import numpy as np
 
-# ==============================================================================
-# ⚙️ CONFIGURATION PAGE & CHEMINS
-# ==============================================================================
-CHEMIN_LOGO_APP = 'ico_ngonilele.png'
-CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
-CHEMIN_ICON_POUCE = 'icon_pouce.png'
-CHEMIN_ICON_INDEX = 'icon_index.png'
-CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
-CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
-DOSSIER_SAMPLES = 'samples'
+# --- IMPORTS AUDIO/VIDEO (Version Python 3.11 Compatible) ---
+try:
+    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
+    HAS_MOVIEPY = True
+except ImportError:
+    HAS_MOVIEPY = False
 
-icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
-st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
-
-# ==============================================================================
-# 🎨 CSS HACK V5 (MENU ROUGE)
-# ==============================================================================
-st.markdown("""
-    <style>
-    [data-testid="stSidebarCollapsedControl"] {
-        background-color: #FF4B4B !important;
-        border: 2px solid white !important;
-        color: white !important;
-        border-radius: 8px !important;
-        padding: 4px !important;
-        margin: 10px !important;
-        z-index: 100000 !important;
-    }
-    [data-testid="stSidebarCollapsedControl"] svg {
-        fill: white !important;
-        stroke: white !important;
-    }
-    [data-testid="stSidebarCollapsedControl"]::after {
-        content: "MENU";
-        color: white;
-        font-weight: bold;
-        font-size: 12px;
-        margin-left: 5px;
-    }
-    </style>
-""", unsafe_allow_html=True)
+try:
+    from pydub import AudioSegment
+    HAS_PYDUB = True
+except ImportError:
+    HAS_PYDUB = False
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -180,6 +106,47 @@ BANQUE_TABLATURES = {
 """
 }
 
+# ==============================================================================
+# ⚙️ CONFIGURATION
+# ==============================================================================
+CHEMIN_POLICE = 'ML.ttf' 
+CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
+CHEMIN_ICON_POUCE = 'icon_pouce.png'
+CHEMIN_ICON_INDEX = 'icon_index.png'
+CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
+CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
+CHEMIN_LOGO_APP = 'ico_ngonilele.png'
+DOSSIER_SAMPLES = 'samples' 
+
+icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
+st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon=icon_page)
+
+# CSS HACK (Bouton Rouge)
+st.markdown("""
+    <style>
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: #FF4B4B !important;
+        border: 2px solid white !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+        margin: 10px !important;
+        z-index: 100000 !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] svg {
+        fill: white !important;
+        stroke: white !important;
+    }
+    [data-testid="stSidebarCollapsedControl"]::after {
+        content: "MENU";
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+        margin-left: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # En-tête
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
@@ -188,31 +155,14 @@ with col_logo:
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
-    
-    # Affichage des erreurs critiques
-    if debug_messages:
-        with st.expander("⚠️ Rapport technique (Debug)", expanded=True):
-            for msg in debug_messages:
-                st.error(msg)
 
-# ==============================================================================
-# 🧠 MOTEUR LOGIQUE
-# ==============================================================================
-
-POSITIONS_X = {
-    '1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6,
-    '1D': 1,  '2D': 2,  '3D': 3,  '4D': 4,  '5D': 5,  '6D': 6
-}
-COULEURS_CORDES_REF = {
-    'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32',
-    'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'
-}
+POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D': 1, '2D': 2, '3D': 3, '4D': 4, '5D': 5, '6D': 6}
+COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
 
 def get_font(size, weight='normal', style='normal'):
-    if os.path.exists(CHEMIN_POLICE):
-        return fm.FontProperties(fname=CHEMIN_POLICE, size=size, weight=weight, style=style)
+    if os.path.exists(CHEMIN_POLICE): return fm.FontProperties(fname=CHEMIN_POLICE, size=size, weight=weight, style=style)
     return fm.FontProperties(family='sans-serif', size=size, weight=weight, style=style)
 
 def parser_texte(texte):
@@ -257,7 +207,9 @@ def parser_texte(texte):
 # 🎹 MOTEUR AUDIO
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
-    if not HAS_PYDUB: return None
+    if not HAS_PYDUB:
+        st.error("❌ Module Pydub manquant (problème d'installation).")
+        return None
     if not sequence: return None
     
     if not os.path.exists(DOSSIER_SAMPLES):
@@ -267,7 +219,6 @@ def generer_audio_mix(sequence, bpm):
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     
-    missing_files = []
     for corde in cordes_utilisees:
         nom_fichier = f"{corde}.mp3"
         chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
@@ -275,22 +226,15 @@ def generer_audio_mix(sequence, bpm):
             samples_loaded[corde] = AudioSegment.from_mp3(chemin)
         else:
             chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
-            if os.path.exists(chemin_min): 
-                samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
-            else:
-                missing_files.append(nom_fichier)
-                
-    if missing_files:
-        st.warning(f"⚠️ Sons manquants : {', '.join(missing_files)}")
+            if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
 
     if not samples_loaded:
-        st.error("Aucun fichier MP3 valide chargé.")
+        st.error("❌ Aucun MP3 trouvé. Vérifiez le dossier 'samples'.")
         return None
 
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
-    
     mix = AudioSegment.silent(duration=duree_totale_ms)
     
     for n in sequence:
@@ -307,7 +251,7 @@ def generer_audio_mix(sequence, bpm):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR D'AFFICHAGE IMAGE
+# 🎨 MOTEUR AFFICHAGE
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -385,7 +329,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-# --- VIDEO ---
+# --- VIDEO & MIX ---
 def generer_image_longue(sequence, config_acc, styles):
     if not sequence: return None
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
@@ -431,23 +375,20 @@ def generer_image_longue(sequence, config_acc, styles):
     return buf
 
 def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
-    # 1. Image temp
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
-    # 2. Audio temp
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-
-    clip_img = ImageClip("temp_score.png")
-    w, h = clip_img.size
+    clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
     window_h = int(w * 9 / 16)
     if window_h > h: window_h = h
     video_h = 600
     
+    # Animation scroll
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
     
+    # Ajout audio
     audio_clip = AudioFileClip("temp_audio.mp3")
     audio_clip = audio_clip.subclip(0, duration_sec)
-    
     video_with_audio = moving_clip.set_audio(audio_clip)
     
     final = CompositeVideoClip([video_with_audio], size=(w, video_h))
@@ -462,7 +403,7 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
-# Session State
+# Initialisation State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -478,7 +419,7 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
-# BARRE LATERALE
+# Sidebar
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -501,7 +442,7 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
-# ONGLETS
+# Onglets
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
@@ -582,12 +523,9 @@ with tab1:
 # --- TAB VIDEO ---
 with tab3:
     st.subheader("Générateur de Vidéo Défilante 🎥")
-    st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
     
-    if not HAS_MOVIEPY:
-        st.error("❌ Le module 'moviepy' n'est pas installé. (Vérifiez requirements.txt)")
-    elif not HAS_PYDUB:
-        st.error("❌ Le module 'pydub' n'est pas installé. (Vérifiez requirements.txt)")
+    if not HAS_MOVIEPY: st.error("❌ MoviePy manquant (Installation Python 3.11 requise).")
+    elif not HAS_PYDUB: st.error("❌ Pydub manquant (Installation Python 3.11 requise).")
     else:
         col_v1, col_v2 = st.columns(2)
         with col_v1:
@@ -602,17 +540,17 @@ with tab3:
             btn_video = st.button("🎥 Générer Vidéo + Audio")
 
         if btn_video:
-            with st.spinner("Génération de la piste Audio..."):
+            with st.spinner("1/3 - Création de la piste Audio..."):
                 sequence = parser_texte(st.session_state.code_actuel)
                 audio_buffer = generer_audio_mix(sequence, bpm)
                 
             if audio_buffer:
-                with st.spinner("Génération de l'image..."):
+                with st.spinner("2/3 - Création de l'image géante..."):
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
                     img_buffer = generer_image_longue(sequence, acc_config, styles_video)
                 
                 if img_buffer:
-                    with st.spinner("Montage Final (Soyez patient)..."):
+                    with st.spinner("3/3 - Montage Vidéo (Patience...)..."):
                         try:
                             video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duree_estimee)
                             st.success("Vidéo terminée ! 🥳")
@@ -632,7 +570,7 @@ with tab4:
         with col_a1: bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
         with col_a2: btn_audio = st.button("🎵 Générer MP3")
         if btn_audio:
-            with st.spinner("Mixage..."):
+            with st.spinner("Mixage en cours..."):
                 sequence = parser_texte(st.session_state.code_actuel)
                 mp3_buffer = generer_audio_mix(sequence, bpm_audio)
                 if mp3_buffer:
