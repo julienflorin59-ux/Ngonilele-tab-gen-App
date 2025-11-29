@@ -11,14 +11,11 @@ import numpy as np
 import shutil
 from fpdf import FPDF
 import random 
-
-# --- CORRECTION : Import nécessaire pour l'image interactive ---
 from PIL import Image 
 
 # ==============================================================================
 # 📦 INSTALLATION REQUISE POUR LE VISUEL
 # ==============================================================================
-# Assurez-vous d'avoir 'streamlit-image-coordinates' dans requirements.txt
 try:
     from streamlit_image_coordinates import streamlit_image_coordinates
     HAS_CLICK_COORD = True
@@ -311,70 +308,100 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE & VISUEL INTERACTIF
+# 🎨 MOTEUR AFFICHAGE & VISUEL INTERACTIF (CORRIGÉ)
 # ==============================================================================
 def dessiner_interface_ngoni_style_img(config_acc):
-    """Crée une image du N'goni style 'Flat' pour le cliquer."""
-    # Dimensions fixes pour le mapping de clic
-    W, H = 800, 400
-    fig, ax = plt.subplots(figsize=(8, 4), facecolor='#e5c4a1')
+    """
+    Crée une image du N'goni compacte et propre pour le cliquer.
+    Les noms de notes sont AU-DESSUS des cordes.
+    Hauteur réduite (aspect ratio 8:2.5) pour éviter le vide.
+    """
+    # Dimensions
+    fig, ax = plt.subplots(figsize=(8, 2.5), facecolor='#e5c4a1')
     ax.set_facecolor('#e5c4a1')
     
     # Tige centrale
     ax.axvline(x=4, color='black', linewidth=4)
     
-    # Couleurs basées sur la config
     def get_col(corde_key):
         note = config_acc[corde_key]['n']
         return COULEURS_CORDES_REF.get(note, '#333333')
 
-    # Positions X pour le dessin (doit matcher la logique de clic)
-    x_pos_map = {
-        '6G': 0.5, '5G': 1.1, '4G': 1.7, '3G': 2.3, '2G': 2.9, '1G': 3.5,
-        '1D': 4.5, '2D': 5.1, '3D': 5.7, '4D': 6.3, '5D': 6.9, '6D': 7.5
-    }
-
-    # Dessin des cordes
-    for c_name, x in x_pos_map.items():
-        col = get_col(c_name)
-        ax.axvline(x=x, color=col, linewidth=3)
-        # Bulle numéro
-        circle = plt.Circle((x, 3.5), 0.18, color=col, ec='black', zorder=2)
+    # Mapping mathématique pour que le dessin colle PARFAITEMENT à la logique de clic
+    # Gauche : 6 colonnes de 0 à 4. Droite : 6 colonnes de 4 à 8.
+    # Centres des colonnes :
+    # Gauche (6G->1G) : 0.33, 1.0, 1.66, 2.33, 3.0, 3.66
+    # Droite (1D->6D) : 4.33, 5.0, 5.66, 6.33, 7.0, 7.66
+    
+    # Ordre d'affichage visuel
+    zones_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
+    zones_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
+    
+    # Dessin Gauche
+    for i, code in enumerate(zones_gauche):
+        # Position X (centrée dans sa zone de clic)
+        x_center = (4.0 / 6.0) * i + (4.0 / 12.0)
+        col = get_col(code)
+        
+        # Note (Tout en haut)
+        note = config_acc[code]['n']
+        ax.text(x_center, 2.2, note, ha='center', va='center', color=col, fontweight='bold', fontsize=14)
+        
+        # Numéro de corde (Bulle)
+        circle = plt.Circle((x_center, 1.8), 0.18, color=col, ec='black', zorder=2)
         ax.add_patch(circle)
-        ax.text(x, 3.5, c_name[:-1], ha='center', va='center', color='white', fontweight='bold', fontsize=10, zorder=3)
-        # Note
-        note = config_acc[c_name]['n']
-        ax.text(x, 3.8, note, ha='center', color=col, fontweight='bold', fontsize=12)
+        ax.text(x_center, 1.8, code[:-1], ha='center', va='center', color='white', fontweight='bold', fontsize=10, zorder=3)
+        
+        # La corde (Part du bas de la bulle vers le bas)
+        ax.plot([x_center, x_center], [0, 1.6], color=col, linewidth=3, zorder=1)
+
+    # Dessin Droite
+    for i, code in enumerate(zones_droite):
+        x_center = 4.0 + (4.0 / 6.0) * i + (4.0 / 12.0)
+        col = get_col(code)
+        
+        note = config_acc[code]['n']
+        ax.text(x_center, 2.2, note, ha='center', va='center', color=col, fontweight='bold', fontsize=14)
+        
+        circle = plt.Circle((x_center, 1.8), 0.18, color=col, ec='black', zorder=2)
+        ax.add_patch(circle)
+        ax.text(x_center, 1.8, code[:-1], ha='center', va='center', color='white', fontweight='bold', fontsize=10, zorder=3)
+        
+        ax.plot([x_center, x_center], [0, 1.6], color=col, linewidth=3, zorder=1)
 
     ax.set_xlim(0, 8)
-    ax.set_ylim(0, 4)
+    ax.set_ylim(0, 2.5)
     ax.axis('off')
     
     buf = io.BytesIO()
-    # CORRECTION CRITIQUE ICI : pad_inches=0 et bbox_inches='tight' pour éviter les marges blanches
     fig.savefig(buf, format="png", bbox_inches='tight', facecolor='#e5c4a1', pad_inches=0)
     plt.close(fig)
-    
-    # CORRECTION CRITIQUE 2 : On remet le curseur au début
     buf.seek(0) 
     return buf
 
 def traiter_clic_ngoni(x, width_image):
-    """Convertit la position X du clic en code corde."""
+    """
+    Convertit la position X du clic en code corde.
+    Logique alignée sur le dessin : 
+    0-50% = [6G, 5G, 4G, 3G, 2G, 1G]
+    50-100% = [1D, 2D, 3D, 4D, 5D, 6D]
+    """
     ratio = x / width_image
     
     if ratio < 0.5:
-        # Côté GAUCHE
+        # Côté GAUCHE (0 à 0.5) -> On divise en 6 zones
         local_r = ratio / 0.5 
         idx = int(local_r * 6)
+        # Ordre visuel de gauche à droite
         cordes_g = ['6G', '5G', '4G', '3G', '2G', '1G']
         if idx < 0: idx = 0
         if idx > 5: idx = 5
         return cordes_g[idx]
     else:
-        # Côté DROITE
+        # Côté DROITE (0.5 à 1.0) -> On divise en 6 zones
         local_r = (ratio - 0.5) / 0.5
         idx = int(local_r * 6)
+        # Ordre visuel de gauche à droite
         cordes_d = ['1D', '2D', '3D', '4D', '5D', '6D']
         if idx < 0: idx = 0
         if idx > 5: idx = 5
@@ -571,50 +598,8 @@ with tab1:
     with col_input:
         st.subheader("🎛️ Studio de Composition")
         
-        # --- MODE VISUEL INTERACTIF ---
-        if HAS_CLICK_COORD:
-            st.info("🎨 **Saisie Visuelle Interactive**")
-            
-            # Options de saisie
-            col_opt1, col_opt2, col_opt3, col_opt4 = st.columns(4)
-            with col_opt1: mode_ajout = st.radio("Mode", ["Suivant (+)", "Simultané (=)"], horizontal=True, label_visibility="collapsed")
-            with col_opt2: is_x2 = st.checkbox("Doubler (x2)")
-            with col_opt3: is_silence = st.button("🔇 Silence")
-            with col_opt4: is_undo = st.button("↩️ Annuler")
-
-            # Gestion boutons spéciaux
-            if is_silence: ajouter_texte("+ S")
-            if is_undo: annuler_derniere_ligne()
-
-            # Image interactive
-            img_buf = dessiner_interface_ngoni_style_img(acc_config)
-            
-            # --- CORRECTION FINALE : Conversion PIL pour éviter l'erreur ValueError ---
-            img_pil = Image.open(img_buf)
-            value = streamlit_image_coordinates(img_pil, key="ngoni_click")
-
-            # Logique d'ajout sur clic
-            if value and value != st.session_state.last_click_value:
-                st.session_state.last_click_value = value
-                x_clic = value['x']
-                width_img = 800 
-                
-                corde_detectee = traiter_clic_ngoni(x_clic, width_img)
-                
-                prefix = "+ " if mode_ajout == "Suivant (+)" else "= "
-                suffix = " x2" if is_x2 else ""
-                
-                txt_to_add = f"{prefix}{corde_detectee}{suffix}"
-                ajouter_texte(txt_to_add)
-                st.toast(f"Note ajoutée : {corde_detectee}")
-                st.rerun() 
-
-            st.write("")
-        else:
-            st.warning("⚠️ Installez 'streamlit-image-coordinates' pour activer le manche interactif.")
-
-        # --- BOUTONS CLASSIQUES (RAPETISSÉS) ---
-        with st.expander("⌨️ Saisie par Boutons (Classique)", expanded=False):
+        # --- 1. BOUTONS CLASSIQUES (RAPETISSÉS & PRIORITAIRES) ---
+        with st.expander("⌨️ Saisie par Boutons (Classique)", expanded=True):
             # Utilisation de colonnes serrées pour réduire la taille des boutons
             st.caption("Main Gauche")
             cols_g = st.columns(6)
@@ -632,6 +617,48 @@ with tab1:
             c2.button("x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
             c3.button("Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
             c4.button("Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+
+        st.write("")
+
+        # --- 2. MODE VISUEL INTERACTIF (DANS UN EXPANDER) ---
+        if HAS_CLICK_COORD:
+            with st.expander("🎨 Saisie Visuelle Interactive (Manche)", expanded=False):
+                # Options de saisie
+                col_opt1, col_opt2, col_opt3, col_opt4 = st.columns(4)
+                with col_opt1: mode_ajout = st.radio("Mode", ["Suivant (+)", "Simultané (=)"], horizontal=True, label_visibility="collapsed")
+                with col_opt2: is_x2 = st.checkbox("Doubler (x2)")
+                with col_opt3: is_silence = st.button("🔇 Silence")
+                with col_opt4: is_undo = st.button("↩️ Annuler")
+
+                if is_silence: ajouter_texte("+ S")
+                if is_undo: annuler_derniere_ligne()
+
+                # Image interactive (buffer PNG)
+                img_buf = dessiner_interface_ngoni_style_img(acc_config)
+                
+                # Conversion PIL
+                img_pil = Image.open(img_buf)
+                value = streamlit_image_coordinates(img_pil, key="ngoni_click")
+
+                # Logique d'ajout sur clic
+                if value and value != st.session_state.last_click_value:
+                    st.session_state.last_click_value = value
+                    x_clic = value['x']
+                    # La fonction dessiner_interface_ngoni_style_img génère une largeur de 800px par défaut
+                    # (figsize 8 * dpi 100). On peut ajuster la détection sur 800.
+                    width_img = 800 
+                    
+                    corde_detectee = traiter_clic_ngoni(x_clic, width_img)
+                    
+                    prefix = "+ " if mode_ajout == "Suivant (+)" else "= "
+                    suffix = " x2" if is_x2 else ""
+                    
+                    txt_to_add = f"{prefix}{corde_detectee}{suffix}"
+                    ajouter_texte(txt_to_add)
+                    st.toast(f"Note ajoutée : {corde_detectee}")
+                    st.rerun() 
+        else:
+            st.warning("⚠️ Installez 'streamlit-image-coordinates' pour activer le manche interactif.")
 
         # --- ÉDITEUR TEXTE ---
         st.markdown("---")
