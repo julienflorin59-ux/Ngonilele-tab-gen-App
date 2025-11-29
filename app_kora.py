@@ -36,7 +36,6 @@ DOSSIER_SAMPLES = 'samples'
 
 icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 
-# Configuration de la page
 st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
@@ -142,7 +141,6 @@ BANQUE_TABLATURES = {
 """
 }
 
-# En-tête
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
@@ -151,11 +149,10 @@ with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Composez, Écoutez et Exportez.")
 
-# --- AIDE GÉNÉRALE ---
 with st.expander("❓ Comment ça marche ? (Mode d'emploi)"):
     st.markdown("""
     1.  **Menu Gauche** : Réglages et Accordage.
-    2.  **Saisie** : Cliquez sur le manche visuel ou utilisez les petits boutons.
+    2.  **Saisie** : Cliquez sur le manche visuel ou utilisez les boutons.
     3.  **Audio** : Générez le MP3 ou lancez le Métronome.
     4.  **Exports** : Téléchargez le PDF (Livret) ou la Vidéo.
     """)
@@ -308,68 +305,45 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE & VISUEL INTERACTIF (CORRIGÉ)
+# 🎨 MOTEUR AFFICHAGE & VISUEL INTERACTIF (FIABLE)
 # ==============================================================================
+
+# Mapping précis des positions X (Unité arbitraire pour Matplotlib)
+# On imagine un espace de 0 à 14. Tige au milieu (7).
+X_POS_MAP = {
+    '6G': 1, '5G': 2, '4G': 3, '3G': 4, '2G': 5, '1G': 6,
+    '1D': 8, '2D': 9, '3D': 10, '4D': 11, '5D': 12, '6D': 13
+}
+
 def dessiner_interface_ngoni_style_img(config_acc):
     """
-    Crée une image du N'goni compacte et propre pour le cliquer.
-    Les noms de notes sont AU-DESSUS des cordes.
-    Hauteur réduite (aspect ratio 8:2.5) pour éviter le vide.
+    Crée une image du N'goni compacte et propre.
     """
-    # Dimensions
-    fig, ax = plt.subplots(figsize=(8, 2.5), facecolor='#e5c4a1')
+    fig, ax = plt.subplots(figsize=(10, 3), facecolor='#e5c4a1')
     ax.set_facecolor('#e5c4a1')
     
     # Tige centrale
-    ax.axvline(x=4, color='black', linewidth=4)
+    ax.axvline(x=7, color='black', linewidth=4)
     
     def get_col(corde_key):
         note = config_acc[corde_key]['n']
         return COULEURS_CORDES_REF.get(note, '#333333')
 
-    # Mapping mathématique pour que le dessin colle PARFAITEMENT à la logique de clic
-    # Gauche : 6 colonnes de 0 à 4. Droite : 6 colonnes de 4 à 8.
-    # Centres des colonnes :
-    # Gauche (6G->1G) : 0.33, 1.0, 1.66, 2.33, 3.0, 3.66
-    # Droite (1D->6D) : 4.33, 5.0, 5.66, 6.33, 7.0, 7.66
-    
-    # Ordre d'affichage visuel
-    zones_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
-    zones_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
-    
-    # Dessin Gauche
-    for i, code in enumerate(zones_gauche):
-        # Position X (centrée dans sa zone de clic)
-        x_center = (4.0 / 6.0) * i + (4.0 / 12.0)
+    # Dessin des cordes selon X_POS_MAP
+    for code, x in X_POS_MAP.items():
         col = get_col(code)
         
-        # Note (Tout en haut)
-        note = config_acc[code]['n']
-        ax.text(x_center, 2.2, note, ha='center', va='center', color=col, fontweight='bold', fontsize=14)
+        # Le nom de la corde (1G, 2G...) en haut
+        ax.text(x, 2.2, code, ha='center', va='center', color=col, fontweight='bold', fontsize=14)
         
-        # Numéro de corde (Bulle)
-        circle = plt.Circle((x_center, 1.8), 0.18, color=col, ec='black', zorder=2)
+        # Bulle visuelle (déco)
+        circle = plt.Circle((x, 1.8), 0.3, color=col, ec='black', zorder=2)
         ax.add_patch(circle)
-        ax.text(x_center, 1.8, code[:-1], ha='center', va='center', color='white', fontweight='bold', fontsize=10, zorder=3)
         
-        # La corde (Part du bas de la bulle vers le bas)
-        ax.plot([x_center, x_center], [0, 1.6], color=col, linewidth=3, zorder=1)
+        # La corde
+        ax.plot([x, x], [0, 1.6], color=col, linewidth=3, zorder=1)
 
-    # Dessin Droite
-    for i, code in enumerate(zones_droite):
-        x_center = 4.0 + (4.0 / 6.0) * i + (4.0 / 12.0)
-        col = get_col(code)
-        
-        note = config_acc[code]['n']
-        ax.text(x_center, 2.2, note, ha='center', va='center', color=col, fontweight='bold', fontsize=14)
-        
-        circle = plt.Circle((x_center, 1.8), 0.18, color=col, ec='black', zorder=2)
-        ax.add_patch(circle)
-        ax.text(x_center, 1.8, code[:-1], ha='center', va='center', color='white', fontweight='bold', fontsize=10, zorder=3)
-        
-        ax.plot([x_center, x_center], [0, 1.6], color=col, linewidth=3, zorder=1)
-
-    ax.set_xlim(0, 8)
+    ax.set_xlim(0, 14)
     ax.set_ylim(0, 2.5)
     ax.axis('off')
     
@@ -379,33 +353,31 @@ def dessiner_interface_ngoni_style_img(config_acc):
     buf.seek(0) 
     return buf
 
-def traiter_clic_ngoni(x, width_image):
+def traiter_clic_ngoni_fiable(x_pixel, width_image_pixel):
     """
-    Convertit la position X du clic en code corde.
-    Logique alignée sur le dessin : 
-    0-50% = [6G, 5G, 4G, 3G, 2G, 1G]
-    50-100% = [1D, 2D, 3D, 4D, 5D, 6D]
+    Logique du plus proche voisin.
+    On projette le clic pixel sur l'échelle 0-14 du dessin.
     """
-    ratio = x / width_image
+    if width_image_pixel == 0: return None
     
-    if ratio < 0.5:
-        # Côté GAUCHE (0 à 0.5) -> On divise en 6 zones
-        local_r = ratio / 0.5 
-        idx = int(local_r * 6)
-        # Ordre visuel de gauche à droite
-        cordes_g = ['6G', '5G', '4G', '3G', '2G', '1G']
-        if idx < 0: idx = 0
-        if idx > 5: idx = 5
-        return cordes_g[idx]
-    else:
-        # Côté DROITE (0.5 à 1.0) -> On divise en 6 zones
-        local_r = (ratio - 0.5) / 0.5
-        idx = int(local_r * 6)
-        # Ordre visuel de gauche à droite
-        cordes_d = ['1D', '2D', '3D', '4D', '5D', '6D']
-        if idx < 0: idx = 0
-        if idx > 5: idx = 5
-        return cordes_d[idx]
+    # L'image générée a un xlim(0, 14).
+    x_projeté = (x_pixel / width_image_pixel) * 14.0
+    
+    # On cherche quelle corde est la plus proche de x_projeté
+    meilleure_corde = None
+    dist_min = 1000
+    
+    for code, x_cible in X_POS_MAP.items():
+        dist = abs(x_projeté - x_cible)
+        if dist < dist_min:
+            dist_min = dist
+            meilleure_corde = code
+            
+    # Seuil de sécurité : si on clique trop loin d'une corde (ex: milieu vide), on ignore ?
+    # Ici, avec un seuil de 0.8, ça couvre tout confortablement.
+    if dist_min < 0.8:
+        return meilleure_corde
+    return None
 
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -598,40 +570,45 @@ with tab1:
     with col_input:
         st.subheader("🎛️ Studio de Composition")
         
-        # --- 1. BOUTONS CLASSIQUES (RAPETISSÉS & PRIORITAIRES) ---
+        # --- 1. BOUTONS CLASSIQUES (PRIORITAIRES) ---
         with st.expander("⌨️ Saisie par Boutons (Classique)", expanded=True):
-            # Utilisation de colonnes serrées pour réduire la taille des boutons
             st.caption("Main Gauche")
-            cols_g = st.columns(6)
-            for i, corde in enumerate(['1G','2G','3G','4G','5G','6G']):
-                cols_g[i].button(corde, on_click=ajouter_texte, args=(f"+ {corde}",), use_container_width=True)
+            c1, c2, c3, c4, c5, c6 = st.columns(6)
+            c1.button("1G", on_click=ajouter_texte, args=("+ 1G",), use_container_width=True)
+            c2.button("2G", on_click=ajouter_texte, args=("+ 2G",), use_container_width=True)
+            c3.button("3G", on_click=ajouter_texte, args=("+ 3G",), use_container_width=True)
+            c4.button("4G", on_click=ajouter_texte, args=("+ 4G",), use_container_width=True)
+            c5.button("5G", on_click=ajouter_texte, args=("+ 5G",), use_container_width=True)
+            c6.button("6G", on_click=ajouter_texte, args=("+ 6G",), use_container_width=True)
             
             st.caption("Main Droite")
-            cols_d = st.columns(6)
-            for i, corde in enumerate(['1D','2D','3D','4D','5D','6D']):
-                cols_d[i].button(corde, on_click=ajouter_texte, args=(f"+ {corde}",), use_container_width=True)
-                
+            d1, d2, d3, d4, d5, d6 = st.columns(6)
+            d1.button("1D", on_click=ajouter_texte, args=("+ 1D",), use_container_width=True)
+            d2.button("2D", on_click=ajouter_texte, args=("+ 2D",), use_container_width=True)
+            d3.button("3D", on_click=ajouter_texte, args=("+ 3D",), use_container_width=True)
+            d4.button("4D", on_click=ajouter_texte, args=("+ 4D",), use_container_width=True)
+            d5.button("5D", on_click=ajouter_texte, args=("+ 5D",), use_container_width=True)
+            d6.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
+            
             st.caption("Outils")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.button("Simul (=)", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            c2.button("x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
-            c3.button("Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
-            c4.button("Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+            o1, o2, o3, o4, o5 = st.columns(5)
+            o1.button("Simul (=)", on_click=ajouter_texte, args=("=",), use_container_width=True)
+            o2.button("x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            o3.button("Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            o4.button("Annuler", on_click=annuler_derniere_ligne, use_container_width=True)
+            o5.button("Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
 
         st.write("")
 
         # --- 2. MODE VISUEL INTERACTIF (DANS UN EXPANDER) ---
         if HAS_CLICK_COORD:
             with st.expander("🎨 Saisie Visuelle Interactive (Manche)", expanded=False):
-                # Options de saisie
-                col_opt1, col_opt2, col_opt3, col_opt4 = st.columns(4)
+                col_opt1, col_opt2, col_opt3 = st.columns(3)
                 with col_opt1: mode_ajout = st.radio("Mode", ["Suivant (+)", "Simultané (=)"], horizontal=True, label_visibility="collapsed")
                 with col_opt2: is_x2 = st.checkbox("Doubler (x2)")
-                with col_opt3: is_silence = st.button("🔇 Silence")
-                with col_opt4: is_undo = st.button("↩️ Annuler")
+                with col_opt3: is_silence = st.button("🔇 Silence Visuel")
 
                 if is_silence: ajouter_texte("+ S")
-                if is_undo: annuler_derniere_ligne()
 
                 # Image interactive (buffer PNG)
                 img_buf = dessiner_interface_ngoni_style_img(acc_config)
@@ -640,23 +617,22 @@ with tab1:
                 img_pil = Image.open(img_buf)
                 value = streamlit_image_coordinates(img_pil, key="ngoni_click")
 
-                # Logique d'ajout sur clic
+                # Logique d'ajout sur clic (Plus robuste)
                 if value and value != st.session_state.last_click_value:
                     st.session_state.last_click_value = value
                     x_clic = value['x']
-                    # La fonction dessiner_interface_ngoni_style_img génère une largeur de 800px par défaut
-                    # (figsize 8 * dpi 100). On peut ajuster la détection sur 800.
-                    width_img = 800 
+                    # Notre image matplotlib fait 10 inches de large avec dpi par défaut (100) -> 1000px
+                    width_img = 1000 
                     
-                    corde_detectee = traiter_clic_ngoni(x_clic, width_img)
+                    corde_detectee = traiter_clic_ngoni_fiable(x_clic, width_img)
                     
-                    prefix = "+ " if mode_ajout == "Suivant (+)" else "= "
-                    suffix = " x2" if is_x2 else ""
-                    
-                    txt_to_add = f"{prefix}{corde_detectee}{suffix}"
-                    ajouter_texte(txt_to_add)
-                    st.toast(f"Note ajoutée : {corde_detectee}")
-                    st.rerun() 
+                    if corde_detectee:
+                        prefix = "+ " if mode_ajout == "Suivant (+)" else "= "
+                        suffix = " x2" if is_x2 else ""
+                        txt_to_add = f"{prefix}{corde_detectee}{suffix}"
+                        ajouter_texte(txt_to_add)
+                        st.toast(f"Note ajoutée : {corde_detectee}")
+                        st.rerun() 
         else:
             st.warning("⚠️ Installez 'streamlit-image-coordinates' pour activer le manche interactif.")
 
@@ -664,7 +640,6 @@ with tab1:
         st.markdown("---")
         st.text_area("Éditeur Texte (Lecture Seule / Copie)", value=st.session_state.code_actuel, height=300, key="widget_input", on_change=mise_a_jour_texte)
         
-        # --- LECTEUR AUDIO RAPIDE ---
         col_play_btn, col_play_bpm = st.columns([1, 1])
         with col_play_bpm:
             bpm_preview = st.number_input("BPM Aperçu", 40, 200, 100)
@@ -778,7 +753,6 @@ with tab3:
             btn_video = st.button("🎥 Générer Vidéo + Audio")
 
         if btn_video:
-            # Utilisation de st.status pour une meilleure UX
             with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
                 st.write("🎹 Étape 1/3 : Mixage Audio...")
                 sequence = parser_texte(st.session_state.code_actuel)
@@ -791,10 +765,8 @@ with tab3:
                     
                     if img_buffer:
                         st.write("🎞️ Étape 3/3 : Montage vidéo (Patientez, c'est lourd !)...")
-                        # Barre de progression simulée pour faire patienter
                         progress_bar = st.progress(0)
                         try:
-                            # On simule un avancement car moviepy ne donne pas de callback simple ici
                             progress_bar.progress(30)
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
                             progress_bar.progress(100)
