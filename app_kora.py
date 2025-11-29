@@ -9,6 +9,8 @@ import os
 import urllib.parse
 import numpy as np
 import shutil
+from fpdf import FPDF
+import mido
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -29,13 +31,12 @@ st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
     page_icon=icon_page,
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE (SESSION STATE)
 # ==============================================================================
-# On initialise les variables pour qu'elles restent en mémoire après un clic télécharger
 if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
@@ -45,7 +46,7 @@ if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 # 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau ou changer l'accordage !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, importer du MIDI ou changer l'accordage !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -138,25 +139,21 @@ with col_logo:
     else: st.header("🪕")
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
-    st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
+    st.markdown("Composez, Importez du MIDI, Écoutez et Exportez.")
 
-# --- NOUVEAU : AIDE GÉNÉRALE ---
+# --- AIDE GÉNÉRALE ---
 with st.expander("❓ Comment ça marche ? (Mode d'emploi)"):
     st.markdown("""
-    1.  **Menu Gauche (Flèche Grise)** : C'est ici que tout commence ! 
-        * Chargez un morceau existant.
-        * Réglez l'accordage de votre Ngoni (quelles notes pour quelles cordes).
-        * Changez l'apparence (couleur de fond, texture).
-    2.  **Onglet Éditeur** : Écrivez votre musique avec le code simplifié (voir guide plus bas).
-    3.  **Générer** :
-        * **Partition** : Crée des images (PNG) pour chaque page.
-        * **Vidéo** : Crée une vidéo synchronisée avec le son pour s'entraîner.
-        * **Audio** : Crée juste le fichier MP3.
-    4.  **Télécharger** : Récupérez vos fichiers sur votre ordinateur.
+    1.  **Menu Gauche** : Réglages, Accordage et **Import MIDI**.
+    2.  **Boutons Rapides** : Utilisez les boutons colorés au-dessus de l'éditeur pour écrire sans clavier.
+    3.  **Audio Rapide** : Appuyez sur le bouton "Lecture Rapide" sous l'éditeur pour vérifier votre rythme.
+    4.  **Exports** : 
+        * **PDF** : Téléchargez un livret complet prêt à imprimer.
+        * **Vidéo** : Pour s'entraîner avec le défilement.
     """)
 
 # ==============================================================================
-# 🧠 MOTEUR LOGIQUE
+# 🧠 MOTEUR LOGIQUE & PARSING
 # ==============================================================================
 HAS_MOVIEPY = False
 try:
@@ -180,6 +177,9 @@ POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D':
 COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
+
+# Map pour conversion MIDI (approximative sur octave 4/5)
+NOTE_TO_MIDI_BASE = {'C': 60, 'D': 62, 'E': 64, 'F': 65, 'G': 67, 'A': 69, 'B': 71}
 
 def get_font(size, weight='normal', style='normal'):
     if os.path.exists(CHEMIN_POLICE): return fm.FontProperties(fname=CHEMIN_POLICE, size=size, weight=weight, style=style)
@@ -224,7 +224,7 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO
+# 🎹 MOTEUR AUDIO & MIDI
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
     if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
@@ -253,9 +253,67 @@ def generer_audio_mix(sequence, bpm):
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
+def midi_to_tab(midi_file, acc_config):
+    """Convertit un fichier MIDI en texte pour l'éditeur."""
+    mid = mido.MidiFile(file=midi_file)
+    result_lines = []
+    
+    # Création d'un mapping Note MIDI -> Corde Ngoni la plus proche
+    # On assigne arbitrairement des octaves aux cordes pour le calcul
+    acc_midi_map = {}
+    
+    # On suppose une distribution standard autour de l'octave 4
+    # Ceci est une approximation pour mapper les notes
+    octave_offset = 0
+    
+    for code, props in acc_config.items():
+        note_char = props['n'] # ex: 'C'
+        base_val = NOTE_TO_MIDI_BASE.get(note_char, 60)
+        # Ajustement sommaire : les cordes 1G/1D sont souvent aigues, 6G/6D graves
+        # Ceci est purement heuristique pour l'exemple
+        if code in ['1G', '1D', '2G', '2D']: midi_val = base_val + 12 # Octave 5
+        elif code in ['5G', '5D', '6G', '6D']: midi_val = base_val - 12 # Octave 3
+        else: midi_val = base_val # Octave 4
+        
+        acc_midi_map[code] = midi_val
+
+    # Fonction pour trouver la corde la plus proche
+    def get_closest_string(midi_note):
+        best_code = None
+        min_dist = 999
+        for code, val in acc_midi_map.items():
+            dist = abs(midi_note - val)
+            # On cherche une correspondance exacte de la note (modulo 12) d'abord
+            if dist % 12 == 0:
+                # C'est la même note (ex C3 et C4), on privilégie
+                return code
+            if dist < min_dist:
+                min_dist = dist
+                best_code = code
+        return best_code
+
+    current_time = 0
+    # On simplifie : on prend tous les messages Note On
+    # et on avance le temps linéairement pour l'instant
+    
+    events = []
+    for msg in mid:
+        if not msg.is_meta and msg.type == 'note_on' and msg.velocity > 0:
+            events.append(msg.note)
+    
+    # Génération basique : 1 note = 1 temps (pour simplifier)
+    # Une version avancée utiliserait msg.time
+    for note_val in events:
+        corde = get_closest_string(note_val)
+        if corde:
+            result_lines.append(f"+ {corde}")
+    
+    return "\n".join(result_lines)
+
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE (Images Statiques)
+# 🎨 MOTEUR AFFICHAGE & PDF
 # ==============================================================================
+# (Fonctions graphiques identiques à avant, condensées pour la clarté)
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
     prop_annotation = get_font(16, 'bold'); prop_legende = get_font(12, 'bold')
@@ -304,7 +362,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # GRILLE HORIZONTALE STATIQUE
+    # GRILLE
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
@@ -339,52 +397,24 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
 
 # --- MOTEUR VIDEO SYNCHRONISÉ ---
 def generer_image_longue_calibree(sequence, config_acc, styles):
-    """
-    Génère l'image et retourne les métriques pour la synchro.
-    Retourne: (buffer, pixels_par_temps, offset_premiere_note_px)
-    """
     if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
-    
-    # Configuration stricte de la figure pour maîtriser les pixels
-    y_max_header = 3.0
-    y_min_footer = -(t_max - t_min) - 2.0
-    hauteur_unites = y_max_header - y_min_footer
-    
-    # 1 unité de plot = X pixels. On fixe la largeur à 16 pouces.
-    # La hauteur dépendra du contenu.
-    FIG_WIDTH = 16
-    FIG_HEIGHT = hauteur_unites * 0.8 # Ratio arbitraire pour l'aspect
-    DPI = 100
-    
+    y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
+    FIG_WIDTH = 16; FIG_HEIGHT = hauteur_unites * 0.8; DPI = 100
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     path_pouce = CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE
     path_index = CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX
-    
-    fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond)
-    ax.set_facecolor(c_fond)
-    
-    # On force les limites Y pour que le mapping Pixel <-> Temps soit linéaire et connu
-    ax.set_ylim(y_min_footer, y_max_header)
-    ax.set_xlim(-7.5, 7.5)
-    
-    y_top = 2.0
-    y_bot = y_min_footer + 1.0 # Visuel
-    
+    fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
+    ax.set_ylim(y_min_footer, y_max_header); ax.set_xlim(-7.5, 7.5)
+    y_top = 2.0; y_bot = y_min_footer + 1.0 
     prop_note_us = get_font(24, 'bold'); prop_note_eu = get_font(18, 'normal', 'italic'); prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold'); prop_annotation = get_font(16, 'bold')
-    
-    # Entête Cordes
     ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
-    
-    # Grille
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-
-    # Notes
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
         t = n['temps']; 
@@ -411,101 +441,68 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     for y, group in notes_par_temps.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
-    
     ax.axis('off')
-    
-    # --- CALIBRATION DU SCROLL ---
-    # On convertit les coordonnées "Data" (0 = première note, -1 = deuxième note) en Pixels
-    # transform(0,0) renvoie (x_px, y_px) depuis le BAS-GAUCHE de l'image
     px_y_t0 = ax.transData.transform((0, 0))[1]
     px_y_t1 = ax.transData.transform((0, -1))[1]
-    
-    # Hauteur totale image en px
     total_h_px = FIG_HEIGHT * DPI
-    
-    # Distance en pixels pour 1 temps (attention y augmente vers le haut dans matplotlib)
     pixels_par_temps = px_y_t0 - px_y_t1
-    
-    # Position en pixels de la première note depuis le HAUT de l'image
-    # (Moviepy utilise le coin HAUT-GAUCHE comme 0,0)
     offset_premiere_note_px = total_h_px - px_y_t0
-    
-    buf = io.BytesIO(); 
-    # IMPORTANT : bbox_inches=None pour ne pas couper et fausser les calculs
-    fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None); 
-    plt.close(fig); buf.seek(0)
-    
+    buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None); plt.close(fig); buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
 def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
     pixels_par_temps, offset_premiere_note_px = metrics
-    
-    # Sauvegarde temporaire
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
-    
-    video_h = 600
-    window_h = int(w * 9 / 16)
+    video_h = 600; window_h = int(w * 9 / 16)
     if window_h > h: window_h = h
-    
-    # --- LOGIQUE DE SCROLL PRÉCISE ---
-    # La barre jaune est fixe à l'écran
     bar_y = 150 
-    
-    # Position initiale de l'image (Y) :
-    # On veut que la "Première Note" (située à 'offset_premiere_note_px' du haut de l'image)
-    # soit positionnée sous la "Barre Jaune" (située à 'bar_y' de l'écran).
     start_y = bar_y - offset_premiere_note_px
-    
-    # Vitesse de défilement :
-    # On connait les Pixels par Temps (beat).
-    # On connait le BPM (Beats par Minute).
-    # Vitesse (px/sec) = (Pixels/Temps) * (Temps/Minute) / 60
     speed_px_sec = pixels_par_temps * (bpm / 60.0)
-    
     def scroll_func(t):
-        # L'image remonte, donc on soustrait
         current_y = start_y - (speed_px_sec * t)
         return ('center', current_y)
-
-    moving_clip = clip_img.set_position(scroll_func)
-    moving_clip = moving_clip.set_duration(duration_sec)
-    
-    # Barre jaune
-    highlight_bar = None
+    moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
     try:
-        bar_height = int(pixels_par_temps) # La barre fait la taille d'une note exactement
-        highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0))
-        highlight_bar = highlight_bar.set_opacity(0.3)
-        # On centre la barre verticalement sur bar_y
-        highlight_bar = highlight_bar.set_position(('center', bar_y - bar_height/2))
-        highlight_bar = highlight_bar.set_duration(duration_sec)
-    except: pass
-        
-    if highlight_bar:
+        bar_height = int(pixels_par_temps)
+        highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-    else:
+    except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-
     video_visual = video_visual.set_duration(duration_sec)
-
-    audio_clip = AudioFileClip("temp_audio.mp3")
-    audio_clip = audio_clip.subclip(0, duration_sec)
-    
+    audio_clip = AudioFileClip("temp_audio.mp3").subclip(0, duration_sec)
     final = video_visual.set_audio(audio_clip)
     final.fps = fps
-    
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
-    
-    try:
-        audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
+    try: audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
     except: pass
-        
     return output_filename
+
+def generer_pdf_livret(buffers, titre):
+    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    for item in buffers:
+        pdf.add_page()
+        # On sauvegarde le buffer temporairement sur disque pour FPDF
+        temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}.png"
+        with open(temp_img, "wb") as f:
+            f.write(item['buf'].getbuffer())
+        
+        # Ajustement taille image pour A4 (297x210)
+        pdf.image(temp_img, x=10, y=10, w=277)
+        
+        if os.path.exists(temp_img): os.remove(temp_img)
+        
+    buf = io.BytesIO()
+    # FPDF output to string -> encode -> bytes
+    # Mais avec FPDF moderne on peut utiliser output() différemment.
+    # Hack simple pour Streamlit:
+    pdf_output = pdf.output(dest='S').encode('latin-1')
+    buf.write(pdf_output)
+    buf.seek(0)
+    return buf
 
 # ==============================================================================
 # 🎛️ INTERFACE STREAMLIT
@@ -522,20 +519,31 @@ def charger_morceau():
         nouveau = BANQUE_TABLATURES[choix].strip()
         st.session_state.code_actuel = nouveau
         st.session_state.widget_input = nouveau
-        # Reset des générations précédentes car le code a changé
         st.session_state.partition_generated = False
         st.session_state.video_path = None
         st.session_state.audio_buffer = None
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
-    # Reset des générations précédentes car le code a changé
     st.session_state.partition_generated = False
     st.session_state.video_path = None
     st.session_state.audio_buffer = None
 
+# --- CALLBACKS POUR LES BOUTONS ---
+def ajouter_texte(txt):
+    if 'code_actuel' in st.session_state:
+        st.session_state.code_actuel += "\n" + txt
+    else:
+        st.session_state.code_actuel = txt
+    # On force la mise à jour du widget aussi
+    st.session_state.widget_input = st.session_state.code_actuel
+
 with st.sidebar:
-    st.header("🎚️ Réglages")
+    st.header("🎚️ Réglages & Import")
+    
+    st.markdown("### 🎹 Import MIDI")
+    midi_file = st.file_uploader("Importer fichier .mid", type=["mid", "midi"])
+    
     st.markdown("### 📚 Banque de Morceaux")
     st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau)
     st.caption("⚠️ Remplacera le texte actuel.")
@@ -575,41 +583,77 @@ with tab2:
             k = f"{i}D"; val = st.selectbox(f"Corde {k}", notes_gamme, index=notes_gamme.index(DEF_ACC[k]), key=k)
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
-with tab1:
-    col_input, col_view = st.columns([1, 2])
-    with col_input:
-        st.subheader("Code")
-        
-        # --- NOUVEAU : GUIDE DE NOTATION ---
-        with st.expander("📚 Guide de Notation (Comment écrire)", expanded=False):
-            st.markdown("""
-            * **1G, 2D...** : Indique la corde (1=Haut, G=Gauche, D=Droite).
-            * **+** : Passe au temps suivant (note suivante).
-            * **=** : Reste sur le même temps (notes simultanées).
-            * **S** : Silence (ne rien jouer).
-            * **TXT** : Ajoute un texte (ex: `+ TXT Refrain`).
-            * **PAGE** : Force un saut de page.
-            * **x2** : Répétition (ex: `+ 6D x2` joue deux fois la corde).
-            """)
-        # -----------------------------------
+    # TRAITEMENT DU FICHIER MIDI IMPORTÉ
+    if midi_file is not None:
+        if st.button("⚡ Convertir MIDI en Tablature"):
+            tab_text = midi_to_tab(midi_file, acc_config)
+            st.session_state.code_actuel = tab_text
+            st.session_state.widget_input = tab_text
+            st.success("Conversion terminée ! Allez dans l'onglet Éditeur.")
+            st.rerun()
 
-        with st.expander("❓ Sauvegarder / Recharger"):
-            st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
-        uploaded_file = st.file_uploader("📂 Charger un fichier (.txt)", type="txt")
-        if uploaded_file is not None:
-            stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
-            content = stringio.read()
-            if content != st.session_state.code_actuel:
-                st.session_state.code_actuel = content
-                st.session_state.widget_input = content
+with tab1:
+    col_input, col_view = st.columns([1, 1.5])
+    with col_input:
+        st.subheader("Éditeur")
+        
+        # --- NOUVEAU : INTERFACE BOUTONS ---
+        st.markdown("**Insertion Rapide**")
+        bc1, bc2, bc3, bc4 = st.columns(4)
+        with bc1: 
+            st.caption("Gauche")
+            st.button("1G", on_click=ajouter_texte, args=("+ 1G",), use_container_width=True)
+            st.button("2G", on_click=ajouter_texte, args=("+ 2G",), use_container_width=True)
+            st.button("3G", on_click=ajouter_texte, args=("+ 3G",), use_container_width=True)
+            st.button("4G", on_click=ajouter_texte, args=("+ 4G",), use_container_width=True)
+            st.button("5G", on_click=ajouter_texte, args=("+ 5G",), use_container_width=True)
+            st.button("6G", on_click=ajouter_texte, args=("+ 6G",), use_container_width=True)
+        with bc2:
+            st.caption("Droite")
+            st.button("1D", on_click=ajouter_texte, args=("+ 1D",), use_container_width=True)
+            st.button("2D", on_click=ajouter_texte, args=("+ 2D",), use_container_width=True)
+            st.button("3D", on_click=ajouter_texte, args=("+ 3D",), use_container_width=True)
+            st.button("4D", on_click=ajouter_texte, args=("+ 4D",), use_container_width=True)
+            st.button("5D", on_click=ajouter_texte, args=("+ 5D",), use_container_width=True)
+            st.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
+        with bc3:
+            st.caption("Outils")
+            st.button("➕ Note Suiv.", on_click=ajouter_texte, args=("+",), use_container_width=True)
+            st.button("🟰 Simultané", on_click=ajouter_texte, args=("=",), use_container_width=True)
+            st.button("🔁 x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+        with bc4:
+            st.caption("Structure")
+            st.button("🔇 Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            st.button("📄 Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+            st.button("📝 Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
+
+        st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte)
+        
+        # --- NOUVEAU : LECTEUR AUDIO RAPIDE ---
+        st.markdown("---")
+        col_play_btn, col_play_bpm = st.columns([1, 1])
+        with col_play_bpm:
+            bpm_preview = st.number_input("BPM", 40, 200, 100)
+        with col_play_btn:
+            st.write("") # Spacer
+            st.write("") 
+            if st.button("🎧 Écouter l'extrait"):
+                seq_prev = parser_texte(st.session_state.code_actuel)
+                audio_prev = generer_audio_mix(seq_prev, bpm_preview)
+                if audio_prev: st.audio(audio_prev, format="audio/mp3")
+
+        with st.expander("Gérer le fichier"):
+            st.download_button(label="💾 Sauvegarder le code (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition.replace(' ', '_')}.txt", mime="text/plain")
+            uploaded_file = st.file_uploader("📂 Charger (.txt)", type="txt")
+            if uploaded_file:
+                stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
+                st.session_state.code_actuel = stringio.read()
                 st.rerun()
-        st.text_area("Saisissez votre tablature ici :", height=500, key="widget_input", on_change=mise_a_jour_texte)
-        st.download_button(label="💾 Sauvegarder le code (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition.replace(' ', '_')}.txt", mime="text/plain")
         
     with col_view:
-        st.subheader("Aperçu")
-        if st.button("🔄 Générer la partition", type="primary"):
-            st.session_state.partition_buffers = [] # Reset buffer
+        st.subheader("Aperçu Partition")
+        if st.button("🔄 Générer la partition", type="primary", use_container_width=True):
+            st.session_state.partition_buffers = [] 
             
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
@@ -644,18 +688,28 @@ with tab1:
             
             st.session_state.partition_generated = True
 
-        # --- AFFICHAGE PERSISTANT DE LA PARTITION ---
+        # --- AFFICHAGE PERSISTANT ---
         if st.session_state.partition_generated and st.session_state.partition_buffers:
+            # --- NOUVEAU : BOUTON EXPORT PDF LIVRET ---
+            st.markdown("### 📥 Export Global")
+            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+            st.download_button(
+                label="📕 Télécharger le Livret Complet (PDF)",
+                data=pdf_buffer,
+                file_name=f"{titre_partition}.pdf",
+                mime="application/pdf",
+                type="primary"
+            )
+            # ------------------------------------------
+
             for item in st.session_state.partition_buffers:
                 if item['type'] == 'legende':
-                    st.markdown("### Page 1 : Légende")
+                    st.markdown("#### Page 1 : Légende")
                     st.pyplot(item['img_ecran'])
-                    st.download_button(label="⬇️ Télécharger Légende", data=item['buf'], file_name=f"{titre_partition}_Legende.png", mime="image/png", key="dl_leg")
                 elif item['type'] == 'page':
                     idx = item['idx']
-                    st.markdown(f"### Page {idx}")
+                    st.markdown(f"#### Page {idx}")
                     st.pyplot(item['img_ecran'])
-                    st.download_button(label=f"⬇️ Télécharger Page {idx}", data=item['buf'], file_name=f"{titre_partition}_Page_{idx}.png", mime="image/png", key=f"dl_p_{idx}")
 
 # --- TAB VIDEO ---
 with tab3:
@@ -693,12 +747,11 @@ with tab3:
                     with st.spinner("Montage Synchronisé..."):
                         try:
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
-                            st.session_state.video_path = video_path # Sauvegarde dans la session
+                            st.session_state.video_path = video_path 
                             st.success("Vidéo terminée et synchronisée ! 🥳")
                         except Exception as e:
                             st.error(f"Erreur lors du montage : {e}")
 
-        # --- AFFICHAGE PERSISTANT DE LA VIDÉO ---
         if st.session_state.video_path and os.path.exists(st.session_state.video_path):
             st.video(st.session_state.video_path)
             with open(st.session_state.video_path, "rb") as file:
@@ -719,10 +772,9 @@ with tab4:
                 sequence = parser_texte(st.session_state.code_actuel)
                 mp3_buffer = generer_audio_mix(sequence, bpm_audio)
                 if mp3_buffer:
-                    st.session_state.audio_buffer = mp3_buffer # Sauvegarde dans la session
+                    st.session_state.audio_buffer = mp3_buffer
                     st.success("Terminé !")
 
-        # --- AFFICHAGE PERSISTANT DE L'AUDIO ---
         if st.session_state.audio_buffer:
             st.audio(st.session_state.audio_buffer, format="audio/mp3")
             st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg")
