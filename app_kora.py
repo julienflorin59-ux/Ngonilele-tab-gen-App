@@ -520,37 +520,13 @@ with st.sidebar:
         type=["mid", "midi"]
     )
     
-    st.markdown("---")
-    titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
-    with st.expander("🎨 Apparence", expanded=False):
-        bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
-        use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
-        bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
-        st.markdown("---")
-        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
-    
-    st.markdown("---")
-    st.markdown("### 🤝 Contribuer")
-    mon_email = "julienflorin59@gmail.com" 
-    sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
-    corps_mail = f"Bonjour,\n\nVoici une proposition :\n\n{st.session_state.code_actuel}"
-    mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
-    st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
-
     # TRAITEMENT DU FICHIER MIDI
     if midi_file is not None:
         if st.button("⚡ Convertir MIDI en Tablature", type="primary"):
-            # On recupere les configs cordes (definies plus bas, mais accessibles via session si besoin ou defauts)
-            # Ici on utilise une config par defaut temporaire si pas encore chargée, 
-            # mais l'idéal est de cliquer après avoir configuré les cordes.
-            # Pour faire simple, on relit la config standard
             DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
-            # Note: Dans un vrai scénario, il faudrait lire les selects de l'onglet 2. 
-            # Comme Streamlit re-run tout le script, on va lire les valeurs des widgets s'ils existent
             temp_acc_config = {}
             notes_gamme = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
             for k, default_note in DEF_ACC.items():
-                # On essaie de recuperer la valeur du widget s'il existe (onglet 2)
                 val = st.session_state.get(k, default_note)
                 temp_acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
@@ -559,6 +535,15 @@ with st.sidebar:
             st.session_state.widget_input = tab_text
             st.success("Conversion terminée ! Vérifiez l'onglet Éditeur.")
             st.rerun()
+
+    st.markdown("---")
+    
+    with st.expander("🎨 Apparence", expanded=False):
+        bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
+        use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
+        bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
+        st.markdown("---")
+        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
@@ -580,6 +565,8 @@ with tab2:
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
 with tab1:
+    titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
+    
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
@@ -607,7 +594,8 @@ with tab1:
             st.caption("Outils")
             st.button("➕ Note Suiv.", on_click=ajouter_texte, args=("+",), use_container_width=True)
             st.button("🟰 Notes Simultanées", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            st.button("🔁 Note Doublée", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            # CORRECTION ICI : "Notes Doublées"
+            st.button("🔁 Notes Doublées", on_click=ajouter_texte, args=("x2",), use_container_width=True)
         with bc4:
             st.caption("Structure")
             st.button("🔇 Insérer Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
@@ -706,6 +694,16 @@ with tab1:
                 mime="application/pdf",
                 type="primary"
             )
+
+# --- AFFICHER 'CONTRIBUER' DANS LE MENU (MAIS À LA FIN) ---
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("### 🤝 Contribuer")
+    mon_email = "julienflorin59@gmail.com" 
+    sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
+    corps_mail = f"Bonjour,\n\nVoici une proposition :\n\n{st.session_state.code_actuel}"
+    mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
+    st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
 # --- TAB VIDEO ---
 with tab3:
