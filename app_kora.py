@@ -33,59 +33,39 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🎨 CSS HACK V7 : MENU ROUGE (MULTI-CIBLAGE)
+# 🎨 CSS HACK : MENU ROUGE
 # ==============================================================================
 st.markdown("""
     <style>
-    /* CIBLAGE 1 : Par ID (Standard) */
-    [data-testid="stSidebarCollapsedControl"],
-    /* CIBLAGE 2 : Par Label (Accessibilité - Très robuste) */
-    button[aria-label="Collapsed sidebar"],
-    /* CIBLAGE 3 : Par position (Dernier recours) */
-    header[data-testid="stHeader"] > div:first-child button {
+    [data-testid="stSidebarCollapsedControl"] {
         background-color: #FF4B4B !important;
         border: 2px solid white !important;
         color: white !important;
         border-radius: 8px !important;
-        padding: 5px 10px !important;
+        padding: 5px !important;
         margin-top: 5px !important;
         margin-left: 5px !important;
-        height: 3.5rem !important;
-        width: auto !important;
-        min-width: 60px !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
-        opacity: 1 !important;
-        visibility: visible !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
+        z-index: 100000 !important;
         display: flex !important;
         align-items: center !important;
-        justify-content: center !important;
-        z-index: 1000001 !important;
+        width: auto !important;
     }
-
-    /* Force la flèche en blanc */
-    [data-testid="stSidebarCollapsedControl"] svg,
-    button[aria-label="Collapsed sidebar"] svg {
+    [data-testid="stSidebarCollapsedControl"] svg {
         fill: white !important;
         stroke: white !important;
-        color: white !important;
-        min-width: 24px !important;
-        min-height: 24px !important;
     }
-
-    /* Ajoute le texte MENU */
-    [data-testid="stSidebarCollapsedControl"]::after,
-    button[aria-label="Collapsed sidebar"]::after {
+    [data-testid="stSidebarCollapsedControl"]::after {
         content: "MENU";
         font-weight: 900 !important;
         font-size: 14px !important;
         color: white !important;
-        margin-left: 5px !important;
-        padding-top: 2px !important;
+        margin-left: 8px;
+        margin-right: 5px;
+        padding-top: 2px;
     }
-
-    /* Force l'affichage du Header sur mobile */
     @media (max-width: 640px) {
-        header[data-testid="stHeader"] {
+        [data-testid="stHeader"] {
             display: block !important;
             visibility: visible !important;
         }
@@ -193,11 +173,41 @@ with col_titre:
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
+# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
+# ==============================================================================
+with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("### 1. Écrire la musique")
+        st.write("""
+        * Utilisez l'onglet **"Éditeur"**.
+        * Tapez votre code à gauche.
+        * Cliquez sur **"Générer la partition"** pour voir le résultat.
+        * Téléchargez les images ou le fichier texte.
+        """)
+    with c2:
+        st.markdown("### 2. Vidéo & Audio")
+        st.write("""
+        * Onglet **"Vidéo"** : Créez une animation défilante pour apprendre le rythme.
+        * Onglet **"Audio"** : Écoutez le rendu sonore.
+        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement au début !
+        """)
+    with c3:
+        st.markdown("### 3. Réglages")
+        st.write("""
+        * **Menu Rouge (Haut Gauche)** :
+            * *Banque de morceaux* : Chargez des exemples.
+            * *Apparence* : Changez la couleur de fond.
+            * *Contribution* : Envoyez-moi vos créations !
+        * Onglet **"Accordage"** : Changez les notes des cordes.
+        """)
+
+# ==============================================================================
 # 🧠 MOTEUR LOGIQUE
 # ==============================================================================
 HAS_MOVIEPY = False
 try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
+    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip, ColorClip
     HAS_MOVIEPY = True
 except: pass
 
@@ -331,16 +341,14 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     ax.text(-3.5, y_top_cordes + 2.0, "Cordes de Gauche", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt); ax.text(3.5, y_top_cordes + 2.0, "Cordes de Droite", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
-    
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # --- AJOUT DE LA GRILLE HORIZONTALE (Version 41 : Foncée et Opaque) ---
+    # GRILLE HORIZONTALE STATIQUE
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # ----------------------------------------------------------------------
 
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps']); processed_t = set()
     for n in sorted_notes:
@@ -385,13 +393,6 @@ def generer_image_longue(sequence, config_acc, styles):
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
-    
-    # --- AJOUT DE LA GRILLE HORIZONTALE (VIDEO) ---
-    for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
-        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # ----------------------------------------------
-
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
         t = n['temps']; 
@@ -418,6 +419,13 @@ def generer_image_longue(sequence, config_acc, styles):
     for y, group in notes_par_temps.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
+    
+    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
+    for t in range(t_min, t_max + 1):
+        y = -(t - t_min)
+        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+    # -----------------------------------------
+
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 3); ax.axis('off')
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, facecolor=c_fond, bbox_inches='tight'); plt.close(fig); buf.seek(0)
     return buf
@@ -425,19 +433,47 @@ def generer_image_longue(sequence, config_acc, styles):
 def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-    clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
-    window_h = int(w * 9 / 16); 
+
+    clip_img = ImageClip("temp_score.png")
+    w, h = clip_img.size
+    window_h = int(w * 9 / 16)
     if window_h > h: window_h = h
-    video_h = 600
+    video_h = 600 
+    
+    # --- SCROLLING LOGIC ---
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
+    
+    # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
+    bar_height = 50 
+    bar_y = 150 
+    
+    try:
+        from moviepy.video.tools.drawing import color_gradient
+        highlight_bar = ColorClip(size=(w, bar_height), color=[255, 215, 0]) # Or/Jaune
+        highlight_bar = highlight_bar.set_opacity(0.3) # Transparence
+        highlight_bar = highlight_bar.set_position(('center', bar_y))
+        highlight_bar = highlight_bar.set_duration(duration_sec)
+        
+        # OFFSET DE SCROLL POUR ALIGNEMENT
+        moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (h - video_h) * (t / duration_sec) ))
+        
+        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
+    except:
+        video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
+
+    # --- AUDIO ---
     audio_clip = AudioFileClip("temp_audio.mp3")
     audio_clip = audio_clip.subclip(0, duration_sec)
-    video_with_audio = moving_clip.set_audio(audio_clip)
-    final = CompositeVideoClip([video_with_audio], size=(w, video_h)); final.fps = fps
+    
+    final = video_visual.set_audio(audio_clip)
+    final.fps = fps
+    
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
-    audio_clip.close(); final.close()
+    
+    audio_clip.close()
+    final.close()
     return output_filename
 
 # ==============================================================================
@@ -507,6 +543,9 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
+        # --- AJOUT : LEGENDE NOTATION (ANTI-SECHE) ---
+        st.info("💡 **Légende rapide :**\n`1` = Temps 1 • `4D` = Corde 4 Droite • `+` = Temps suivant • `=` = Simultané • `S` = Silence • `x2` = Répéter")
+        
         with st.expander("❓ Sauvegarder / Recharger"):
             st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
         uploaded_file = st.file_uploader("📂 Charger un fichier (.txt)", type="txt")
