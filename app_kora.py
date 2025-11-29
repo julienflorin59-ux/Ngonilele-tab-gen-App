@@ -10,7 +10,6 @@ import urllib.parse
 import numpy as np
 import shutil
 from fpdf import FPDF
-import mido
 import random 
 
 # ==============================================================================
@@ -50,7 +49,7 @@ if 'debug_info' not in st.session_state: st.session_state.debug_info = ""
 # 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, importer du MIDI, changer l'apparence ou m'envoyer ta tablature pour que je l'ajoute à la banque de morceaux !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, changer l'apparence ou m'envoyer ta tablature pour que je l'ajoute à la banque de morceaux !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -140,12 +139,12 @@ with col_logo:
     else: st.header("🪕")
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
-    st.markdown("Composez, Importez du MIDI, Écoutez et Exportez.")
+    st.markdown("Composez, Écoutez et Exportez.")
 
 # --- AIDE GÉNÉRALE ---
 with st.expander("❓ Comment ça marche ? (Mode d'emploi)"):
     st.markdown("""
-    1.  **Menu Gauche** : Réglages, Accordage et **Import MIDI**.
+    1.  **Menu Gauche** : Réglages et Accordage.
     2.  **Boutons Rapides** : Utilisez les boutons colorés au-dessus de l'éditeur pour écrire sans clavier.
     3.  **Audio & Groove** : Onglet Audio pour générer le MP3 final ou lancer un **Métronome**.
     4.  **Exports** : Téléchargez le PDF (Livret) ou la Vidéo pour vous entraîner.
@@ -296,72 +295,6 @@ def generer_metronome(bpm, duration_sec=30):
     metronome_track.export(buffer, format="mp3")
     buffer.seek(0)
     return buffer
-
-# --- MOTEUR MIDI V3.9 : MAPPING STRICT PAR NOM ---
-def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
-    mid = mido.MidiFile(file=midi_file)
-    result_lines = []
-    
-    # 1. Dictionnaire Inverse : Note (lettre) -> Liste des cordes qui la jouent
-    # Ex: {'G': ['1G', '4D', '6G'], 'C': ['2G', '5G']}
-    note_to_strings = {}
-    
-    for code, props in acc_config.items():
-        note_name = props['n'] # 'G', 'C', 'A'...
-        if note_name not in note_to_strings:
-            note_to_strings[note_name] = []
-        note_to_strings[note_name].append(code)
-
-    # 2. Lecture des notes MIDI
-    events = []
-    abs_time = 0
-    count_total = 0
-    
-    for msg in mid:
-        abs_time += msg.time
-        if msg.type == 'note_on' and msg.velocity > 0:
-            count_total += 1
-            # Conversion 67 -> 7 (Modulo 12) -> 'G'
-            note_index = msg.note % 12
-            note_char = NOTE_NAMES_MODULO[note_index]
-            events.append({'time': abs_time, 'note_char': note_char})
-            
-    events.sort(key=lambda x: x['time'])
-    
-    # 3. Ecriture
-    last_time = -1.0
-    is_first = True
-    count_mapped = 0
-    
-    # Pour alterner si plusieurs cordes ont la même note (optionnel, on prend la première pour l'instant)
-    
-    for evt in events:
-        n_char = evt['note_char']
-        
-        # On cherche si on a une corde pour cette note
-        if n_char in note_to_strings and note_to_strings[n_char]:
-            # On prend la première corde disponible (ou une logique plus complexe si besoin)
-            # Pour être strict : on prend la première de la liste
-            corde = note_to_strings[n_char][0]
-            
-            count_mapped += 1
-            t = evt['time']
-            
-            if is_first:
-                prefix = "1"
-                is_first = False
-            else:
-                diff = t - last_time
-                if diff < time_threshold:
-                    prefix = "="
-                else:
-                    prefix = "+"
-            
-            result_lines.append(f"{prefix}   {corde}")
-            last_time = t
-            
-    st.session_state.debug_info = f"Notes détectées: {count_total} | Notes écrites: {count_mapped} (Mode Strict: Note Nom)"
-    return "\n".join(result_lines)
 
 # ==============================================================================
 # 🎨 MOTEUR AFFICHAGE
@@ -592,43 +525,11 @@ def annuler_derniere_ligne():
         st.session_state.widget_input = st.session_state.code_actuel
 
 with st.sidebar:
-    st.header("🎚️ Réglages & Import")
+    st.header("🎚️ Réglages")
     
     st.markdown("### 📚 Banque de Morceaux")
     st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau)
     st.caption("⚠️ Remplacera le texte actuel.")
-
-    st.markdown("---")
-    st.markdown("### 🎹 Import MIDI")
-    midi_file = st.file_uploader(
-        label="Ajoutes un fichier midi ici pour le convertir en tablature",
-        help="Astuce : tu peux jouer ton morceau sur un clavier midi -> l'exporter en fichier midi -> et l'ajouter ici pour le transformer en tablature",
-        type=["mid", "midi"]
-    )
-    
-    # NOUVEAU CURSEUR : Sensibilité MIDI
-    sensitivity = st.slider("Sensibilité Rythmique MIDI", 0.01, 0.20, 0.05, 0.01, help="Réglez ce seuil pour grouper les notes en accords. Plus bas = plus d'arpèges.")
-
-    # TRAITEMENT DU FICHIER MIDI
-    if midi_file is not None:
-        if st.button("⚡ Convertir MIDI en Tablature", type="primary"):
-            # On recupere les configs cordes (definies plus bas, mais accessibles via session si besoin ou defauts)
-            DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
-            temp_acc_config = {}
-            for k, default_note in DEF_ACC.items():
-                val = st.session_state.get(k, default_note)
-                temp_acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
-
-            # On passe la sensibilité ici
-            tab_text = midi_to_tab(midi_file, temp_acc_config, time_threshold=sensitivity)
-            st.session_state.code_actuel = tab_text
-            st.session_state.widget_input = tab_text
-            st.success("Conversion terminée ! Vérifiez l'onglet Éditeur.")
-            st.rerun()
-
-    if st.session_state.debug_info:
-        with st.expander("🔍 Rapport d'analyse MIDI"):
-            st.code(st.session_state.debug_info)
 
     st.markdown("---")
     
