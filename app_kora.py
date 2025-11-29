@@ -41,12 +41,13 @@ if 'partition_buffers' not in st.session_state: st.session_state.partition_buffe
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
 if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
+if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 
 # ==============================================================================
 # 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, importer du MIDI ou changer l'accordage !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, importer du MIDI, changer l'apparence ou m'envoyer ta tablature pour que je l'ajoute à la banque de morceaux !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -177,8 +178,6 @@ POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D':
 COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
-
-# Map pour conversion MIDI (approximative sur octave 4/5)
 NOTE_TO_MIDI_BASE = {'C': 60, 'D': 62, 'E': 64, 'F': 65, 'G': 67, 'A': 69, 'B': 71}
 
 def get_font(size, weight='normal', style='normal'):
@@ -254,66 +253,39 @@ def generer_audio_mix(sequence, bpm):
     return buffer
 
 def midi_to_tab(midi_file, acc_config):
-    """Convertit un fichier MIDI en texte pour l'éditeur."""
     mid = mido.MidiFile(file=midi_file)
     result_lines = []
-    
-    # Création d'un mapping Note MIDI -> Corde Ngoni la plus proche
-    # On assigne arbitrairement des octaves aux cordes pour le calcul
     acc_midi_map = {}
-    
-    # On suppose une distribution standard autour de l'octave 4
-    # Ceci est une approximation pour mapper les notes
-    octave_offset = 0
-    
     for code, props in acc_config.items():
-        note_char = props['n'] # ex: 'C'
+        note_char = props['n']
         base_val = NOTE_TO_MIDI_BASE.get(note_char, 60)
-        # Ajustement sommaire : les cordes 1G/1D sont souvent aigues, 6G/6D graves
-        # Ceci est purement heuristique pour l'exemple
-        if code in ['1G', '1D', '2G', '2D']: midi_val = base_val + 12 # Octave 5
-        elif code in ['5G', '5D', '6G', '6D']: midi_val = base_val - 12 # Octave 3
-        else: midi_val = base_val # Octave 4
-        
+        if code in ['1G', '1D', '2G', '2D']: midi_val = base_val + 12 
+        elif code in ['5G', '5D', '6G', '6D']: midi_val = base_val - 12
+        else: midi_val = base_val
         acc_midi_map[code] = midi_val
 
-    # Fonction pour trouver la corde la plus proche
     def get_closest_string(midi_note):
-        best_code = None
-        min_dist = 999
+        best_code = None; min_dist = 999
         for code, val in acc_midi_map.items():
             dist = abs(midi_note - val)
-            # On cherche une correspondance exacte de la note (modulo 12) d'abord
-            if dist % 12 == 0:
-                # C'est la même note (ex C3 et C4), on privilégie
-                return code
-            if dist < min_dist:
-                min_dist = dist
-                best_code = code
+            if dist % 12 == 0: return code
+            if dist < min_dist: min_dist = dist; best_code = code
         return best_code
 
-    current_time = 0
-    # On simplifie : on prend tous les messages Note On
-    # et on avance le temps linéairement pour l'instant
-    
     events = []
     for msg in mid:
         if not msg.is_meta and msg.type == 'note_on' and msg.velocity > 0:
             events.append(msg.note)
     
-    # Génération basique : 1 note = 1 temps (pour simplifier)
-    # Une version avancée utiliserait msg.time
     for note_val in events:
         corde = get_closest_string(note_val)
-        if corde:
-            result_lines.append(f"+ {corde}")
+        if corde: result_lines.append(f"+ {corde}")
     
     return "\n".join(result_lines)
 
 # ==============================================================================
 # 🎨 MOTEUR AFFICHAGE & PDF
 # ==============================================================================
-# (Fonctions graphiques identiques à avant, condensées pour la clarté)
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
     prop_annotation = get_font(16, 'bold'); prop_legende = get_font(12, 'bold')
@@ -362,7 +334,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # GRILLE
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
@@ -482,23 +453,20 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     return output_filename
 
 def generer_pdf_livret(buffers, titre):
-    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    # Orientation P (Portrait), A4
+    pdf = FPDF(orientation='P', unit='mm', format='A4')
     for item in buffers:
         pdf.add_page()
-        # On sauvegarde le buffer temporairement sur disque pour FPDF
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}.png"
         with open(temp_img, "wb") as f:
             f.write(item['buf'].getbuffer())
         
-        # Ajustement taille image pour A4 (297x210)
-        pdf.image(temp_img, x=10, y=10, w=277)
+        # A4 Portrait = 210mm width. Marge 10mm. Max w = 190.
+        pdf.image(temp_img, x=10, y=10, w=190)
         
         if os.path.exists(temp_img): os.remove(temp_img)
         
     buf = io.BytesIO()
-    # FPDF output to string -> encode -> bytes
-    # Mais avec FPDF moderne on peut utiliser output() différemment.
-    # Hack simple pour Streamlit:
     pdf_output = pdf.output(dest='S').encode('latin-1')
     buf.write(pdf_output)
     buf.seek(0)
@@ -511,7 +479,8 @@ def generer_pdf_livret(buffers, titre):
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
-if 'code_actuel' not in st.session_state: st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
+if st.session_state.code_actuel == "":
+    st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
 
 def charger_morceau():
     choix = st.session_state.selection_banque
@@ -529,24 +498,28 @@ def mise_a_jour_texte():
     st.session_state.video_path = None
     st.session_state.audio_buffer = None
 
-# --- CALLBACKS POUR LES BOUTONS ---
 def ajouter_texte(txt):
     if 'code_actuel' in st.session_state:
         st.session_state.code_actuel += "\n" + txt
     else:
         st.session_state.code_actuel = txt
-    # On force la mise à jour du widget aussi
     st.session_state.widget_input = st.session_state.code_actuel
 
 with st.sidebar:
     st.header("🎚️ Réglages & Import")
     
-    st.markdown("### 🎹 Import MIDI")
-    midi_file = st.file_uploader("Importer fichier .mid", type=["mid", "midi"])
-    
     st.markdown("### 📚 Banque de Morceaux")
     st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau)
     st.caption("⚠️ Remplacera le texte actuel.")
+
+    st.markdown("---")
+    st.markdown("### 🎹 Import MIDI")
+    midi_file = st.file_uploader(
+        label="Ajoutes un fichier midi ici pour le convertir en tablature",
+        help="Astuce : tu peux jouer ton morceau sur un clavier midi -> l'exporter en fichier midi -> et l'ajouter ici pour le transformer en tablature",
+        type=["mid", "midi"]
+    )
+    
     st.markdown("---")
     titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
     with st.expander("🎨 Apparence", expanded=False):
@@ -563,6 +536,29 @@ with st.sidebar:
     corps_mail = f"Bonjour,\n\nVoici une proposition :\n\n{st.session_state.code_actuel}"
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+
+    # TRAITEMENT DU FICHIER MIDI
+    if midi_file is not None:
+        if st.button("⚡ Convertir MIDI en Tablature", type="primary"):
+            # On recupere les configs cordes (definies plus bas, mais accessibles via session si besoin ou defauts)
+            # Ici on utilise une config par defaut temporaire si pas encore chargée, 
+            # mais l'idéal est de cliquer après avoir configuré les cordes.
+            # Pour faire simple, on relit la config standard
+            DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
+            # Note: Dans un vrai scénario, il faudrait lire les selects de l'onglet 2. 
+            # Comme Streamlit re-run tout le script, on va lire les valeurs des widgets s'ils existent
+            temp_acc_config = {}
+            notes_gamme = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+            for k, default_note in DEF_ACC.items():
+                # On essaie de recuperer la valeur du widget s'il existe (onglet 2)
+                val = st.session_state.get(k, default_note)
+                temp_acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
+
+            tab_text = midi_to_tab(midi_file, temp_acc_config)
+            st.session_state.code_actuel = tab_text
+            st.session_state.widget_input = tab_text
+            st.success("Conversion terminée ! Vérifiez l'onglet Éditeur.")
+            st.rerun()
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
@@ -583,22 +579,13 @@ with tab2:
             k = f"{i}D"; val = st.selectbox(f"Corde {k}", notes_gamme, index=notes_gamme.index(DEF_ACC[k]), key=k)
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
-    # TRAITEMENT DU FICHIER MIDI IMPORTÉ
-    if midi_file is not None:
-        if st.button("⚡ Convertir MIDI en Tablature"):
-            tab_text = midi_to_tab(midi_file, acc_config)
-            st.session_state.code_actuel = tab_text
-            st.session_state.widget_input = tab_text
-            st.success("Conversion terminée ! Allez dans l'onglet Éditeur.")
-            st.rerun()
-
 with tab1:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
         
-        # --- NOUVEAU : INTERFACE BOUTONS ---
-        st.markdown("**Insertion Rapide**")
+        # --- METHODE 1 : BOUTONS (NOUVELLE) ---
+        st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
         bc1, bc2, bc3, bc4 = st.columns(4)
         with bc1: 
             st.caption("Gauche")
@@ -619,23 +606,28 @@ with tab1:
         with bc3:
             st.caption("Outils")
             st.button("➕ Note Suiv.", on_click=ajouter_texte, args=("+",), use_container_width=True)
-            st.button("🟰 Simultané", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            st.button("🔁 x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            st.button("🟰 Notes Simultanées", on_click=ajouter_texte, args=("=",), use_container_width=True)
+            st.button("🔁 Note Doublée", on_click=ajouter_texte, args=("x2",), use_container_width=True)
         with bc4:
             st.caption("Structure")
-            st.button("🔇 Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
-            st.button("📄 Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
-            st.button("📝 Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
+            st.button("🔇 Insérer Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            st.button("📄 Insérer Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+            st.button("📝 Insérer Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
 
-        st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte)
+        st.write("")
+        st.write("")
         
-        # --- NOUVEAU : LECTEUR AUDIO RAPIDE ---
+        # --- METHODE 2 : TEXTE (ANCIENNE) ---
+        st.warning("📝 **Éditeur Texte (Ancienne méthode / Corrections)**")
+        st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
+        
+        # --- LECTEUR AUDIO RAPIDE ---
         st.markdown("---")
         col_play_btn, col_play_bpm = st.columns([1, 1])
         with col_play_bpm:
             bpm_preview = st.number_input("BPM", 40, 200, 100)
         with col_play_btn:
-            st.write("") # Spacer
+            st.write("") 
             st.write("") 
             if st.button("🎧 Écouter l'extrait"):
                 seq_prev = parser_texte(st.session_state.code_actuel)
@@ -690,18 +682,6 @@ with tab1:
 
         # --- AFFICHAGE PERSISTANT ---
         if st.session_state.partition_generated and st.session_state.partition_buffers:
-            # --- NOUVEAU : BOUTON EXPORT PDF LIVRET ---
-            st.markdown("### 📥 Export Global")
-            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-            st.download_button(
-                label="📕 Télécharger le Livret Complet (PDF)",
-                data=pdf_buffer,
-                file_name=f"{titre_partition}.pdf",
-                mime="application/pdf",
-                type="primary"
-            )
-            # ------------------------------------------
-
             for item in st.session_state.partition_buffers:
                 if item['type'] == 'legende':
                     st.markdown("#### Page 1 : Légende")
@@ -710,6 +690,22 @@ with tab1:
                     idx = item['idx']
                     st.markdown(f"#### Page {idx}")
                     st.pyplot(item['img_ecran'])
+
+            # --- EXPORT PDF EN FIN DE CHAINE ---
+            st.markdown("---")
+            st.success("✅ Partition générée !")
+            
+            # On génère le PDF seulement au moment de l'affichage final
+            # Cela évite de ralentir le calcul des images ci-dessus
+            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+            
+            st.download_button(
+                label="📕 Télécharger le Livret Complet (PDF Portrait)",
+                data=pdf_buffer,
+                file_name=f"{titre_partition}.pdf",
+                mime="application/pdf",
+                type="primary"
+            )
 
 # --- TAB VIDEO ---
 with tab3:
