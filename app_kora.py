@@ -33,7 +33,48 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🚨 MESSAGE D'AIDE (HEADER)
+# 🎨 CSS HACK : MENU ROUGE
+# ==============================================================================
+st.markdown("""
+    <style>
+    [data-testid="stSidebarCollapsedControl"] {
+        background-color: #FF4B4B !important;
+        border: 2px solid white !important;
+        color: white !important;
+        border-radius: 8px !important;
+        padding: 5px !important;
+        margin-top: 5px !important;
+        margin-left: 5px !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
+        z-index: 100000 !important;
+        display: flex !important;
+        align-items: center !important;
+        width: auto !important;
+    }
+    [data-testid="stSidebarCollapsedControl"] svg {
+        fill: white !important;
+        stroke: white !important;
+    }
+    [data-testid="stSidebarCollapsedControl"]::after {
+        content: "MENU";
+        font-weight: 900 !important;
+        font-size: 14px !important;
+        color: white !important;
+        margin-left: 8px;
+        margin-right: 5px;
+        padding-top: 2px;
+    }
+    @media (max-width: 640px) {
+        [data-testid="stHeader"] {
+            display: block !important;
+            visibility: visible !important;
+        }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
     st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu, choisir un morceau ou changer l'accordage !")
@@ -132,7 +173,7 @@ with col_titre:
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
-# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
+# 📖 MODE D'EMPLOI GÉNÉRAL
 # ==============================================================================
 with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
     c1, c2, c3 = st.columns(3)
@@ -500,7 +541,7 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- MODIFICATION ICI : LEGENDE CLAIRE (V49) ---
+        # --- MODIFICATION ICI : LEGENDE CLAIRE (V50) ---
         st.info("""
         💡 **Légende rapide :** `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant  
         **=** : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
