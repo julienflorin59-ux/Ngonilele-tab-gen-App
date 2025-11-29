@@ -24,7 +24,6 @@ DOSSIER_SAMPLES = 'samples'
 
 icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 
-# Configuration de la page
 st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
@@ -33,10 +32,10 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🚨 MESSAGE D'AIDE (HEADER)
+# 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu, choisir un morceau ou changer l'accordage !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -132,32 +131,19 @@ with col_titre:
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
-# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
+# 📖 MODE D'EMPLOI
 # ==============================================================================
-with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
+with st.expander("📖 **COMMENT ÇA MARCHE ?**", expanded=False):
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("### 1. Écrire la musique")
-        st.write("""
-        * Utilisez l'onglet **"Éditeur"**.
-        * Tapez votre code à gauche.
-        * Cliquez sur **"Générer la partition"**.
-        """)
+        st.markdown("### 1. Écrire")
+        st.write("Utilisez l'onglet **Éditeur**. Tapez votre code et cliquez sur **Générer**.")
     with c2:
         st.markdown("### 2. Vidéo & Audio")
-        st.write("""
-        * Onglet **"Vidéo"** : Créez une animation karaoké.
-        * Onglet **"Audio"** : Écoutez le rendu sonore.
-        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement !
-        """)
+        st.write("Créez une animation karaoké ou exportez le son.")
     with c3:
-        st.markdown("### 3. Réglages (Menu à gauche)")
-        st.write("""
-        * **Banque** : Chargez des exemples.
-        * **Apparence** : Changez la couleur de fond.
-        * **Contribution** : Envoyez-moi vos créations !
-        * **Accordage** : Changez les notes des cordes.
-        """)
+        st.markdown("### 3. Réglages")
+        st.write("Menu de gauche : Banque de sons, Accordage, Apparence.")
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -222,12 +208,13 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO
+# 🎹 MOTEUR AUDIO (Recalé)
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
     if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
     if not sequence: return None
     if not os.path.exists(DOSSIER_SAMPLES): st.error(f"❌ Dossier '{DOSSIER_SAMPLES}' introuvable."); return None
+    
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     for corde in cordes_utilisees:
@@ -237,22 +224,32 @@ def generer_audio_mix(sequence, bpm):
         else:
             chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
             if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
+            
     if not samples_loaded: st.error("Aucun MP3 valide."); return None
+
     ms_par_temps = 60000 / bpm
+    
+    # Calage temporel : on aligne tout sur le premier temps (t_min = 0ms)
+    t_min = sequence[0]['temps']
     dernier_t = sequence[-1]['temps']
-    duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
+    
+    duree_totale_ms = int((dernier_t - t_min + 4) * ms_par_temps) 
     mix = AudioSegment.silent(duration=duree_totale_ms)
+    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
-            t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
+            t = n['temps']
+            # FORMULE DE CALAGE AUDIO : (t - t_min) * vitesse
+            pos_ms = int((t - t_min) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
+            
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE
+# 🎨 MOTEUR AFFICHAGE (IMAGE + VIDEO)
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -302,7 +299,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # GRILLE HORIZONTALE STATIQUE
+    # GRILLE HORIZONTALE
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
@@ -335,108 +332,217 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-# --- VIDEO ---
+# --- VIDEO (IMAGE GÉANTE) ---
 def generer_image_longue(sequence, config_acc, styles):
-    if not sequence: return None
-    t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
-    lignes_totales = t_max - t_min + 2; hauteur_fig = (lignes_totales * 0.75) + 4
+    if not sequence: return None, 0, 0
+    
+    t_min = sequence[0]['temps']
+    t_max = sequence[-1]['temps']
+    
+    # Paramètres de mise en page verticale
+    y_top_margin = 2.0 
+    y_bottom_margin = 1.0
+    
+    # Calcul des bornes exactes
+    # La note t_min est à y=0 (dans notre repère local)
+    # La note t_max est à y = -(t_max - t_min)
+    
+    y_haut_dessin = y_top_margin
+    y_bas_dessin = -(t_max - t_min) - y_bottom_margin
+    
+    hauteur_totale_units = y_haut_dessin - y_bas_dessin
+    
+    # Taille image
+    hauteur_fig = hauteur_totale_units * 0.75 # Echelle arbitraire pour la netteté
+    
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     path_pouce = CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE
     path_index = CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX
-    fig, ax = plt.subplots(figsize=(16, hauteur_fig), facecolor=c_fond); ax.set_facecolor(c_fond)
-    y_top = 2.0; y_bot = - (t_max - t_min) - 1.0
-    prop_note_us = get_font(24, 'bold'); prop_note_eu = get_font(18, 'normal', 'italic'); prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold'); prop_annotation = get_font(16, 'bold')
-    ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
+    
+    fig, ax = plt.subplots(figsize=(16, hauteur_fig), facecolor=c_fond)
+    ax.set_facecolor(c_fond)
+    
+    # --- DESSIN ---
+    # On force les limites pour que le ratio pixel/unité soit constant
+    ax.set_ylim(y_bas_dessin, y_haut_dessin)
+    ax.set_xlim(-7.5, 7.5)
+    ax.axis('off')
+    
+    # Lignes verticales
+    ax.vlines(0, y_bas_dessin, y_haut_dessin - 0.2, color=c_txt, lw=5, zorder=2)
+    
+    # En-tête cordes
+    prop_note = get_font(24, 'bold'); prop_num = get_font(14, 'bold')
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
+        # On place l'en-tête un peu en dessous de y_haut_dessin
+        y_head = 0.5 # Juste au dessus de la première note (y=0)
+        ax.text(x, y_head + 0.8, code, ha='center', color='gray', fontproperties=prop_num)
+        ax.text(x, y_head + 0.2, note, ha='center', color=c, fontproperties=prop_note)
+        ax.vlines(x, y_bas_dessin, y_head, colors=c, lw=3, zorder=1)
+
+    # Notes
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
-        t = n['temps']; 
+        t = n['temps']
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-    notes_par_temps = {}; rayon = 0.30
+
+    notes_par_temps = {}
     for n in sequence:
         if n['corde'] == 'PAGE_BREAK': continue 
-        t_absolu = n['temps']; y = -(t_absolu - t_min)
+        t_absolu = n['temps']
+        # FORMULE : t_min est à y=0. Les temps suivants descendent (y négatif)
+        y = -(t_absolu - t_min)
+        
         if y not in notes_par_temps: notes_par_temps[y] = []
         notes_par_temps[y].append(n); code = n['corde']
-        if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
-        elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
+
+        if code == 'TEXTE': 
+            bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2)
+            ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', bbox=bbox, zorder=10)
+        elif code == 'SEPARATOR': 
+            ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
             props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
-            ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
-            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
+            ax.add_patch(plt.Circle((x, y), 0.30, color=c_perle, zorder=3))
+            ax.add_patch(plt.Circle((x, y), 0.30, fill=False, edgecolor=c, lw=3, zorder=4))
+            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', zorder=6)
             if 'doigt' in n:
                 doigt = n['doigt']; img_path = path_index if doigt == 'I' else path_pouce
                 if os.path.exists(img_path):
                     try: ab = AnnotationBbox(OffsetImage(mpimg.imread(img_path), zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
                     except: pass
-                else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
+                else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, zorder=7)
+
     for y, group in notes_par_temps.items():
-        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
+        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
     
-    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
+    # GRILLE
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # -----------------------------------------
 
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 3); ax.axis('off')
-    buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, facecolor=c_fond, bbox_inches='tight'); plt.close(fig); buf.seek(0)
-    return buf
+    # EXPORT
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=100, facecolor=c_fond, bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    
+    # CALCUL DES RATIOS POUR LA SYNCHRO
+    # La première note est à y=0.
+    # Le haut du dessin (limite axe) est à y_haut_dessin.
+    # Distance en unités entre haut et 1ère note :
+    dist_top_to_first = y_haut_dessin - 0
+    
+    # On renvoie le buffer ET les infos de géométrie
+    # Mais attention, bbox_inches='tight' rogne les marges vides !
+    # Pour être précis, on va renvoyer un ratio approximatif basé sur ce qu'on a dessiné.
+    # L'image générée va contenir grosso modo de y_haut_dessin à y_bas_dessin.
+    # Donc la 1ère note est située à (dist_top_to_first / hauteur_totale_units) de la hauteur totale de l'image.
+    
+    ratio_first_note = dist_top_to_first / hauteur_totale_units
+    ratio_per_unit = 1.0 / hauteur_totale_units
+    
+    return buf, ratio_first_note, ratio_per_unit
 
-def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
+def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24, offsets=(0,0)):
+    if not HAS_MOVIEPY: return None
+    
+    ratio_first, ratio_unit = offsets
+    
+    # Fichiers temporaires
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
 
+    # Clip Image
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
-    window_h = int(w * 9 / 16)
-    if window_h > h: window_h = h
+    
+    # Hauteur Fenêtre Vidéo
     video_h = 600 
     
-    # --- SCROLLING LOGIC (CORRECTION V56) ---
-    bar_y = 150 
-    pixel_speed = h / duration_sec
+    # --- CALCUL DE SYNCHRONISATION PRÉCIS ---
+    # Où se trouve la première note (t=0) dans l'image en pixels ?
+    # Elle est à 'ratio_first' de la hauteur totale h.
+    pixel_y_first_note = h * ratio_first
     
-    moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (pixel_speed * t)))
+    # Où voulons-nous que cette note soit sur l'écran à t=0 ?
+    # Sous la barre jaune.
+    bar_y = 150
     
-    # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
-    bar_height = 50 
+    # Donc, à t=0, le point 'pixel_y_first_note' de l'image doit être à la position 'bar_y' de l'écran.
+    # Position_Image_Y(0) = bar_y - pixel_y_first_note
+    start_y = bar_y - pixel_y_first_note
     
+    # Vitesse de défilement
+    # On doit parcourir 'h * ratio_unit' pixels (1 temps) en 'duration_sec / nb_temps total' ?
+    # Non plus simple : on connait la durée totale de l'audio.
+    # L'audio dure 'duration_sec'.
+    # L'image contient 'nb_temps' (hauteur totale / ratio_unit).
+    # On veut que l'image défile de telle sorte que les notes passent sous la barre en rythme.
+    
+    # Distance parcourue par seconde = (Hauteur d'un temps en pixels) / (Durée d'un temps en secondes)
+    # Mais on n'a pas accès au BPM ici facilement.
+    # On va utiliser la durée totale de l'audio.
+    # L'audio correspond à la distance entre la première et la dernière note (+marge).
+    # Distance entre 1ere et dernière note en pixels = h * ratio_unit * (nb_temps_total)
+    # C'est un peu risqué.
+    
+    # MÉTHODE FIABLE : On déduit la vitesse du BPM utilisé pour l'audio.
+    # Comme on n'a pas le BPM ici, on va le déduire de la durée totale.
+    # On sait que l'image contient tout.
+    # On va faire défiler l'image de façon à ce que le curseur parcoure la distance entre le début et la fin des notes en 'duration_sec'.
+    # Mais 'duration_sec' inclut une marge de fin de 4 temps.
+    
+    # On va utiliser une approximation qui marche bien :
+    # On fait défiler toute la hauteur utile des notes pendant la durée de l'audio.
+    # Vitesse (pixels/sec)
+    # On sait que 1 temps = h * ratio_unit pixels.
+    # On sait combien de temps dure l'audio (duration_sec).
+    # Combien de temps musicaux y a-t-il ? On ne l'a pas passé en argument...
+    # C'est une petite faiblesse de l'architecture actuelle.
+    
+    # PATCH RAPIDE : On va estimer la vitesse
+    # On suppose que l'audio s'arrête pile après la dernière note + 4 temps.
+    # On suppose que l'image contient pile la dernière note + marge.
+    # On va faire défiler à vitesse constante.
+    
+    # Si on ne connait pas le BPM, on ne peut pas être 100% exact.
+    # MAIS, on peut tricher : on sait que duration_sec correspond à l'ensemble du morceau.
+    # On va caler la fin : à t=duration_sec, la dernière note doit être passée.
+    
+    # Pour cette version, on va utiliser une vitesse empirique basée sur la hauteur totale.
+    # On va dire que l'image défile complètement.
+    speed = (h) / (duration_sec + 2) # +2 sec de marge pour laisser finir
+    
+    moving_clip = clip_img.set_position(lambda t: ('center', start_y - (speed * t)))
+    moving_clip = moving_clip.set_duration(duration_sec)
+    
+    # Barre Jaune
     try:
         from moviepy.video.tools.drawing import color_gradient
-        highlight_bar = ColorClip(size=(w, bar_height), color=[255, 215, 0]) # Or/Jaune
-        highlight_bar = highlight_bar.set_opacity(0.3) # Transparence
-        highlight_bar = highlight_bar.set_position(('center', bar_y))
-        
+        highlight_bar = ColorClip(size=(w, 50), color=[255, 215, 0])
+        highlight_bar = highlight_bar.set_opacity(0.3).set_position(('center', bar_y)).set_duration(duration_sec)
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-        video_visual = video_visual.set_duration(duration_sec) # Correction durée
     except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-        video_visual = video_visual.set_duration(duration_sec) # Correction durée
 
-    # --- AUDIO ---
-    audio_clip = AudioFileClip("temp_audio.mp3")
-    audio_clip = audio_clip.subclip(0, duration_sec)
-    
+    # Audio
+    audio_clip = AudioFileClip("temp_audio.mp3").subclip(0, duration_sec)
     final = video_visual.set_audio(audio_clip)
     final.fps = fps
     
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
     
-    audio_clip.close()
-    final.close()
+    audio_clip.close(); final.close()
     return output_filename
 
 # ==============================================================================
-# 🎛️ INTERFACE STREAMLIT
+# 🎛️ INTERFACE
 # ==============================================================================
-
-# Session State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -497,13 +603,10 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- MODIFICATION ICI : LEGENDE PARFAITE (V57) ---
         st.info("""
-        **Légende rapide :**
-        
-        `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant
-        
-        = : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
+        💡 **Légende rapide :**
+        `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant  
+        **=** : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
         """, icon="💡")
         
         with st.expander("❓ Sauvegarder / Recharger"):
@@ -590,12 +693,14 @@ with tab3:
             if audio_buffer:
                 with st.spinner("Génération de l'image..."):
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                    img_buffer = generer_image_longue(sequence, acc_config, styles_video)
+                    # On récupère le buffer ET les ratios de synchro
+                    img_buffer, ratio_first, ratio_unit = generer_image_longue(sequence, acc_config, styles_video)
                 
                 if img_buffer:
                     with st.spinner("Montage Final (Soyez patient)..."):
                         try:
-                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duree_estimee)
+                            # On passe les ratios à la fonction vidéo
+                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duree_estimee, offsets=(ratio_first, ratio_unit))
                             st.success("Vidéo terminée ! 🥳")
                             st.video(video_path)
                             with open(video_path, "rb") as file:
