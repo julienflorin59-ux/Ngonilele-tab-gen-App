@@ -11,6 +11,7 @@ import numpy as np
 import shutil
 from fpdf import FPDF
 import mido
+import random # Nécessaire pour l'aléatoire
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -41,6 +42,7 @@ if 'partition_buffers' not in st.session_state: st.session_state.partition_buffe
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
 if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
+if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None # Nouveau pour le métronome
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 
 # ==============================================================================
@@ -171,6 +173,7 @@ except ImportError:
 HAS_PYDUB = False
 try:
     from pydub import AudioSegment
+    from pydub.generators import Sine # Nécessaire pour le métronome
     HAS_PYDUB = True
 except: pass
 
@@ -252,6 +255,24 @@ def generer_audio_mix(sequence, bpm):
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
+def generer_metronome(bpm, duration_sec=30):
+    """Génère une piste de métronome synthétique."""
+    if not HAS_PYDUB: return None
+    
+    # Création du son "Click"
+    tick_sound = Sine(1000).to_audio_segment(duration=50).fade_out(10)
+    silence_duration = (60000 / bpm) - 50
+    if silence_duration < 0: silence_duration = 0
+    
+    one_beat = tick_sound + AudioSegment.silent(duration=silence_duration)
+    total_beats = int((duration_sec * 1000) / (60000 / bpm)) + 1
+    metronome_track = one_beat * total_beats
+    
+    buffer = io.BytesIO()
+    metronome_track.export(buffer, format="mp3")
+    buffer.seek(0)
+    return buffer
+
 def midi_to_tab(midi_file, acc_config):
     mid = mido.MidiFile(file=midi_file)
     result_lines = []
@@ -282,6 +303,20 @@ def midi_to_tab(midi_file, acc_config):
         if corde: result_lines.append(f"+ {corde}")
     
     return "\n".join(result_lines)
+
+# --- GÉNÉRATEUR ALÉATOIRE ---
+def generer_riff_aleatoire():
+    """Génère 8 notes aléatoires valides."""
+    cordes_gauche = ['1G', '2G', '3G', '4G', '5G', '6G']
+    cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
+    
+    riff = ["+ TXT Inspiration Auto"]
+    for _ in range(8):
+        prefix = "+" if random.random() > 0.3 else "="
+        if random.random() > 0.5: corde = random.choice(cordes_gauche)
+        else: corde = random.choice(cordes_droite)
+        riff.append(f"{prefix} {corde}")
+    return "\n".join(riff)
 
 # ==============================================================================
 # 🎨 MOTEUR AFFICHAGE & PDF
@@ -545,7 +580,17 @@ with st.sidebar:
         st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
 
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
+    # AFFICHER 'CONTRIBUER' DANS LE MENU (MAIS À LA FIN)
+    st.markdown("---")
+    st.markdown("### 🤝 Contribuer")
+    mon_email = "julienflorin59@gmail.com" 
+    sujet_mail = f"Nouvelle Tablature Ngonilélé"
+    corps_mail = f"Bonjour,\n\nVoici une proposition :\n\n{st.session_state.code_actuel}"
+    mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
+    st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+
+
+tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
 with tab2:
     st.subheader("Configuration des cordes")
@@ -573,6 +618,14 @@ with tab1:
         
         # --- METHODE 1 : BOUTONS (NOUVELLE) ---
         st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
+        
+        # --- NOUVEAU : BOUTON INSPIRATION ---
+        if st.button("🎲 Inspiration (Générer une idée)", help="Ajoute 8 temps aléatoires pour vous donner une idée", type="secondary", use_container_width=True):
+            riff = generer_riff_aleatoire()
+            ajouter_texte(riff)
+            st.success("Idée ajoutée au code ! 👇")
+        # ------------------------------------
+
         bc1, bc2, bc3, bc4 = st.columns(4)
         with bc1: 
             st.caption("Gauche")
@@ -594,7 +647,6 @@ with tab1:
             st.caption("Outils")
             st.button("➕ Note Suiv.", on_click=ajouter_texte, args=("+",), use_container_width=True)
             st.button("🟰 Notes Simultanées", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            # CORRECTION ICI : "Notes Doublées"
             st.button("🔁 Notes Doublées", on_click=ajouter_texte, args=("x2",), use_container_width=True)
         with bc4:
             st.caption("Structure")
@@ -695,16 +747,6 @@ with tab1:
                 type="primary"
             )
 
-# --- AFFICHER 'CONTRIBUER' DANS LE MENU (MAIS À LA FIN) ---
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("### 🤝 Contribuer")
-    mon_email = "julienflorin59@gmail.com" 
-    sujet_mail = f"Nouvelle Tablature Ngonilélé : {titre_partition}"
-    corps_mail = f"Bonjour,\n\nVoici une proposition :\n\n{st.session_state.code_actuel}"
-    mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
-    st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
-
 # --- TAB VIDEO ---
 with tab3:
     st.subheader("Générateur de Vidéo Défilante 🎥")
@@ -751,24 +793,42 @@ with tab3:
             with open(st.session_state.video_path, "rb") as file:
                 st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4")
 
-# --- TAB AUDIO ---
+# --- TAB AUDIO (ET GROOVE BOX) ---
 with tab4:
-    st.subheader("Générateur Audio Seul 🎧")
-    if not HAS_PYDUB:
-         st.error("❌ Le module 'pydub' n'est pas installé.")
-    else:
-        col_a1, col_a2 = st.columns(2)
-        with col_a1: bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
-        with col_a2: btn_audio = st.button("🎵 Générer MP3")
-        
-        if btn_audio:
-            with st.spinner("Mixage..."):
-                sequence = parser_texte(st.session_state.code_actuel)
-                mp3_buffer = generer_audio_mix(sequence, bpm_audio)
-                if mp3_buffer:
-                    st.session_state.audio_buffer = mp3_buffer
-                    st.success("Terminé !")
+    col_gauche, col_droite = st.columns(2)
+    
+    with col_gauche:
+        st.subheader("🎧 Générateur Audio")
+        if not HAS_PYDUB:
+             st.error("❌ Le module 'pydub' n'est pas installé.")
+        else:
+            bpm_audio = st.slider("Vitesse Morceau (BPM)", 30, 200, 100, key="bpm_audio")
+            btn_audio = st.button("🎵 Générer MP3 du Morceau")
+            
+            if btn_audio:
+                with st.spinner("Mixage..."):
+                    sequence = parser_texte(st.session_state.code_actuel)
+                    mp3_buffer = generer_audio_mix(sequence, bpm_audio)
+                    if mp3_buffer:
+                        st.session_state.audio_buffer = mp3_buffer
+                        st.success("Terminé !")
 
-        if st.session_state.audio_buffer:
-            st.audio(st.session_state.audio_buffer, format="audio/mp3")
-            st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg")
+            if st.session_state.audio_buffer:
+                st.audio(st.session_state.audio_buffer, format="audio/mp3")
+                st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg")
+
+    with col_droite:
+        st.subheader("🥁 Groove Box (Métronome)")
+        st.info("Un outil simple pour s'entraîner en rythme.")
+        
+        bpm_metro = st.slider("Vitesse Métronome (BPM)", 30, 200, 80, key="bpm_metro")
+        duree_metro = st.slider("Durée (secondes)", 10, 300, 60, step=10)
+        
+        if st.button("▶️ Lancer le Métronome"):
+            with st.spinner("Création de la piste rythmique..."):
+                metro_buffer = generer_metronome(bpm_metro, duree_metro)
+                if metro_buffer:
+                    st.session_state.metronome_buffer = metro_buffer
+        
+        if st.session_state.metronome_buffer:
+            st.audio(st.session_state.metronome_buffer, format="audio/mp3")
