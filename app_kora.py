@@ -1,17 +1,42 @@
 import streamlit as st
+import sys
+import io
+import os
+import shutil
+import numpy as np
+
+# ==============================================================================
+# 🚑 PATCH PYTHON 3.13 (POUR L'AUDIO)
+# ==============================================================================
+try:
+    import pyaudioop
+    sys.modules["audioop"] = pyaudioop
+except ImportError: pass
+
+# ==============================================================================
+# 📦 IMPORTS
+# ==============================================================================
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.font_manager as fm
 import matplotlib.image as mpimg
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
-import io
-import os
-import urllib.parse
-import numpy as np
-import shutil
+
+# Gestion sécurisée des modules multimédia
+HAS_MOVIEPY = False
+try:
+    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip, ColorClip
+    HAS_MOVIEPY = True
+except: pass
+
+HAS_PYDUB = False
+try:
+    from pydub import AudioSegment
+    HAS_PYDUB = True
+except: pass
 
 # ==============================================================================
-# ⚙️ CONFIGURATION & CHEMINS
+# ⚙️ CONFIGURATION
 # ==============================================================================
 CHEMIN_POLICE = 'ML.ttf' 
 CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
@@ -24,19 +49,12 @@ DOSSIER_SAMPLES = 'samples'
 
 icon_page = CHEMIN_LOGO_APP if os.path.exists(CHEMIN_LOGO_APP) else "🪕"
 
-# Configuration de la page
 st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
     page_icon=icon_page,
     initial_sidebar_state="collapsed"
 )
-
-# ==============================================================================
-# 🚨 MESSAGE D'AIDE (HEADER)
-# ==============================================================================
-if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu, choisir un morceau ou changer l'accordage !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -122,58 +140,9 @@ BANQUE_TABLATURES = {
 """
 }
 
-# En-tête
-col_logo, col_titre = st.columns([1, 5])
-with col_logo:
-    if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
-    else: st.header("🪕")
-with col_titre:
-    st.title("Générateur de Tablature Ngonilélé")
-    st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
-
 # ==============================================================================
-# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
+# 🧠 LOGIQUE METIER
 # ==============================================================================
-with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("### 1. Écrire la musique")
-        st.write("""
-        * Utilisez l'onglet **"Éditeur"**.
-        * Tapez votre code à gauche.
-        * Cliquez sur **"Générer la partition"**.
-        """)
-    with c2:
-        st.markdown("### 2. Vidéo & Audio")
-        st.write("""
-        * Onglet **"Vidéo"** : Créez une animation karaoké.
-        * Onglet **"Audio"** : Écoutez le rendu sonore.
-        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement !
-        """)
-    with c3:
-        st.markdown("### 3. Réglages (Menu à gauche)")
-        st.write("""
-        * **Banque** : Chargez des exemples.
-        * **Apparence** : Changez la couleur de fond.
-        * **Contribution** : Envoyez-moi vos créations !
-        * **Accordage** : Changez les notes des cordes.
-        """)
-
-# ==============================================================================
-# 🧠 MOTEUR LOGIQUE
-# ==============================================================================
-HAS_MOVIEPY = False
-try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip, ColorClip
-    HAS_MOVIEPY = True
-except: pass
-
-HAS_PYDUB = False
-try:
-    from pydub import AudioSegment
-    HAS_PYDUB = True
-except: pass
-
 POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D': 1, '2D': 2, '3D': 3, '4D': 4, '5D': 5, '6D': 6}
 COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
@@ -222,12 +191,13 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO
+# 🎹 MOTEUR AUDIO (CALAGE PRECIS)
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
-    if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
-    if not sequence: return None
-    if not os.path.exists(DOSSIER_SAMPLES): st.error(f"❌ Dossier '{DOSSIER_SAMPLES}' introuvable."); return None
+    if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None, 0
+    if not sequence: return None, 0
+    if not os.path.exists(DOSSIER_SAMPLES): st.error(f"❌ Dossier '{DOSSIER_SAMPLES}' introuvable."); return None, 0
+    
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     for corde in cordes_utilisees:
@@ -237,52 +207,39 @@ def generer_audio_mix(sequence, bpm):
         else:
             chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
             if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
-    if not samples_loaded: st.error("Aucun MP3 valide."); return None
+            
+    if not samples_loaded: st.error("Aucun MP3 valide."); return None, 0
+
     ms_par_temps = 60000 / bpm
+    t_min = sequence[0]['temps']
     dernier_t = sequence[-1]['temps']
-    duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
+    
+    # Durée totale (on ajoute une marge de fin)
+    duree_totale_ms = int((dernier_t - t_min + 4) * ms_par_temps)
     mix = AudioSegment.silent(duration=duree_totale_ms)
+    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
-            t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
+            t = n['temps']
+            # Calage relatif au début du morceau
+            pos_ms = int((t - t_min) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
+            
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
-    # On retourne le buffer et la durée précise en secondes
     return buffer, duree_totale_ms / 1000.0
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE
+# 🎨 MOTEUR AFFICHAGE (PAGES)
 # ==============================================================================
-def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
-    c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
-    prop_annotation = get_font(16, 'bold'); prop_legende = get_font(12, 'bold')
-    path_pouce = CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE
-    path_index = CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX
-    rect = patches.FancyBboxPatch((-7.5, y_pos - 3.6), 15, 3.3, boxstyle="round,pad=0.1", linewidth=1.5, edgecolor=c_txt, facecolor=c_fond, zorder=0); ax.add_patch(rect)
-    ax.text(0, y_pos - 0.6, "LÉGENDE", ha='center', va='center', fontsize=14, fontweight='bold', color=c_txt, fontproperties=prop_annotation)
-    x_icon_center = -5.5; x_text_align = -4.5; y_row1 = y_pos - 1.2; y_row2 = y_pos - 1.8; y_row3 = y_pos - 2.4; y_row4 = y_pos - 3.0
-    if os.path.exists(path_pouce): ab = AnnotationBbox(OffsetImage(mpimg.imread(path_pouce), zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
-    ax.text(x_text_align, y_row1, "= Pouce", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    if os.path.exists(path_index): ab = AnnotationBbox(OffsetImage(mpimg.imread(path_index), zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
-    ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    offsets = [-0.7, 0, 0.7]; 
-    for i, off in enumerate(offsets): c = plt.Circle((x_icon_center + off, y_row3), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2); ax.add_patch(c); ax.text(x_icon_center + off, y_row3, str(i+1), ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
-    ax.text(x_text_align, y_row3, "= Ordre de jeu", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    x_simul_end = x_icon_center + 1.4; ax.plot([x_icon_center - 0.7, x_simul_end - 0.7], [y_row4, y_row4], color=c_txt, lw=3, zorder=1)
-    ax.add_patch(plt.Circle((x_icon_center - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2)); ax.add_patch(plt.Circle((x_simul_end - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2))
-    ax.text(x_text_align, y_row4, "= Notes simultanées", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    x_droite = 1.5; y_text_top = y_pos - 1.2; line_height = 0.45
-    ax.text(x_droite, y_text_top, "1G = 1ère corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*2, "1D = 1ère corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*3, "2D = 2ème corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*4, "(Etc...)", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font(32, 'bold')
     fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond)
     ax.set_facecolor(c_fond)
-    ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
-    dessiner_contenu_legende(ax, 0.5, styles, mode_white)
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
+    ax.text(0, 0.5, titre, ha='center', va='center', fontproperties=prop_titre, color=c_txt)
+    ax.text(0, -0.5, "Légende simplifiée (Voir App)", ha='center', color=c_txt)
+    ax.set_xlim(-7.5, 7.5); ax.set_ylim(-2, 2); ax.axis('off')
     return fig
 
 def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles, mode_white=False):
@@ -293,154 +250,243 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     fig, ax = plt.subplots(figsize=(16, hauteur_fig), facecolor=c_fond); ax.set_facecolor(c_fond)
     y_top = 2.5; y_bot = - (t_max - t_min) - 1.5; y_top_cordes = y_top
     prop_titre = get_font(32, 'bold'); prop_texte = get_font(20, 'bold'); prop_note_us = get_font(24, 'bold'); prop_note_eu = get_font(18, 'normal', 'italic'); prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold'); prop_annotation = get_font(16, 'bold')
+    
     if not mode_white and options_visuelles['use_bg'] and os.path.exists(CHEMIN_IMAGE_FOND):
         try: img_fond = mpimg.imread(CHEMIN_IMAGE_FOND); h_px, w_px = img_fond.shape[:2]; ratio = w_px / h_px; largeur_finale = 15.0 * 0.7; hauteur_finale = (largeur_finale / ratio) * 1.4; y_center = (y_top + y_bot) / 2; extent = [-largeur_finale/2, largeur_finale/2, y_center - hauteur_finale/2, y_center + hauteur_finale/2]; ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
         except: pass
+
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
-    ax.text(-3.5, y_top_cordes + 2.0, "Cordes de Gauche", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt); ax.text(3.5, y_top_cordes + 2.0, "Cordes de Droite", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
+    
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
+        ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us)
+        ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # GRILLE HORIZONTALE STATIQUE
+    # GRILLE
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
 
-    map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps']); processed_t = set()
-    for n in sorted_notes:
-        t = n['temps']; 
-        if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
-        elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
     notes_par_temps_relatif = {}; rayon = 0.30
     for n in notes_page:
         t_absolu = n['temps']; y = -(t_absolu - t_min)
         if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
         notes_par_temps_relatif[y].append(n); code = n['corde']
-        if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
-        elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
+        if code == 'TEXTE': 
+            bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2)
+            ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
         elif code in config_acc:
             props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
-            ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
-            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
-            if 'doigt' in n:
-                doigt = n['doigt']; img_path = path_index if doigt == 'I' else path_pouce; succes_img = False
-                if os.path.exists(img_path):
-                    try: ab = AnnotationBbox(OffsetImage(mpimg.imread(img_path), zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab); succes_img = True
-                    except: pass
-                if not succes_img: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
-    for y, group in notes_par_temps_relatif.items():
-        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
-        if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
-    return fig
-
-# --- VIDEO ---
-def generer_image_longue(sequence, config_acc, styles):
-    if not sequence: return None
-    t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
-    lignes_totales = t_max - t_min + 2; hauteur_fig = (lignes_totales * 0.75) + 4
-    c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
-    path_pouce = CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE
-    path_index = CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX
-    fig, ax = plt.subplots(figsize=(16, hauteur_fig), facecolor=c_fond); ax.set_facecolor(c_fond)
-    y_top = 2.0; y_bot = - (t_max - t_min) - 1.0
-    prop_note_us = get_font(24, 'bold'); prop_note_eu = get_font(18, 'normal', 'italic'); prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold'); prop_annotation = get_font(16, 'bold')
-    ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
-    for code, props in config_acc.items():
-        x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
-    map_labels = {}; last_sep = t_min - 1; processed_t = set()
-    for n in sequence:
-        t = n['temps']; 
-        if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
-        elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-    notes_par_temps = {}; rayon = 0.30
-    for n in sequence:
-        if n['corde'] == 'PAGE_BREAK': continue 
-        t_absolu = n['temps']; y = -(t_absolu - t_min)
-        if y not in notes_par_temps: notes_par_temps[y] = []
-        notes_par_temps[y].append(n); code = n['corde']
-        if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
-        elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
-        elif code in config_acc:
-            props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
-            ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
-            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
+            ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3))
+            ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             if 'doigt' in n:
                 doigt = n['doigt']; img_path = path_index if doigt == 'I' else path_pouce
                 if os.path.exists(img_path):
                     try: ab = AnnotationBbox(OffsetImage(mpimg.imread(img_path), zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
                     except: pass
                 else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
-    for y, group in notes_par_temps.items():
-        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
-        if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
     
-    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
-    for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
-        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # -----------------------------------------
+    for y, group in notes_par_temps_relatif.items():
+        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
+        if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
+        
+    ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
+    return fig
 
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 3); ax.axis('off')
-    buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, facecolor=c_fond, bbox_inches='tight'); plt.close(fig); buf.seek(0)
-    return buf
+# ==============================================================================
+# 🎥 MOTEUR VIDEO (IMAGE GÉANTE AVEC GÉOMÉTRIE FIXE)
+# ==============================================================================
+def generer_image_longue_synchro(sequence, config_acc, styles):
+    """Génère l'image et retourne les infos géométriques précises (pixels par temps)"""
+    if not sequence: return None, 0, 0
+    
+    t_min = sequence[0]['temps']
+    t_max = sequence[-1]['temps']
+    
+    # --- PARAMETRES GEOMETRIQUES FIXES ---
+    UNITE_TEMPS = 1.0 # Distance verticale entre deux temps
+    MARGE_HAUT_UNIT = 3.0 # Espace au dessus de la première note
+    MARGE_BAS_UNIT = 2.0  # Espace en dessous de la dernière note
+    
+    nb_temps = t_max - t_min
+    hauteur_totale_units = MARGE_HAUT_UNIT + nb_temps + MARGE_BAS_UNIT
+    
+    # On fixe une échelle de pixels arbitraire mais constante
+    # 1 unité = 100 pixels (par exemple)
+    PIXELS_PER_UNIT = 100 
+    hauteur_px = int(hauteur_totale_units * PIXELS_PER_UNIT)
+    largeur_px = 1600 # Largeur fixe
+    
+    # DPI pour matplotlib (pour correspondre aux pixels voulus)
+    MY_DPI = 100
+    figsize_w = largeur_px / MY_DPI
+    figsize_h = hauteur_px / MY_DPI
+    
+    c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
+    path_pouce = CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE
+    path_index = CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX
 
-def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
+    # Création Figure SANS marges automatiques
+    fig = plt.figure(figsize=(figsize_w, figsize_h), facecolor=c_fond)
+    ax = fig.add_axes([0, 0, 1, 1]) # Occupe 100% de l'image
+    ax.set_facecolor(c_fond)
+    
+    # On définit les limites Y pour que 1 unité de plot = 1 unité géométrique
+    # Y=0 sera le HAUT de l'image
+    # Y=-hauteur_totale sera le BAS
+    # La première note (t_min) sera placée à Y = -MARGE_HAUT_UNIT
+    
+    ax.set_xlim(-8, 8)
+    ax.set_ylim(-hauteur_totale_units, 0)
+    ax.axis('off')
+    
+    # Position Y de la première note dans le repère Matplotlib
+    y_start_notes = -MARGE_HAUT_UNIT
+    
+    # --- DESSIN ---
+    prop_note = get_font(24, 'bold'); prop_num = get_font(14, 'bold')
+    
+    # Ligne centrale
+    ax.vlines(0, -hauteur_totale_units + 1, -1, color=c_txt, lw=5, zorder=2)
+    
+    # Cordes
+    for code, props in config_acc.items():
+        x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
+        # En-tête
+        ax.text(x, -1.0, code, ha='center', color='gray', fontproperties=prop_num)
+        ax.text(x, -1.8, note, ha='center', color=c, fontproperties=prop_note)
+        ax.vlines(x, -hauteur_totale_units, -2.0, colors=c, lw=3, zorder=1)
+
+    notes_par_temps = {}
+    
+    # Boucle sur tous les temps pour la grille
+    for t_offset in range(nb_temps + 1):
+        y_pos = y_start_notes - t_offset # On descend de 1 unité par temps
+        ax.axhline(y=y_pos, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+
+    # Boucle Notes
+    for n in sequence:
+        if n['corde'] == 'PAGE_BREAK': continue
+        t = n['temps']
+        
+        # Position Y relative au début
+        delta_t = t - t_min
+        y_pos = y_start_notes - delta_t
+        
+        if y_pos not in notes_par_temps: notes_par_temps[y_pos] = []
+        notes_par_temps[y_pos].append(n)
+        
+        code = n['corde']
+        if code == 'TEXTE':
+            bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2)
+            ax.text(0, y_pos, n.get('message',''), ha='center', va='center', color='black', bbox=bbox, zorder=10)
+        elif code in config_acc:
+            props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
+            ax.add_patch(plt.Circle((x, y_pos), 0.3, color=c_perle, zorder=3))
+            ax.add_patch(plt.Circle((x, y_pos), 0.3, fill=False, edgecolor=c, lw=3, zorder=4))
+            if 'doigt' in n:
+                doigt = n['doigt']; img_path = path_index if doigt == 'I' else path_pouce
+                if os.path.exists(img_path):
+                    try: ab = AnnotationBbox(OffsetImage(mpimg.imread(img_path), zoom=0.045), (x - 0.70, y_pos + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
+                    except: pass
+                else: ax.text(x - 0.70, y_pos, doigt, ha='center', va='center', color=c_txt, zorder=7)
+
+    # Liaisons
+    for y, group in notes_par_temps.items():
+        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
+        if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
+
+    # EXPORT
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=MY_DPI, facecolor=c_fond) # Pas de bbox_inches='tight' !
+    plt.close(fig)
+    buf.seek(0)
+    
+    # INFO CRUCIALE POUR LA VIDEO : 
+    # A quelle distance (en pixels) du haut de l'image se trouve la première note (t_min) ?
+    # En unités : MARGE_HAUT_UNIT
+    # En pixels : MARGE_HAUT_UNIT * PIXELS_PER_UNIT
+    offset_pixels = MARGE_HAUT_UNIT * PIXELS_PER_UNIT
+    
+    # Combien de pixels pour 1 temps ?
+    px_per_beat = PIXELS_PER_UNIT
+    
+    return buf, offset_pixels, px_per_beat
+
+def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, offset_px, px_per_beat, bpm, fps=24):
+    if not HAS_MOVIEPY: return None
+    
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
 
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
-    window_h = int(w * 9 / 16)
-    if window_h > h: window_h = h
-    video_h = 600 
     
-    # --- SCROLLING LOGIC (CORRECTION V59 - SYNCHRO) ---
+    # Fenêtre vidéo
+    video_h = 600
+    window_size = (w, video_h)
+    
+    # --- SYNCHRONISATION PARFAITE ---
+    # Position de la Barre Jaune (Fixe)
     bar_y = 150 
-    pixel_speed = h / duration_sec
     
-    # Offset : Si le son est en retard, on "retarde" l'image en la faisant partir de plus bas.
-    offset_synchro = 100 
+    # Vitesse de défilement (Pixels / seconde)
+    # 1 temps = px_per_beat pixels
+    # 1 temps = 60 / BPM secondes
+    # Vitesse = px_per_beat / (60/BPM) = px_per_beat * BPM / 60
+    speed_px_sec = px_per_beat * (bpm / 60.0)
     
-    moving_clip = clip_img.set_position(lambda t: ('center', bar_y + offset_synchro - (pixel_speed * t)))
+    # Position de l'image à t=0
+    # A t=0, la première note (située à offset_px du haut de l'image) doit être sous la barre (bar_y)
+    # Donc le haut de l'image (y=0) doit être à (bar_y - offset_px)
+    start_y = bar_y - offset_px
     
-    # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
-    bar_height = 50 
+    # Fonction de mouvement : Y(t) = Start - (Vitesse * t)
+    moving_clip = clip_img.set_position(lambda t: ('center', start_y - (speed_px_sec * t)))
     
+    # Barre Jaune
     try:
         from moviepy.video.tools.drawing import color_gradient
-        highlight_bar = ColorClip(size=(w, bar_height), color=[255, 215, 0]) 
-        highlight_bar = highlight_bar.set_opacity(0.3)
-        highlight_bar = highlight_bar.set_position(('center', bar_y))
-        
-        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-        video_visual = video_visual.set_duration(duration_sec)
+        highlight_bar = ColorClip(size=(w, int(px_per_beat)), color=[255, 215, 0]) 
+        highlight_bar = highlight_bar.set_opacity(0.3).set_position(('center', bar_y - int(px_per_beat/2))) # Centrée sur bar_y
+        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=window_size)
     except:
-        video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-        video_visual = video_visual.set_duration(duration_sec)
+        video_visual = CompositeVideoClip([moving_clip], size=window_size)
+        
+    video_visual = video_visual.set_duration(duration_sec)
 
-    # --- AUDIO ---
+    # Audio
     audio_clip = AudioFileClip("temp_audio.mp3")
-    audio_clip = audio_clip.subclip(0, duration_sec)
+    # On coupe si besoin, mais normalement generer_audio_mix donne la bonne durée
+    if audio_clip.duration > duration_sec:
+        audio_clip = audio_clip.subclip(0, duration_sec)
     
     final = video_visual.set_audio(audio_clip)
     final.fps = fps
     
-    output_filename = "ngoni_video_sound.mp4"
+    output_filename = "ngoni_video_synchro.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
     
-    audio_clip.close()
-    final.close()
+    audio_clip.close(); final.close()
     return output_filename
 
 # ==============================================================================
-# 🎛️ INTERFACE STREAMLIT
+# 🎛️ INTERFACE
 # ==============================================================================
+# En-tête
+col_logo, col_titre = st.columns([1, 5])
+with col_logo:
+    if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
+    else: st.header("🪕")
+with col_titre:
+    st.title("Générateur de Tablature Ngonilélé")
+    st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
-# Session State
+if st.session_state.get('first_run', True):
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu !")
+
+# Initialisation State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -456,6 +502,7 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
+# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -469,7 +516,6 @@ with st.sidebar:
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
-    
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
     mon_email = "julienflorin59@gmail.com" 
@@ -501,14 +547,15 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- MODIFICATION ICI : LEGENDE CORRIGÉE (V57) ---
-        st.info("""
-        **Légende rapide :**
-        
-        `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant
-        
-        `=` : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
-        """, icon="💡")
+        # --- LEGENDE ---
+        st.markdown("""
+        <div style="background-color: #262730; padding: 10px; border-radius: 5px; border: 1px solid #444; color: #FAFAFA;">
+        💡 <b>Légende rapide :</b><br>
+        <code>1</code> : Temps 1 &nbsp;|&nbsp; <code>4D</code> : Corde &nbsp;|&nbsp; <code>+</code> : Temps suivant<br>
+        <code>=</code> : Notes simultanées &nbsp;|&nbsp; <code>S</code> : Silence &nbsp;|&nbsp; <code>x2</code> : Répéter
+        </div>
+        <br>
+        """, unsafe_allow_html=True)
         
         with st.expander("❓ Sauvegarder / Recharger"):
             st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
@@ -567,21 +614,21 @@ with tab1:
 # --- TAB VIDEO ---
 with tab3:
     st.subheader("Générateur de Vidéo Défilante 🎥")
-    st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
     
-    if not HAS_MOVIEPY:
-        st.error("❌ Le module 'moviepy' n'est pas installé.")
-    elif not HAS_PYDUB:
-        st.error("❌ Le module 'pydub' n'est pas installé.")
+    if not HAS_MOVIEPY: st.error("❌ Le module 'moviepy' n'est pas installé.")
+    elif not HAS_PYDUB: st.error("❌ Le module 'pydub' n'est pas installé.")
     else:
         col_v1, col_v2 = st.columns(2)
         with col_v1:
             bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
             seq = parser_texte(st.session_state.code_actuel)
             if seq:
-                nb_temps = seq[-1]['temps'] - seq[0]['temps']
-                duree_estimee = nb_temps * (60/bpm)
-                st.write(f"Durée : {int(duree_estimee)}s")
+                # Calcul durée exacte
+                ms_par_temps = 60000 / bpm
+                t_min = seq[0]['temps']
+                dernier_t = seq[-1]['temps']
+                duree_ms = int((dernier_t - t_min + 4) * ms_par_temps)
+                st.write(f"Durée : {duree_ms/1000:.1f}s")
             else: duree_estimee = 10
         with col_v2:
             btn_video = st.button("🎥 Générer Vidéo + Audio")
@@ -589,18 +636,17 @@ with tab3:
         if btn_video:
             with st.spinner("Génération de la piste Audio..."):
                 sequence = parser_texte(st.session_state.code_actuel)
-                # Récupération de la durée exacte
                 audio_buffer, duration_sec = generer_audio_mix(sequence, bpm)
                 
             if audio_buffer:
-                with st.spinner("Génération de l'image..."):
+                with st.spinner("Génération de l'image géante..."):
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                    img_buffer, ratio_first, ratio_unit = generer_image_longue(sequence, acc_config, styles_video)
+                    img_buffer, offset_px, px_per_beat = generer_image_longue_synchro(sequence, acc_config, styles_video)
                 
                 if img_buffer:
-                    with st.spinner("Montage Final (Soyez patient)..."):
+                    with st.spinner("Montage Final (Synchronisation)..."):
                         try:
-                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duration_sec, fps=24)
+                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec, offset_px, px_per_beat, bpm)
                             st.success("Vidéo terminée ! 🥳")
                             st.video(video_path)
                             with open(video_path, "rb") as file:
