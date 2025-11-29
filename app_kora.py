@@ -222,32 +222,67 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO
+# 🎹 MOTEUR AUDIO (V3.8: AVEC FALLBACK SYNTHÈSE)
 # ==============================================================================
-def generer_audio_mix(sequence, bpm):
+def get_note_freq(note_name):
+    base_freqs = {'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23, 'G': 392.00, 'A': 440.00, 'B': 493.88}
+    return base_freqs.get(note_name, 440.0)
+
+def generer_audio_mix(sequence, bpm, acc_config):
+    """Génère l'audio. Si MP3 absent, utilise un synthé."""
     if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
     if not sequence: return None
-    if not os.path.exists(DOSSIER_SAMPLES): st.error(f"❌ Dossier '{DOSSIER_SAMPLES}' introuvable."); return None
+    
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
+    
     for corde in cordes_utilisees:
-        nom_fichier = f"{corde}.mp3"
-        chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
-        if os.path.exists(chemin): samples_loaded[corde] = AudioSegment.from_mp3(chemin)
-        else:
-            chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
-            if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
-    if not samples_loaded: st.error("Aucun MP3 valide."); return None
+        # 1. TENTATIVE MP3
+        loaded = False
+        if os.path.exists(DOSSIER_SAMPLES):
+            nom_fichier = f"{corde}.mp3"
+            chemin = os.path.join(DOSSIER_SAMPLES, nom_fichier)
+            if os.path.exists(chemin): 
+                samples_loaded[corde] = AudioSegment.from_mp3(chemin)
+                loaded = True
+            else:
+                chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
+                if os.path.exists(chemin_min): 
+                    samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
+                    loaded = True
+        
+        # 2. FALLBACK SYNTHÉTISEUR (Si MP3 absent ou échec)
+        if not loaded:
+            # On devine la fréquence selon la config
+            note_name = 'C' 
+            if corde in acc_config: note_name = acc_config[corde]['n']
+            
+            freq = get_note_freq(note_name)
+            # Petit ajustement d'octave pour faire "vrai"
+            if corde in ['5G','6G','5D','6D']: freq /= 2
+            if corde in ['1G','2G','1D','2D']: freq *= 2
+            
+            # Son type "Pluck" (Sine wave avec fade out court)
+            tone = Sine(freq).to_audio_segment(duration=600).fade_out(400)
+            samples_loaded[corde] = tone - 5 # Volume ajusté
+
+    if not samples_loaded: 
+        st.error("Aucun son généré."); return None
+
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
+    if duree_totale_ms < 1000: duree_totale_ms = 1000
+        
     mix = AudioSegment.silent(duration=duree_totale_ms)
+    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
             t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
+            
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
@@ -264,7 +299,6 @@ def generer_metronome(bpm, duration_sec=30):
     buffer.seek(0)
     return buffer
 
-# --- MOTEUR MIDI INTELLIGENT 3.7 ---
 def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
     """
     Convertit MIDI -> Tablature avec mapping 'Plus Proche Voisin' (aucune note rejetée).
@@ -274,51 +308,42 @@ def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
     result_lines = []
     
     # 1. CONSTRUCTION DE LA CARTE DE L'INSTRUMENT
-    # On stocke {CodeCorde: NoteMidiAbsolue}
-    # On ajoute des octaves virtuelles pour couvrir tout le clavier
     ngoni_map = {}
     
     for code, props in acc_config.items():
         note_char = props['n'] 
         base_val = NOTE_TO_MIDI_BASE.get(note_char, 60)
         
-        # Ajustement d'octave par défaut du Ngoni (Basses 5/6, Aigues 1/2)
+        # Ajustement d'octave par défaut du Ngoni
         if code in ['5G', '6G', '5D', '6D']: base_val -= 12
         elif code in ['1G', '2G', '1D', '2D']: base_val += 12
         
-        # On enregistre cette corde comme candidate pour cette note et ses voisines d'octave
-        # Cela permet à une note MIDI très aigue de trouver quand même sa corde
         ngoni_map[code] = [base_val - 24, base_val - 12, base_val, base_val + 12, base_val + 24]
 
     def find_best_string(target_note):
-        """Retourne la corde qui peut jouer la note la plus proche."""
         best_code = None
         min_dist = 9999
-        
         for code, candidates in ngoni_map.items():
             for cand in candidates:
                 dist = abs(target_note - cand)
                 if dist < min_dist:
                     min_dist = dist
                     best_code = code
-                # Si égalité, on garde le premier trouvé (ou on pourrait privilégier main gauche/droite)
         return best_code
 
-    # 2. EXTRACTION DE TOUTES LES NOTES
+    # 2. EXTRACTION
     all_events = []
     abs_time = 0
     count_total = 0
-    
     for msg in mid:
         abs_time += msg.time
         if msg.type == 'note_on' and msg.velocity > 0:
             count_total += 1
             all_events.append({'time': abs_time, 'note': msg.note})
             
-    # Tri par temps (essentiel)
     all_events.sort(key=lambda x: x['time'])
     
-    # 3. GÉNÉRATION TABLATURE
+    # 3. GÉNÉRATION
     last_time = -1.0
     is_first = True
     count_mapped = 0
@@ -341,12 +366,11 @@ def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
                 else:
                     prefix = "+" # Note suivante
             
+            # NETTOYAGE ABSOLU DE LA LIGNE POUR L'AUDIO
             result_lines.append(f"{prefix}   {corde}")
-            last_time = t # On met à jour le temps SEULEMENT si on a écrit une note
+            last_time = t 
             
-    debug_msg = f"Notes MIDI détectées : {count_total} | Notes écrites : {count_mapped}"
-    st.session_state.debug_info = debug_msg
-    
+    st.session_state.debug_info = f"Notes MIDI détectées : {count_total} | Notes écrites : {count_mapped}"
     return "\n".join(result_lines)
 
 # ==============================================================================
@@ -409,11 +433,11 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         t = n['temps']; 
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-    notes_par_temps = {}; rayon = 0.30
+    notes_par_temps_relatif = {}; rayon = 0.30
     for n in notes_page:
         t_absolu = n['temps']; y = -(t_absolu - t_min)
-        if y not in notes_par_temps: notes_par_temps[y] = []
-        notes_par_temps[y].append(n); code = n['corde']
+        if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
+        notes_par_temps_relatif[y].append(n); code = n['corde']
         if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
         elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
@@ -598,9 +622,9 @@ with st.sidebar:
     # TRAITEMENT DU FICHIER MIDI
     if midi_file is not None:
         if st.button("⚡ Convertir MIDI en Tablature", type="primary"):
+            # On recupere les configs cordes (definies plus bas, mais accessibles via session si besoin ou defauts)
             DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
             temp_acc_config = {}
-            notes_gamme = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
             for k, default_note in DEF_ACC.items():
                 val = st.session_state.get(k, default_note)
                 temp_acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
@@ -716,10 +740,15 @@ with tab1:
                     prog = st.progress(0)
                     prog.progress(50) 
                     
-                    audio_prev = generer_audio_mix(seq_prev, bpm_preview)
+                    # On passe la config des cordes pour le synthé de secours
+                    audio_prev = generer_audio_mix(seq_prev, bpm_preview, acc_config)
                     
                     prog.progress(100) 
                     status.update(label="✅ Aperçu prêt !", state="complete", expanded=False)
+                    
+                    # DEBUG : Afficher ce qui a été compris par le parser
+                    if seq_prev and len(seq_prev) > 0:
+                        st.info(f"Lecture de {len(seq_prev)} événements. Première note : {seq_prev[0]['corde']}")
 
                 if audio_prev:
                     st.audio(audio_prev, format="audio/mp3")
@@ -828,7 +857,7 @@ with tab3:
             with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
                 st.write("🎹 Étape 1/3 : Mixage Audio...")
                 sequence = parser_texte(st.session_state.code_actuel)
-                audio_buffer = generer_audio_mix(sequence, bpm)
+                audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
                 
                 if audio_buffer:
                     st.write("🎨 Étape 2/3 : Création des visuels...")
@@ -871,7 +900,7 @@ with tab4:
             if btn_audio:
                 with st.status("🎵 Mixage en cours...", expanded=True) as status:
                     sequence = parser_texte(st.session_state.code_actuel)
-                    mp3_buffer = generer_audio_mix(sequence, bpm_audio)
+                    mp3_buffer = generer_audio_mix(sequence, bpm_audio, acc_config)
                     if mp3_buffer:
                         st.session_state.audio_buffer = mp3_buffer
                         status.update(label="✅ Mixage terminé !", state="complete", expanded=False)
