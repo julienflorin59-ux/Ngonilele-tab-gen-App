@@ -398,14 +398,9 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     video_h = 600 
     
     # --- SCROLLING LOGIC (CORRECTION V56) ---
-    # Alignement parfait : t=0 -> Y(image) = bar_y
     bar_y = 150 
-    
-    # Calcul vitesse (pixel/sec) = Hauteur image / Durée
-    # Note : pour être précis, on parcourt toute la hauteur h.
     pixel_speed = h / duration_sec
     
-    # Formule de position Y : Départ (bar_y) - (Vitesse * temps)
     moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (pixel_speed * t)))
     
     # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
@@ -418,11 +413,10 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
         highlight_bar = highlight_bar.set_position(('center', bar_y))
         
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
+        video_visual = video_visual.set_duration(duration_sec) # Correction durée
     except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-
-    # DUREE EXPLICITE OBLIGATOIRE
-    video_visual = video_visual.set_duration(duration_sec)
+        video_visual = video_visual.set_duration(duration_sec) # Correction durée
 
     # --- AUDIO ---
     audio_clip = AudioFileClip("temp_audio.mp3")
@@ -458,7 +452,6 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
-# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -504,13 +497,13 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- MODIFICATION ICI : LEGENDE PARFAITE (V50) ---
+        # --- MODIFICATION ICI : LEGENDE PARFAITE (V57) ---
         st.info("""
-        💡 **Légende rapide :**
+        **Légende rapide :**
         
         `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant
         
-        **=** : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
+        = : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
         """, icon="💡")
         
         with st.expander("❓ Sauvegarder / Recharger"):
