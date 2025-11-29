@@ -177,9 +177,17 @@ with col_titre:
 # ==============================================================================
 HAS_MOVIEPY = False
 try:
+    # On essaie d'importer tout ce dont on a besoin
     from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip, ColorClip
     HAS_MOVIEPY = True
-except: pass
+except ImportError:
+    # Tentative alternative pour certaines versions de moviepy
+    try:
+        from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
+        from moviepy.video.VideoClip import ColorClip
+        HAS_MOVIEPY = True
+    except:
+        HAS_MOVIEPY = False
 
 HAS_PYDUB = False
 try:
@@ -401,64 +409,75 @@ def generer_image_longue(sequence, config_acc, styles):
     return buf
 
 def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
-    with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
-    with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
+    # Sauvegarde des fichiers temporaires
+    with open("temp_score.png", "wb") as f:
+        f.write(image_buffer.getbuffer())
+    with open("temp_audio.mp3", "wb") as f:
+        f.write(audio_buffer.getbuffer())
 
+    # Chargement de l'image
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
-    window_h = int(w * 9 / 16)
-    if window_h > h: window_h = h
+    
+    # Hauteur de la fenêtre vidéo
     video_h = 600 
+    window_h = int(w * 9 / 16)
+    if window_h > h: 
+        window_h = h
     
     # --- SCROLLING LOGIC ---
-    # On fait défiler de bas en haut (simulation lecture)
-    moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
+    # Position de la barre de lecture (fixe)
+    bar_y = 150
+    
+    # Calcul du défilement
+    def scroll_func(t):
+        current_y = bar_y - (h - video_h + bar_y) * (t / duration_sec)
+        return ('center', current_y)
+
+    # On applique la position et la durée à l'image
+    moving_clip = clip_img.set_position(scroll_func)
     moving_clip = moving_clip.set_duration(duration_sec)
     
     # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
-    # Création d'une barre jaune semi-transparente
-    bar_height = 50 # Hauteur approximative d'une ligne de note
-    # Position Y de la barre : disons au tiers supérieur de l'écran (200px)
-    bar_y = 150 
-    
+    highlight_bar = None
     try:
-        from moviepy.video.tools.drawing import color_gradient
-        # Solution simple : ColorClip
-        # ColorClip(size, color)
-        highlight_bar = ColorClip(size=(w, bar_height), color=[255, 215, 0]) # Or/Jaune
-        highlight_bar = highlight_bar.set_opacity(0.3) # Transparence
+        # Barre jaune semi-transparente
+        bar_height = 40
+        highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0))
+        highlight_bar = highlight_bar.set_opacity(0.3)
         highlight_bar = highlight_bar.set_position(('center', bar_y))
         highlight_bar = highlight_bar.set_duration(duration_sec)
-        
-        # Note : Si ColorClip plante sur le Cloud (dépend d'ImageMagick), on l'enlèvera.
-        # Mais normalement avec moviepy 1.0.3 ça passe.
-        
-        # AJOUTER UN OFFSET AU SCROLL POUR QUE LA PREMIERE NOTE SOIT SOUS LA BARRE A T=0
-        # Le premier temps (t=1) est à Y=0 sur l'image.
-        # A t=0, l'image est à Y=0 dans la vidéo.
-        # Donc la première note est tout en haut (Y=0).
-        # Si la barre est à Y=150, il faut décaler l'image de +150 vers le bas au départ.
-        
-        moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (h - video_h) * (t / duration_sec) ))
-        # ATTENTION : Le calcul de scroll est approximatif, c'est du bricolage visuel.
-        
-        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
     except:
-        # Fallback si ColorClip échoue
+        pass
+        
+    # Composition avec la barre si disponible
+    if highlight_bar:
+        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
+    else:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
+
+    # --- FIX CRITIQUE: FORCER LA DURÉE SUR LE COMPOSITE ---
+    video_visual = video_visual.set_duration(duration_sec)
 
     # --- AUDIO ---
     audio_clip = AudioFileClip("temp_audio.mp3")
     audio_clip = audio_clip.subclip(0, duration_sec)
     
+    # --- FINAL ---
     final = video_visual.set_audio(audio_clip)
     final.fps = fps
     
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
     
-    audio_clip.close()
-    final.close()
+    # Nettoyage
+    try:
+        audio_clip.close()
+        final.close()
+        video_visual.close()
+        clip_img.close()
+    except: pass
+        
     return output_filename
 
 # ==============================================================================
