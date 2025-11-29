@@ -263,34 +263,78 @@ def generer_metronome(bpm, duration_sec=30):
     buffer.seek(0)
     return buffer
 
+# --- CORRECTIF MAJEUR : MIDI TO TAB ---
 def midi_to_tab(midi_file, acc_config):
     mid = mido.MidiFile(file=midi_file)
     result_lines = []
-    acc_midi_map = {}
+    
+    # 1. Création de la map précise (Quelle corde joue quelle note MIDI ?)
+    # On assigne des octaves arbitraires "standards" pour le calcul de proximité
+    string_midi_values = {}
     for code, props in acc_config.items():
-        note_char = props['n']
-        base_val = NOTE_TO_MIDI_BASE.get(note_char, 60)
-        if code in ['1G', '1D', '2G', '2D']: midi_val = base_val + 12 
-        elif code in ['5G', '5D', '6G', '6D']: midi_val = base_val - 12
+        note_char = props['n'] # ex: 'C'
+        base_val = NOTE_TO_MIDI_BASE.get(note_char, 60) # Default Middle C
+        
+        # Ajustement sommaire des octaves pour le Ngonilélé (approximation)
+        # Droite et Gauche aiguës, Milieu grave
+        if code in ['1G', '1D']: midi_val = base_val + 12 # Octave 5
+        elif code in ['2G', '2D']: midi_val = base_val + 12
+        elif code in ['3G', '3D']: midi_val = base_val
+        elif code in ['4G', '4D']: midi_val = base_val
+        elif code in ['5G', '5D']: midi_val = base_val - 12 # Octave 3
+        elif code in ['6G', '6D']: midi_val = base_val - 12
         else: midi_val = base_val
-        acc_midi_map[code] = midi_val
+        
+        string_midi_values[code] = midi_val
 
-    def get_closest_string(midi_note):
-        best_code = None; min_dist = 999
-        for code, val in acc_midi_map.items():
-            dist = abs(midi_note - val)
-            if dist % 12 == 0: return code
-            if dist < min_dist: min_dist = dist; best_code = code
+    def get_closest_string(target_note):
+        """Trouve la corde la plus proche de la note MIDI demandée."""
+        best_code = None
+        min_diff = 999
+        
+        for code, s_val in string_midi_values.items():
+            # On cherche la différence absolue de hauteur
+            diff = abs(target_note - s_val)
+            
+            # Priorité absolue si c'est la même note modulo 12 (C3 joue sur C4)
+            # if (target_note % 12) == (s_val % 12):
+            #     diff -= 5 # Bonus pour la bonne tonalité
+            
+            if diff < min_diff:
+                min_diff = diff
+                best_code = code
+                
         return best_code
 
-    events = []
-    for msg in mid:
-        if not msg.is_meta and msg.type == 'note_on' and msg.velocity > 0:
-            events.append(msg.note)
+    # 2. Lecture temporelle pour gérer Simultané (=) vs Suivant (+)
+    # On convertit les ticks en secondes si possible, ou on utilise le delta brut
+    # Simplification : on regroupe les notes qui sont très proches dans le temps
     
-    for note_val in events:
-        corde = get_closest_string(note_val)
-        if corde: result_lines.append(f"+ {corde}")
+    threshold_simultane = 0.05 # Si moins de 50ms d'écart, c'est un accord
+    last_time = 0
+    is_first_note = True
+    
+    for msg in mid:
+        # On ne regarde que les Note ON avec vélocité > 0
+        if msg.type == 'note_on' and msg.velocity > 0:
+            current_time = msg.time # Temps écoulé DEPUIS le dernier message
+            
+            note_val = msg.note
+            corde = get_closest_string(note_val)
+            
+            if corde:
+                if is_first_note:
+                    prefix = "1" # Première note
+                    is_first_note = False
+                else:
+                    # Si le temps écoulé est grand -> Nouvelle note (+)
+                    # Si le temps écoulé est quasi nul -> Accord (=)
+                    if current_time > threshold_simultane:
+                        prefix = "+"
+                    else:
+                        prefix = "="
+                
+                result_lines.append(f"{prefix}   {corde}")
     
     return "\n".join(result_lines)
 
@@ -645,9 +689,21 @@ with tab1:
             st.write("") 
             st.write("") 
             if st.button("🎧 Écouter l'extrait"):
-                seq_prev = parser_texte(st.session_state.code_actuel)
-                audio_prev = generer_audio_mix(seq_prev, bpm_preview)
-                if audio_prev: st.audio(audio_prev, format="audio/mp3")
+                with st.status("🎵 Génération de l'aperçu...", expanded=True) as status:
+                    st.write("Analyse de la partition...")
+                    seq_prev = parser_texte(st.session_state.code_actuel)
+                    
+                    st.write("Mixage audio...")
+                    prog = st.progress(0)
+                    prog.progress(50) 
+                    
+                    audio_prev = generer_audio_mix(seq_prev, bpm_preview)
+                    
+                    prog.progress(100) 
+                    status.update(label="✅ Aperçu prêt !", state="complete", expanded=False)
+
+                if audio_prev:
+                    st.audio(audio_prev, format="audio/mp3")
 
         with st.expander("Gérer le fichier"):
             st.download_button(label="💾 Sauvegarder le code (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition.replace(' ', '_')}.txt", mime="text/plain")
