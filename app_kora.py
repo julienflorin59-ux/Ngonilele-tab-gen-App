@@ -33,51 +33,19 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🎨 CSS HACK : MENU ROUGE
+# 📦 GESTION DE LA PERSISTANCE (SESSION STATE)
 # ==============================================================================
-st.markdown("""
-    <style>
-    [data-testid="stSidebarCollapsedControl"] {
-        background-color: #FF4B4B !important;
-        border: 2px solid white !important;
-        color: white !important;
-        border-radius: 8px !important;
-        padding: 5px !important;
-        margin-top: 5px !important;
-        margin-left: 5px !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
-        z-index: 100000 !important;
-        display: flex !important;
-        align-items: center !important;
-        width: auto !important;
-    }
-    [data-testid="stSidebarCollapsedControl"] svg {
-        fill: white !important;
-        stroke: white !important;
-    }
-    [data-testid="stSidebarCollapsedControl"]::after {
-        content: "MENU";
-        font-weight: 900 !important;
-        font-size: 14px !important;
-        color: white !important;
-        margin-left: 8px;
-        margin-right: 5px;
-        padding-top: 2px;
-    }
-    @media (max-width: 640px) {
-        [data-testid="stHeader"] {
-            display: block !important;
-            visibility: visible !important;
-        }
-    }
-    </style>
-""", unsafe_allow_html=True)
+# On initialise les variables pour qu'elles restent en mémoire après un clic télécharger
+if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
+if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
+if 'video_path' not in st.session_state: st.session_state.video_path = None
+if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 
 # ==============================================================================
 # 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LE BOUTON ROUGE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau ou changer l'accordage !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau ou changer l'accordage !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -171,6 +139,21 @@ with col_logo:
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
+
+# --- NOUVEAU : AIDE GÉNÉRALE ---
+with st.expander("❓ Comment ça marche ? (Mode d'emploi)"):
+    st.markdown("""
+    1.  **Menu Gauche (Flèche Grise)** : C'est ici que tout commence ! 
+        * Chargez un morceau existant.
+        * Réglez l'accordage de votre Ngoni (quelles notes pour quelles cordes).
+        * Changez l'apparence (couleur de fond, texture).
+    2.  **Onglet Éditeur** : Écrivez votre musique avec le code simplifié (voir guide plus bas).
+    3.  **Générer** :
+        * **Partition** : Crée des images (PNG) pour chaque page.
+        * **Vidéo** : Crée une vidéo synchronisée avec le son pour s'entraîner.
+        * **Audio** : Crée juste le fichier MP3.
+    4.  **Télécharger** : Récupérez vos fichiers sur votre ordinateur.
+    """)
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -532,7 +515,6 @@ if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
-if 'gen_active' not in st.session_state: st.session_state.gen_active = False
 
 def charger_morceau():
     choix = st.session_state.selection_banque
@@ -540,8 +522,17 @@ def charger_morceau():
         nouveau = BANQUE_TABLATURES[choix].strip()
         st.session_state.code_actuel = nouveau
         st.session_state.widget_input = nouveau
+        # Reset des générations précédentes car le code a changé
+        st.session_state.partition_generated = False
+        st.session_state.video_path = None
+        st.session_state.audio_buffer = None
 
-def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
+def mise_a_jour_texte(): 
+    st.session_state.code_actuel = st.session_state.widget_input
+    # Reset des générations précédentes car le code a changé
+    st.session_state.partition_generated = False
+    st.session_state.video_path = None
+    st.session_state.audio_buffer = None
 
 with st.sidebar:
     st.header("🎚️ Réglages")
@@ -588,6 +579,20 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
+        
+        # --- NOUVEAU : GUIDE DE NOTATION ---
+        with st.expander("📚 Guide de Notation (Comment écrire)", expanded=False):
+            st.markdown("""
+            * **1G, 2D...** : Indique la corde (1=Haut, G=Gauche, D=Droite).
+            * **+** : Passe au temps suivant (note suivante).
+            * **=** : Reste sur le même temps (note simultanée).
+            * **S** : Silence (ne rien jouer).
+            * **TXT** : Ajoute un texte (ex: `+ TXT Refrain`).
+            * **PAGE** : Force un saut de page.
+            * **x2** : Répétition (ex: `+ 6D x2` joue deux fois la corde).
+            """)
+        # -----------------------------------
+
         with st.expander("❓ Sauvegarder / Recharger"):
             st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
         uploaded_file = st.file_uploader("📂 Charger un fichier (.txt)", type="txt")
@@ -604,24 +609,22 @@ with tab1:
     with col_view:
         st.subheader("Aperçu")
         if st.button("🔄 Générer la partition", type="primary"):
-            st.session_state.gen_active = True
-
-        if st.session_state.gen_active:
+            st.session_state.partition_buffers = [] # Reset buffer
+            
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
             sequence = parser_texte(st.session_state.code_actuel)
             
-            st.markdown("### Page 1 : Légende")
+            # 1. Légende
             fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
-            st.pyplot(fig_leg_ecran)
             if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
             else: fig_leg_dl = fig_leg_ecran
             buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
-            st.download_button(label="⬇️ Télécharger Légende", data=buf_leg, file_name=f"{titre_partition}_Legende.png", mime="image/png")
-            plt.close(fig_leg_ecran); 
+            st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
             if force_white_print: plt.close(fig_leg_dl)
             
+            # 2. Pages
             pages_data = []; current_page = []
             for n in sequence:
                 if n['corde'] == 'PAGE_BREAK':
@@ -632,15 +635,27 @@ with tab1:
             if not pages_data: st.warning("Aucune note détectée.")
             else:
                 for idx, page in enumerate(pages_data):
-                    st.markdown(f"### Page {idx+2}")
                     fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
-                    st.pyplot(fig_ecran)
                     if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
                     else: fig_dl = fig_ecran
                     buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
-                    st.download_button(label=f"⬇️ Télécharger Page {idx+2}", data=buf, file_name=f"{titre_partition}_Page_{idx+2}.png", mime="image/png")
-                    plt.close(fig_ecran); 
+                    st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
                     if force_white_print: plt.close(fig_dl)
+            
+            st.session_state.partition_generated = True
+
+        # --- AFFICHAGE PERSISTANT DE LA PARTITION ---
+        if st.session_state.partition_generated and st.session_state.partition_buffers:
+            for item in st.session_state.partition_buffers:
+                if item['type'] == 'legende':
+                    st.markdown("### Page 1 : Légende")
+                    st.pyplot(item['img_ecran'])
+                    st.download_button(label="⬇️ Télécharger Légende", data=item['buf'], file_name=f"{titre_partition}_Legende.png", mime="image/png", key="dl_leg")
+                elif item['type'] == 'page':
+                    idx = item['idx']
+                    st.markdown(f"### Page {idx}")
+                    st.pyplot(item['img_ecran'])
+                    st.download_button(label=f"⬇️ Télécharger Page {idx}", data=item['buf'], file_name=f"{titre_partition}_Page_{idx}.png", mime="image/png", key=f"dl_p_{idx}")
 
 # --- TAB VIDEO ---
 with tab3:
@@ -658,7 +673,6 @@ with tab3:
             seq = parser_texte(st.session_state.code_actuel)
             if seq:
                 nb_temps = seq[-1]['temps'] - seq[0]['temps']
-                # Petit buffer audio à la fin
                 duree_estimee = (nb_temps + 4) * (60/bpm)
                 st.write(f"Durée : {int(duree_estimee)}s")
             else: duree_estimee = 10
@@ -673,19 +687,22 @@ with tab3:
             if audio_buffer:
                 with st.spinner("Calibration de l'image..."):
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                    # On appelle la nouvelle fonction calibrée
                     img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
                 
                 if img_buffer:
                     with st.spinner("Montage Synchronisé..."):
                         try:
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                            st.session_state.video_path = video_path # Sauvegarde dans la session
                             st.success("Vidéo terminée et synchronisée ! 🥳")
-                            st.video(video_path)
-                            with open(video_path, "rb") as file:
-                                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4")
                         except Exception as e:
                             st.error(f"Erreur lors du montage : {e}")
+
+        # --- AFFICHAGE PERSISTANT DE LA VIDÉO ---
+        if st.session_state.video_path and os.path.exists(st.session_state.video_path):
+            st.video(st.session_state.video_path)
+            with open(st.session_state.video_path, "rb") as file:
+                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4")
 
 # --- TAB AUDIO ---
 with tab4:
@@ -696,11 +713,16 @@ with tab4:
         col_a1, col_a2 = st.columns(2)
         with col_a1: bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
         with col_a2: btn_audio = st.button("🎵 Générer MP3")
+        
         if btn_audio:
             with st.spinner("Mixage..."):
                 sequence = parser_texte(st.session_state.code_actuel)
                 mp3_buffer = generer_audio_mix(sequence, bpm_audio)
                 if mp3_buffer:
+                    st.session_state.audio_buffer = mp3_buffer # Sauvegarde dans la session
                     st.success("Terminé !")
-                    st.audio(mp3_buffer, format="audio/mp3")
-                    st.download_button(label="⬇️ Télécharger le MP3", data=mp3_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg")
+
+        # --- AFFICHAGE PERSISTANT DE L'AUDIO ---
+        if st.session_state.audio_buffer:
+            st.audio(st.session_state.audio_buffer, format="audio/mp3")
+            st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg")
