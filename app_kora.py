@@ -11,6 +11,7 @@ import numpy as np
 import shutil
 from fpdf import FPDF
 import mido
+import random 
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -35,7 +36,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📦 GESTION DE LA PERSISTANCE (SESSION STATE)
+# 📦 GESTION DE LA PERSISTANCE
 # ==============================================================================
 if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
@@ -51,7 +52,7 @@ if st.session_state.get('first_run', True):
     st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, importer du MIDI, changer l'apparence ou m'envoyer ta tablature pour que je l'ajoute à la banque de morceaux !")
 
 # ==============================================================================
-# 🎵 BANQUE DE DONNÉES
+# 🎵 BANQUE DE DONNÉES (CORRIGÉE : VIDE = VIDE)
 # ==============================================================================
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
@@ -150,7 +151,7 @@ with st.expander("❓ Comment ça marche ? (Mode d'emploi)"):
     """)
 
 # ==============================================================================
-# 🧠 MOTEUR LOGIQUE & PARSING
+# 🧠 MOTEUR LOGIQUE
 # ==============================================================================
 HAS_MOVIEPY = False
 try:
@@ -220,7 +221,7 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO & MIDI & METRONOME
+# 🎹 MOTEUR AUDIO
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
     if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
@@ -250,7 +251,6 @@ def generer_audio_mix(sequence, bpm):
     return buffer
 
 def generer_metronome(bpm, duration_sec=30):
-    """Génère une piste de métronome synthétique."""
     if not HAS_PYDUB: return None
     tick_sound = Sine(1000).to_audio_segment(duration=50).fade_out(10)
     silence_duration = (60000 / bpm) - 50
@@ -295,7 +295,7 @@ def midi_to_tab(midi_file, acc_config):
     return "\n".join(result_lines)
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE & PDF
+# 🎨 MOTEUR AFFICHAGE
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -516,6 +516,12 @@ def ajouter_texte(txt):
         st.session_state.code_actuel = txt
     st.session_state.widget_input = st.session_state.code_actuel
 
+def annuler_derniere_ligne():
+    lines = st.session_state.code_actuel.strip().split('\n')
+    if len(lines) > 0:
+        st.session_state.code_actuel = "\n".join(lines[:-1])
+        st.session_state.widget_input = st.session_state.code_actuel
+
 with st.sidebar:
     st.header("🎚️ Réglages & Import")
     
@@ -614,12 +620,12 @@ with tab1:
             st.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
         with bc3:
             st.caption("Outils")
-            st.button("➕ Note Suiv.", on_click=ajouter_texte, args=("+",), use_container_width=True)
+            st.button("↩️ Effacer Ligne", on_click=annuler_derniere_ligne, use_container_width=True)
             st.button("🟰 Notes Simultanées", on_click=ajouter_texte, args=("=",), use_container_width=True)
             st.button("🔁 Notes Doublées", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            st.button("🔇 Insérer Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
         with bc4:
             st.caption("Structure")
-            st.button("🔇 Insérer Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
             st.button("📄 Insérer Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
             st.button("📝 Insérer Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
 
