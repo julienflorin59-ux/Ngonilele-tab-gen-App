@@ -44,6 +44,7 @@ if 'video_path' not in st.session_state: st.session_state.video_path = None
 if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
+if 'debug_info' not in st.session_state: st.session_state.debug_info = ""
 
 # ==============================================================================
 # 🚨 MESSAGE D'AIDE
@@ -263,77 +264,89 @@ def generer_metronome(bpm, duration_sec=30):
     buffer.seek(0)
     return buffer
 
-# --- MOTEUR MIDI (CORRIGÉ: PAS D'AUTO-TRANSPOSITION) ---
-def midi_to_tab(midi_file, acc_config):
+# --- MOTEUR MIDI INTELLIGENT 3.7 ---
+def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
+    """
+    Convertit MIDI -> Tablature avec mapping 'Plus Proche Voisin' (aucune note rejetée).
+    time_threshold: écart en secondes pour considérer deux notes comme un accord (=)
+    """
     mid = mido.MidiFile(file=midi_file)
     result_lines = []
     
-    # 1. CONFIGURATION DU NGONI (Sans supposition d'octave)
-    # On crée une map étendue pour couvrir plusieurs octaves possibles pour chaque note
-    # Ex: Si 1G = Sol (G), on mappe G3, G4, G5 vers 1G.
-    
-    ngoni_note_to_string = {}
+    # 1. CONSTRUCTION DE LA CARTE DE L'INSTRUMENT
+    # On stocke {CodeCorde: NoteMidiAbsolue}
+    # On ajoute des octaves virtuelles pour couvrir tout le clavier
+    ngoni_map = {}
     
     for code, props in acc_config.items():
-        note_char = props['n'] # 'G', 'C', etc.
+        note_char = props['n'] 
         base_val = NOTE_TO_MIDI_BASE.get(note_char, 60)
         
-        # On enregistre cette corde pour plusieurs octaves (3, 4, 5)
-        # Cela permet de capter la note MIDI peu importe si elle a été enregistrée grave ou aigue
-        possible_midis = [base_val - 12, base_val, base_val + 12]
+        # Ajustement d'octave par défaut du Ngoni (Basses 5/6, Aigues 1/2)
+        if code in ['5G', '6G', '5D', '6D']: base_val -= 12
+        elif code in ['1G', '2G', '1D', '2D']: base_val += 12
         
-        for m_val in possible_midis:
-            # On stocke le code corde pour cette valeur midi
-            # Attention: si deux cordes ont la même note, la dernière écrase (c'est une limite acceptée ici)
-            ngoni_note_to_string[m_val] = code
+        # On enregistre cette corde comme candidate pour cette note et ses voisines d'octave
+        # Cela permet à une note MIDI très aigue de trouver quand même sa corde
+        ngoni_map[code] = [base_val - 24, base_val - 12, base_val, base_val + 12, base_val + 24]
 
-    # 2. LECTURE STRICTE
-    # On prend les notes telles quelles
-    
-    events = []
+    def find_best_string(target_note):
+        """Retourne la corde qui peut jouer la note la plus proche."""
+        best_code = None
+        min_dist = 9999
+        
+        for code, candidates in ngoni_map.items():
+            for cand in candidates:
+                dist = abs(target_note - cand)
+                if dist < min_dist:
+                    min_dist = dist
+                    best_code = code
+                # Si égalité, on garde le premier trouvé (ou on pourrait privilégier main gauche/droite)
+        return best_code
+
+    # 2. EXTRACTION DE TOUTES LES NOTES
+    all_events = []
     abs_time = 0
+    count_total = 0
+    
     for msg in mid:
         abs_time += msg.time
         if msg.type == 'note_on' and msg.velocity > 0:
-            events.append({'time': abs_time, 'note': msg.note})
-    
-    events.sort(key=lambda x: x['time'])
-    
-    last_processed_time = -1
-    is_first = True
-    
-    for evt in events:
-        note_val = evt['note']
-        
-        # On cherche la correspondance EXACTE (ou octave proche)
-        # Stratégie : On cherche d'abord la note exacte. 
-        # Si pas trouvée, on cherche la même note à +/- 1 octave.
-        
-        found_code = ngoni_note_to_string.get(note_val)
-        
-        if not found_code:
-            # Essai octave +1
-            found_code = ngoni_note_to_string.get(note_val + 12)
-        if not found_code:
-            # Essai octave -1
-            found_code = ngoni_note_to_string.get(note_val - 12)
+            count_total += 1
+            all_events.append({'time': abs_time, 'note': msg.note})
             
-        # Si on a trouvé une corde correspondante
-        if found_code:
-            current_time = evt['time']
+    # Tri par temps (essentiel)
+    all_events.sort(key=lambda x: x['time'])
+    
+    # 3. GÉNÉRATION TABLATURE
+    last_time = -1.0
+    is_first = True
+    count_mapped = 0
+    
+    for evt in all_events:
+        t = evt['time']
+        n = evt['note']
+        
+        corde = find_best_string(n)
+        
+        if corde:
+            count_mapped += 1
             if is_first:
                 prefix = "1"
                 is_first = False
             else:
-                # Seuil de simultanéité
-                if (current_time - last_processed_time) < 0.05: 
-                    prefix = "="
+                diff = t - last_time
+                if diff < time_threshold:
+                    prefix = "=" # Accord
                 else:
-                    prefix = "+"
+                    prefix = "+" # Note suivante
             
-            result_lines.append(f"{prefix}   {found_code}")
-            last_processed_time = current_time
-
+            result_lines.append(f"{prefix}   {corde}")
+            last_time = t # On met à jour le temps SEULEMENT si on a écrit une note
+            
+    debug_msg = f"Notes MIDI détectées : {count_total} | Notes écrites : {count_mapped}"
+    st.session_state.debug_info = debug_msg
+    
     return "\n".join(result_lines)
 
 # ==============================================================================
@@ -396,11 +409,11 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         t = n['temps']; 
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-    notes_par_temps_relatif = {}; rayon = 0.30
+    notes_par_temps = {}; rayon = 0.30
     for n in notes_page:
         t_absolu = n['temps']; y = -(t_absolu - t_min)
-        if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
-        notes_par_temps_relatif[y].append(n); code = n['corde']
+        if y not in notes_par_temps: notes_par_temps[y] = []
+        notes_par_temps[y].append(n); code = n['corde']
         if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
         elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
@@ -579,23 +592,29 @@ with st.sidebar:
         type=["mid", "midi"]
     )
     
+    # NOUVEAU CURSEUR : Sensibilité MIDI
+    sensitivity = st.slider("Sensibilité Rythmique MIDI", 0.01, 0.20, 0.05, 0.01, help="Réglez ce seuil pour grouper les notes en accords. Plus bas = plus d'arpèges.")
+
     # TRAITEMENT DU FICHIER MIDI
     if midi_file is not None:
         if st.button("⚡ Convertir MIDI en Tablature", type="primary"):
-            # On recupere les configs cordes 
             DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
             temp_acc_config = {}
-            # On cherche si l'utilisateur a changé les réglages dans l'onglet 2
-            # Sinon on prend le defaut
+            notes_gamme = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
             for k, default_note in DEF_ACC.items():
                 val = st.session_state.get(k, default_note)
                 temp_acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
-            tab_text = midi_to_tab(midi_file, temp_acc_config)
+            # On passe la sensibilité ici
+            tab_text = midi_to_tab(midi_file, temp_acc_config, time_threshold=sensitivity)
             st.session_state.code_actuel = tab_text
             st.session_state.widget_input = tab_text
             st.success("Conversion terminée ! Vérifiez l'onglet Éditeur.")
             st.rerun()
+
+    if st.session_state.debug_info:
+        with st.expander("🔍 Rapport d'analyse MIDI"):
+            st.code(st.session_state.debug_info)
 
     st.markdown("---")
     
