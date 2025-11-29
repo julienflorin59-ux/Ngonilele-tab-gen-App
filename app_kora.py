@@ -168,7 +168,7 @@ except ImportError:
 HAS_PYDUB = False
 try:
     from pydub import AudioSegment
-    from pydub.generators import Sine, WhiteNoise # Ajout de WhiteNoise pour le son "Shaker"
+    from pydub.generators import Sine, WhiteNoise
     HAS_PYDUB = True
 except: pass
 
@@ -283,21 +283,19 @@ def generer_audio_mix(sequence, bpm, acc_config):
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
-def generer_metronome(bpm, duration_sec=30):
+def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     """
     Génère un son type 'Shaker' (Maracas) à partir de bruit blanc.
-    C'est beaucoup plus doux pour l'oreille qu'un Bip sinusoïdal.
+    Supporte 4/4 et 3/4.
     """
     if not HAS_PYDUB: return None
     
     # --- SON 1 : ACCENT (Premier temps) ---
-    # Un "Shaker" un peu plus long et fort + un petit "Click"
     shaker_acc = WhiteNoise().to_audio_segment(duration=60).fade_out(50)
     click_acc = Sine(1500).to_audio_segment(duration=20).fade_out(20).apply_gain(-10)
     sound_accent = shaker_acc.overlay(click_acc).apply_gain(-2)
     
     # --- SON 2 : TEMPS NORMAL (Autres temps) ---
-    # Un "Shaker" très court et doux ("ts...")
     sound_normal = WhiteNoise().to_audio_segment(duration=40).fade_out(35).apply_gain(-8)
     
     # Calcul du silence entre les coups
@@ -311,9 +309,13 @@ def generer_metronome(bpm, duration_sec=30):
     beat_accent = sound_accent + AudioSegment.silent(duration=silence_acc)
     beat_normal = sound_normal + AudioSegment.silent(duration=silence_norm)
     
-    # Construction de la boucle : 1 Accent + 3 Normaux (Mesure 4/4 standard par défaut)
-    # Même si le morceau n'est pas en 4/4, cela donne un repère agréable.
-    measure_block = beat_accent + beat_normal + beat_normal + beat_normal
+    # Construction de la boucle selon la signature
+    if signature == "3/4":
+        # Valse : BOUM - tchk - tchk
+        measure_block = beat_accent + beat_normal + beat_normal
+    else:
+        # Standard 4/4 : BOUM - tchk - tchk - tchk
+        measure_block = beat_accent + beat_normal + beat_normal + beat_normal
     
     # On répète ce bloc pour couvrir la durée
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
@@ -836,12 +838,19 @@ with tab4:
         st.subheader("🥁 Groove Box (Métronome)")
         st.info("Un outil simple pour s'entraîner en rythme.")
         
-        bpm_metro = st.slider("Vitesse Métronome (BPM)", 30, 200, 80, key="bpm_metro")
+        # Ajout du sélecteur 4/4 ou 3/4
+        col_sig, col_bpm_metro = st.columns([1, 2])
+        with col_sig:
+             signature_metro = st.radio("Signature", ["4/4", "3/4"], horizontal=True)
+        with col_bpm_metro:
+             bpm_metro = st.slider("Vitesse (BPM)", 30, 200, 80, key="bpm_metro")
+
         duree_metro = st.slider("Durée (secondes)", 10, 300, 60, step=10)
         
         if st.button("▶️ Lancer le Métronome"):
             with st.status("🥁 Création du beat...", expanded=True) as status:
-                metro_buffer = generer_metronome(bpm_metro, duree_metro)
+                # On passe la signature à la fonction
+                metro_buffer = generer_metronome(bpm_metro, duree_metro, signature_metro)
                 if metro_buffer:
                     st.session_state.metronome_buffer = metro_buffer
                     status.update(label="✅ Prêt !", state="complete", expanded=False)
