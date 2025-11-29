@@ -397,29 +397,32 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     if window_h > h: window_h = h
     video_h = 600 
     
-    # --- SCROLLING LOGIC ---
-    moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
-    moving_clip = moving_clip.set_duration(duration_sec)
+    # --- SCROLLING LOGIC (CORRECTION V56) ---
+    # Alignement parfait : t=0 -> Y(image) = bar_y
+    bar_y = 150 
+    
+    # Calcul vitesse (pixel/sec) = Hauteur image / Durée
+    # Note : pour être précis, on parcourt toute la hauteur h.
+    pixel_speed = h / duration_sec
+    
+    # Formule de position Y : Départ (bar_y) - (Vitesse * temps)
+    moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (pixel_speed * t)))
     
     # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
     bar_height = 50 
-    bar_y = 150 
     
     try:
         from moviepy.video.tools.drawing import color_gradient
         highlight_bar = ColorClip(size=(w, bar_height), color=[255, 215, 0]) # Or/Jaune
         highlight_bar = highlight_bar.set_opacity(0.3) # Transparence
         highlight_bar = highlight_bar.set_position(('center', bar_y))
-        highlight_bar = highlight_bar.set_duration(duration_sec)
-        
-        # OFFSET DE SCROLL POUR ALIGNEMENT
-        moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (h - video_h) * (t / duration_sec) ))
         
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-        video_visual = video_visual.set_duration(duration_sec) # Correction durée manquante
     except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-        video_visual = video_visual.set_duration(duration_sec) # Correction durée manquante
+
+    # DUREE EXPLICITE OBLIGATOIRE
+    video_visual = video_visual.set_duration(duration_sec)
 
     # --- AUDIO ---
     audio_clip = AudioFileClip("temp_audio.mp3")
@@ -478,7 +481,6 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
-# ONGLETS
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
@@ -502,9 +504,9 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- MODIFICATION ICI : LEGENDE CORRIGÉE (V55) ---
+        # --- MODIFICATION ICI : LEGENDE PARFAITE (V50) ---
         st.info("""
-        **Légende rapide :**
+        💡 **Légende rapide :**
         
         `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant
         
