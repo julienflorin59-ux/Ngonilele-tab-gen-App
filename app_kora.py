@@ -177,7 +177,7 @@ with col_titre:
 # ==============================================================================
 HAS_MOVIEPY = False
 try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip, ColorClip
+    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
     HAS_MOVIEPY = True
 except: pass
 
@@ -265,7 +265,7 @@ def generer_audio_mix(sequence, bpm):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE (Images Statiques)
+# 🎨 MOTEUR AFFICHAGE
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -311,14 +311,16 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     ax.text(-3.5, y_top_cordes + 2.0, "Cordes de Gauche", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt); ax.text(3.5, y_top_cordes + 2.0, "Cordes de Droite", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
+    
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # GRILLE HORIZONTALE STATIQUE
+    # --- AJOUT DE LA GRILLE HORIZONTALE (Plus foncée #666666) ---
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+    # ------------------------------------------------------------
 
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps']); processed_t = set()
     for n in sorted_notes:
@@ -348,7 +350,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-# --- MOTEUR VIDEO ---
+# --- VIDEO ---
 def generer_image_longue(sequence, config_acc, styles):
     if not sequence: return None
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
@@ -364,11 +366,11 @@ def generer_image_longue(sequence, config_acc, styles):
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
     
-    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
+    # --- AJOUT DE LA GRILLE HORIZONTALE (Pour vidéo aussi) ---
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # -----------------------------------------
+    # ---------------------------------------------------------
 
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
@@ -403,68 +405,26 @@ def generer_image_longue(sequence, config_acc, styles):
 def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-
-    clip_img = ImageClip("temp_score.png")
-    w, h = clip_img.size
-    window_h = int(w * 9 / 16)
+    clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
+    window_h = int(w * 9 / 16); 
     if window_h > h: window_h = h
-    video_h = 600 
-    
-    # --- SCROLLING LOGIC ---
-    # On fait défiler de bas en haut (simulation lecture)
+    video_h = 600
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
-    
-    # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
-    # Création d'une barre jaune semi-transparente
-    bar_height = 50 # Hauteur approximative d'une ligne de note
-    # Position Y de la barre : disons au tiers supérieur de l'écran (200px)
-    bar_y = 150 
-    
-    try:
-        from moviepy.video.tools.drawing import color_gradient
-        # Solution simple : ColorClip
-        # ColorClip(size, color)
-        highlight_bar = ColorClip(size=(w, bar_height), color=[255, 215, 0]) # Or/Jaune
-        highlight_bar = highlight_bar.set_opacity(0.3) # Transparence
-        highlight_bar = highlight_bar.set_position(('center', bar_y))
-        highlight_bar = highlight_bar.set_duration(duration_sec)
-        
-        # Note : Si ColorClip plante sur le Cloud (dépend d'ImageMagick), on l'enlèvera.
-        # Mais normalement avec moviepy 1.0.3 ça passe.
-        
-        # AJOUTER UN OFFSET AU SCROLL POUR QUE LA PREMIERE NOTE SOIT SOUS LA BARRE A T=0
-        # Le premier temps (t=1) est à Y=0 sur l'image.
-        # A t=0, l'image est à Y=0 dans la vidéo.
-        # Donc la première note est tout en haut (Y=0).
-        # Si la barre est à Y=150, il faut décaler l'image de +150 vers le bas au départ.
-        
-        moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (h - video_h) * (t / duration_sec) ))
-        # ATTENTION : Le calcul de scroll est approximatif, c'est du bricolage visuel.
-        
-        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-    except:
-        # Fallback si ColorClip échoue
-        video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-
-    # --- AUDIO ---
     audio_clip = AudioFileClip("temp_audio.mp3")
     audio_clip = audio_clip.subclip(0, duration_sec)
-    
-    final = video_visual.set_audio(audio_clip)
-    final.fps = fps
-    
+    video_with_audio = moving_clip.set_audio(audio_clip)
+    final = CompositeVideoClip([video_with_audio], size=(w, video_h)); final.fps = fps
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
-    
-    audio_clip.close()
-    final.close()
+    audio_clip.close(); final.close()
     return output_filename
 
 # ==============================================================================
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
+# Session State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -480,6 +440,7 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
+# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -502,6 +463,7 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
+# ONGLETS
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
