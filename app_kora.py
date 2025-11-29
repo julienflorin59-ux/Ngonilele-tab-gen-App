@@ -33,7 +33,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🚨 MESSAGE D'AIDE
+# 🚨 MESSAGE D'AIDE (HEADER)
 # ==============================================================================
 if st.session_state.get('first_run', True):
     st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu, choisir un morceau ou changer l'accordage !")
@@ -156,7 +156,7 @@ with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False
         * **Banque** : Chargez des exemples.
         * **Apparence** : Changez la couleur de fond.
         * **Contribution** : Envoyez-moi vos créations !
-        * **Accordage** : Changez les notes des cordes (Onglet dédié).
+        * **Accordage** : Changez les notes des cordes.
         """)
 
 # ==============================================================================
@@ -455,7 +455,6 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
-# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -478,7 +477,6 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
-# ONGLETS
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
@@ -505,8 +503,8 @@ with tab1:
         # --- MODIFICATION ICI : LEGENDE CLAIRE (V49) ---
         st.info("""
         💡 **Légende rapide :** `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant  
-        **=** : Notes simultanées &nbsp; | &nbsp; `S` : Silence &nbsp; | &nbsp; `x2` : Répéter
-        """)
+        **=** : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
+        """, icon="💡")
         
         with st.expander("❓ Sauvegarder / Recharger"):
             st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
