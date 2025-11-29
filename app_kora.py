@@ -11,7 +11,6 @@ import numpy as np
 import shutil
 from fpdf import FPDF
 import random 
-import mido  # Module nécessaire pour l'import MIDI
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -50,7 +49,7 @@ if 'debug_info' not in st.session_state: st.session_state.debug_info = ""
 # 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour commencer !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, changer l'apparence ou m'envoyer ta tablature pour que je l'ajoute à la banque de morceaux !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -140,12 +139,12 @@ with col_logo:
     else: st.header("🪕")
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
-    st.markdown("Composez, Importez du MIDI, Écoutez et Exportez.")
+    st.markdown("Composez, Écoutez et Exportez.")
 
 # --- AIDE GÉNÉRALE ---
 with st.expander("❓ Comment ça marche ? (Mode d'emploi)"):
     st.markdown("""
-    1.  **Menu Gauche** : Réglages, Accordage et **Import MIDI**.
+    1.  **Menu Gauche** : Réglages et Accordage.
     2.  **Boutons Rapides** : Utilisez les boutons colorés au-dessus de l'éditeur pour écrire sans clavier.
     3.  **Audio & Groove** : Onglet Audio pour générer le MP3 final ou lancer un **Métronome**.
     4.  **Exports** : Téléchargez le PDF (Livret) ou la Vidéo pour vous entraîner.
@@ -169,7 +168,7 @@ except ImportError:
 HAS_PYDUB = False
 try:
     from pydub import AudioSegment
-    from pydub.generators import Sine
+    from pydub.generators import Sine, WhiteNoise # Ajout de WhiteNoise pour le son "Shaker"
     HAS_PYDUB = True
 except: pass
 
@@ -223,9 +222,10 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO
+# 🎹 MOTEUR AUDIO (V3.9: STRICT SANS TRANSPOSITION)
 # ==============================================================================
 def get_note_freq(note_name):
+    # Fréquences Octave 4 (Standard)
     base_freqs = {'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23, 'G': 392.00, 'A': 440.00, 'B': 493.88}
     return base_freqs.get(note_name, 440.0)
 
@@ -237,7 +237,7 @@ def generer_audio_mix(sequence, bpm, acc_config):
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     
     for corde in cordes_utilisees:
-        # 1. MP3
+        # 1. TENTATIVE MP3
         loaded = False
         if os.path.exists(DOSSIER_SAMPLES):
             nom_fichier = f"{corde}.mp3"
@@ -250,131 +250,82 @@ def generer_audio_mix(sequence, bpm, acc_config):
                 if os.path.exists(chemin_min): 
                     samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
                     loaded = True
-        # 2. SYNTHÉ
+        
+        # 2. FALLBACK SYNTHÉTISEUR STRICT (Sans décalage d'octave)
         if not loaded:
             note_name = 'C' 
             if corde in acc_config: note_name = acc_config[corde]['n']
+            
+            # On prend la fréquence standard de la note (ex G = 392Hz)
             freq = get_note_freq(note_name)
+            
+            # Pas de modification d'octave ici pour rester fidèle à la note demandée
             tone = Sine(freq).to_audio_segment(duration=600).fade_out(400)
             samples_loaded[corde] = tone - 5 
 
-    if not samples_loaded: return None
+    if not samples_loaded: 
+        st.error("Aucun son généré."); return None
 
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     if duree_totale_ms < 1000: duree_totale_ms = 1000
+        
     mix = AudioSegment.silent(duration=duree_totale_ms)
+    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
             t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
+            
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
 def generer_metronome(bpm, duration_sec=30):
+    """
+    Génère un son type 'Shaker' (Maracas) à partir de bruit blanc.
+    C'est beaucoup plus doux pour l'oreille qu'un Bip sinusoïdal.
+    """
     if not HAS_PYDUB: return None
-    tick_sound = Sine(1000).to_audio_segment(duration=50).fade_out(10)
-    silence_duration = (60000 / bpm) - 50
-    if silence_duration < 0: silence_duration = 0
-    one_beat = tick_sound + AudioSegment.silent(duration=silence_duration)
-    total_beats = int((duration_sec * 1000) / (60000 / bpm)) + 1
-    metronome_track = one_beat * total_beats
+    
+    # --- SON 1 : ACCENT (Premier temps) ---
+    # Un "Shaker" un peu plus long et fort + un petit "Click"
+    shaker_acc = WhiteNoise().to_audio_segment(duration=60).fade_out(50)
+    click_acc = Sine(1500).to_audio_segment(duration=20).fade_out(20).apply_gain(-10)
+    sound_accent = shaker_acc.overlay(click_acc).apply_gain(-2)
+    
+    # --- SON 2 : TEMPS NORMAL (Autres temps) ---
+    # Un "Shaker" très court et doux ("ts...")
+    sound_normal = WhiteNoise().to_audio_segment(duration=40).fade_out(35).apply_gain(-8)
+    
+    # Calcul du silence entre les coups
+    ms_per_beat = 60000 / bpm
+    silence_acc = ms_per_beat - len(sound_accent)
+    silence_norm = ms_per_beat - len(sound_normal)
+    
+    if silence_acc < 0: silence_acc = 0
+    if silence_norm < 0: silence_norm = 0
+    
+    beat_accent = sound_accent + AudioSegment.silent(duration=silence_acc)
+    beat_normal = sound_normal + AudioSegment.silent(duration=silence_norm)
+    
+    # Construction de la boucle : 1 Accent + 3 Normaux (Mesure 4/4 standard par défaut)
+    # Même si le morceau n'est pas en 4/4, cela donne un repère agréable.
+    measure_block = beat_accent + beat_normal + beat_normal + beat_normal
+    
+    # On répète ce bloc pour couvrir la durée
+    nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
+    metronome_track = measure_block * nb_mesures
+    
+    # On coupe à la durée exacte demandée
+    metronome_track = metronome_track[:int(duration_sec*1000)]
+    
     buffer = io.BytesIO()
     metronome_track.export(buffer, format="mp3")
     buffer.seek(0)
     return buffer
-
-# ==============================================================================
-# 🎹 MOTEUR IMPORT MIDI INTELLIGENT (V2)
-# ==============================================================================
-def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
-    """
-    Conversion intelligente MIDI -> Tablature.
-    - Gère l'alternance des mains (si possible)
-    - Nettoie les accords (simultanéité)
-    """
-    mid = mido.MidiFile(file=midi_file)
-    result_lines = []
-    
-    # 1. Carte des notes vers les cordes disponibles
-    # Ex: 'C': ['2G', '5G']
-    note_to_strings = {}
-    for code, props in acc_config.items():
-        note_name = props['n']
-        if note_name not in note_to_strings: note_to_strings[note_name] = []
-        note_to_strings[note_name].append(code)
-
-    # 2. Lecture et mise à plat des événements
-    events = []
-    abs_time = 0
-    for msg in mid:
-        abs_time += msg.time
-        if msg.type == 'note_on' and msg.velocity > 0:
-            note_idx = msg.note % 12
-            note_char = NOTE_NAMES_MODULO[note_idx]
-            events.append({'time': abs_time, 'note_char': note_char, 'pitch': msg.note})
-            
-    events.sort(key=lambda x: x['time'])
-    
-    # 3. Traitement Intelligent
-    last_time = -1.0
-    is_first = True
-    
-    # Mémoire pour l'alternance (G ou D)
-    last_hand_side = None # 'G' ou 'D'
-
-    for evt in events:
-        n_char = evt['note_char']
-        
-        # Choix de la corde
-        corde_choisie = None
-        possibles = note_to_strings.get(n_char, [])
-        
-        if not possibles:
-            continue # Note introuvable sur l'instrument
-
-        if len(possibles) == 1:
-            corde_choisie = possibles[0]
-        else:
-            # ALGORITHME D'ALTERNANCE
-            # Si on a le choix (ex: 2G et 5G vs 1D), on essaie de changer de main
-            if last_hand_side:
-                # Si la dernière était G, on cherche une D
-                candidats_opposes = [c for c in possibles if (last_hand_side == 'G' and 'D' in c) or (last_hand_side == 'D' and 'G' in c)]
-                if candidats_opposes:
-                    corde_choisie = candidats_opposes[0] # On prend la première opposée trouvée
-                else:
-                    corde_choisie = possibles[0] # Pas le choix, on reste du même côté
-            else:
-                corde_choisie = possibles[0]
-
-        # Mise à jour de la mémoire main
-        if 'G' in corde_choisie: last_hand_side = 'G'
-        elif 'D' in corde_choisie: last_hand_side = 'D'
-
-        # Gestion du Temps (Rythme)
-        t = evt['time']
-        if is_first:
-            prefix = "1"
-            is_first = False
-        else:
-            diff = t - last_time
-            # Si la différence est minime, c'est un accord (=)
-            # Sinon c'est une nouvelle note (+)
-            if diff < time_threshold:
-                prefix = "="
-            else:
-                prefix = "+"
-        
-        result_lines.append(f"{prefix}   {corde_choisie}")
-        last_time = t
-            
-    count_total = len(events)
-    st.session_state.debug_info = f"Notes MIDI : {count_total} | Mode: Alternance des mains active"
-    return "\n".join(result_lines)
 
 # ==============================================================================
 # 🎨 MOTEUR AFFICHAGE
@@ -486,8 +437,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
     notes_par_temps = {}; rayon = 0.30
     for n in sequence:
-        if n['corde'] == 'PAGE_BREAK':
-            continue 
+        if n['corde'] == 'PAGE_BREAK': continue 
         t_absolu = n['temps']; y = -(t_absolu - t_min)
         if y not in notes_par_temps: notes_par_temps[y] = []
         notes_par_temps[y].append(n); code = n['corde']
@@ -547,14 +497,19 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     return output_filename
 
 def generer_pdf_livret(buffers, titre):
+    # Orientation P (Portrait), A4
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     for item in buffers:
         pdf.add_page()
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}.png"
         with open(temp_img, "wb") as f:
             f.write(item['buf'].getbuffer())
+        
+        # A4 Portrait = 210mm width. Marge 10mm. Max w = 190.
         pdf.image(temp_img, x=10, y=10, w=190)
+        
         if os.path.exists(temp_img): os.remove(temp_img)
+        
     buf = io.BytesIO()
     pdf_output = pdf.output(dest='S').encode('latin-1')
     buf.write(pdf_output)
@@ -588,8 +543,10 @@ def mise_a_jour_texte():
     st.session_state.audio_buffer = None
 
 def ajouter_texte(txt):
-    if 'code_actuel' in st.session_state: st.session_state.code_actuel += "\n" + txt
-    else: st.session_state.code_actuel = txt
+    if 'code_actuel' in st.session_state:
+        st.session_state.code_actuel += "\n" + txt
+    else:
+        st.session_state.code_actuel = txt
     st.session_state.widget_input = st.session_state.code_actuel
 
 def annuler_derniere_ligne():
@@ -599,44 +556,22 @@ def annuler_derniere_ligne():
         st.session_state.widget_input = st.session_state.code_actuel
 
 with st.sidebar:
-    st.header("🎚️ Réglages & Import")
+    st.header("🎚️ Réglages")
+    
     st.markdown("### 📚 Banque de Morceaux")
     st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau)
     st.caption("⚠️ Remplacera le texte actuel.")
 
     st.markdown("---")
-    st.markdown("### 🎹 Import MIDI (V2)")
-    midi_file = st.file_uploader(label="Convertir un fichier midi", type=["mid", "midi"])
-    
-    # Sensibilité MIDI
-    sensitivity = st.slider("Sensibilité Rythmique MIDI", 0.01, 0.20, 0.06, 0.01, help="Ajustez si les accords (=) sont mal détectés.")
-
-    if midi_file is not None:
-        if st.button("⚡ Convertir (Mode Intelligent)", type="primary"):
-            DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
-            temp_acc_config = {}
-            for k in POSITIONS_X.keys():
-                val = st.session_state.get(k, DEF_ACC[k])
-                temp_acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
-            tab_text = midi_to_tab(midi_file, temp_acc_config, time_threshold=sensitivity)
-            st.session_state.code_actuel = tab_text
-            st.session_state.widget_input = tab_text
-            st.success("Conversion terminée avec alternance des mains !")
-            st.rerun()
-
-    if st.session_state.debug_info:
-        with st.expander("🔍 Rapport d'analyse MIDI"):
-            st.code(st.session_state.debug_info)
-
-    st.markdown("---")
     
     with st.expander("🎨 Apparence", expanded=False):
         bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
-        use_bg_img = st.checkbox("Texture Ngonilélé", True)
-        bg_alpha = st.slider("Transparence", 0.0, 1.0, 0.2)
+        use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
+        bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
-        force_white_print = st.checkbox("🖨️ Impression N&B", value=True)
+        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
 
+    # AFFICHER 'CONTRIBUER' DANS LE MENU (MAIS À LA FIN)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
     mon_email = "julienflorin59@gmail.com" 
@@ -644,6 +579,7 @@ with st.sidebar:
     corps_mail = f"Bonjour,\n\nVoici une proposition :\n\n{st.session_state.code_actuel}"
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
@@ -670,7 +606,10 @@ with tab1:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        st.info("⌨️ **Saisie par Boutons**")
+        
+        # --- METHODE 1 : BOUTONS (NOUVELLE) ---
+        st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
+        
         bc1, bc2, bc3, bc4 = st.columns(4)
         with bc1: 
             st.caption("Gauche")
@@ -690,34 +629,55 @@ with tab1:
             st.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
         with bc3:
             st.caption("Outils")
-            st.button("↩️ Effacer", on_click=annuler_derniere_ligne, use_container_width=True)
-            st.button("🟰 Accord", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            st.button("🔁 Doubler", on_click=ajouter_texte, args=("x2",), use_container_width=True)
-            st.button("🔇 Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            st.button("↩️ Effacer Ligne", on_click=annuler_derniere_ligne, use_container_width=True)
+            st.button("🟰 Notes Simultanées", on_click=ajouter_texte, args=("=",), use_container_width=True)
+            st.button("🔁 Notes Doublées", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            st.button("🔇 Insérer Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
         with bc4:
             st.caption("Structure")
-            st.button("📄 Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
-            st.button("📝 Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
+            st.button("📄 Insérer Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+            st.button("📝 Insérer Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
 
-        st.write(""); st.write("")
-        st.warning("📝 **Éditeur Texte**")
+        st.write("")
+        st.write("")
+        
+        # --- METHODE 2 : TEXTE (ANCIENNE) ---
+        st.warning("📝 **Éditeur Texte (Ancienne méthode / Corrections)**")
         st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
         
+        # --- LECTEUR AUDIO RAPIDE ---
         st.markdown("---")
         col_play_btn, col_play_bpm = st.columns([1, 1])
-        with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100)
+        with col_play_bpm:
+            bpm_preview = st.number_input("BPM", 40, 200, 100)
         with col_play_btn:
-            st.write(""); st.write("")
+            st.write("") 
+            st.write("") 
             if st.button("🎧 Écouter l'extrait"):
-                with st.status("🎵 Génération...", expanded=True) as status:
+                with st.status("🎵 Génération de l'aperçu...", expanded=True) as status:
+                    st.write("Analyse de la partition...")
                     seq_prev = parser_texte(st.session_state.code_actuel)
+                    
+                    st.write("Mixage audio...")
+                    prog = st.progress(0)
+                    prog.progress(50) 
+                    
+                    # On passe la config des cordes pour le synthé de secours
                     audio_prev = generer_audio_mix(seq_prev, bpm_preview, acc_config)
-                    status.update(label="✅ Prêt !", state="complete", expanded=False)
-                if audio_prev: st.audio(audio_prev, format="audio/mp3")
+                    
+                    prog.progress(100) 
+                    status.update(label="✅ Aperçu prêt !", state="complete", expanded=False)
+                    
+                    # DEBUG : Afficher ce qui a été compris par le parser
+                    if seq_prev and len(seq_prev) > 0:
+                        st.info(f"Lecture de {len(seq_prev)} événements. Première note : {seq_prev[0]['corde']}")
+
+                if audio_prev:
+                    st.audio(audio_prev, format="audio/mp3")
 
         with st.expander("Gérer le fichier"):
-            st.download_button(label="💾 Sauvegarder", data=st.session_state.code_actuel, file_name=f"{titre_partition.replace(' ', '_')}.txt", mime="text/plain")
-            uploaded_file = st.file_uploader("📂 Charger", type="txt")
+            st.download_button(label="💾 Sauvegarder le code (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition.replace(' ', '_')}.txt", mime="text/plain")
+            uploaded_file = st.file_uploader("📂 Charger (.txt)", type="txt")
             if uploaded_file:
                 stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
                 st.session_state.code_actuel = stringio.read()
@@ -727,13 +687,16 @@ with tab1:
         st.subheader("Aperçu Partition")
         if st.button("🔄 Générer la partition", type="primary", use_container_width=True):
             st.session_state.partition_buffers = [] 
+            
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
-            with st.status("📸 Génération...", expanded=True) as status:
+            # Pour l'aperçu, on utilise status pour faire joli aussi
+            with st.status("📸 Génération des images...", expanded=True) as status:
                 sequence = parser_texte(st.session_state.code_actuel)
                 
-                # Légende
+                # 1. Légende
+                st.write("📖 Création de la légende...")
                 fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
                 if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
                 else: fig_leg_dl = fig_leg_ecran
@@ -741,7 +704,7 @@ with tab1:
                 st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
                 if force_white_print: plt.close(fig_leg_dl)
                 
-                # Pages
+                # 2. Pages
                 pages_data = []; current_page = []
                 for n in sequence:
                     if n['corde'] == 'PAGE_BREAK':
@@ -751,6 +714,7 @@ with tab1:
                 
                 if not pages_data: st.warning("Aucune note détectée.")
                 else:
+                    st.write(f"📄 Traitement de {len(pages_data)} pages...")
                     for idx, page in enumerate(pages_data):
                         fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
                         if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
@@ -758,21 +722,45 @@ with tab1:
                         buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
                         st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
                         if force_white_print: plt.close(fig_dl)
+                
                 st.session_state.partition_generated = True
-                status.update(label="✅ Terminé !", state="complete", expanded=False)
+                status.update(label="✅ Partition prête !", state="complete", expanded=False)
 
+        # --- AFFICHAGE PERSISTANT ---
         if st.session_state.partition_generated and st.session_state.partition_buffers:
+            # --- EXPORT PDF EN FIN DE CHAINE ---
+            # On génère le PDF seulement au moment de l'affichage final
             pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-            st.download_button(label="📕 Télécharger PDF", data=pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+            
+            st.download_button(
+                label="📕 Télécharger le Livret Complet (PDF Portrait)",
+                data=pdf_buffer,
+                file_name=f"{titre_partition}.pdf",
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True
+            )
+            
             st.markdown("---")
-            for item in st.session_state.partition_buffers:
-                if item['type'] == 'legende': st.markdown("#### Page 1"); st.pyplot(item['img_ecran'])
-                elif item['type'] == 'page': st.markdown(f"#### Page {item['idx']}"); st.pyplot(item['img_ecran'])
 
+            for item in st.session_state.partition_buffers:
+                if item['type'] == 'legende':
+                    st.markdown("#### Page 1 : Légende")
+                    st.pyplot(item['img_ecran'])
+                elif item['type'] == 'page':
+                    idx = item['idx']
+                    st.markdown(f"#### Page {idx}")
+                    st.pyplot(item['img_ecran'])
+
+# --- TAB VIDEO ---
 with tab3:
-    st.subheader("Générateur de Vidéo 🎥")
-    if not HAS_MOVIEPY or not HAS_PYDUB:
-        st.error("❌ Modules manquants (moviepy ou pydub).")
+    st.subheader("Générateur de Vidéo Défilante 🎥")
+    st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
+    
+    if not HAS_MOVIEPY:
+        st.error("❌ Le module 'moviepy' n'est pas installé.")
+    elif not HAS_PYDUB:
+        st.error("❌ Le module 'pydub' n'est pas installé.")
     else:
         col_v1, col_v2 = st.columns(2)
         with col_v1:
@@ -782,55 +770,81 @@ with tab3:
                 nb_temps = seq[-1]['temps'] - seq[0]['temps']
                 duree_estimee = (nb_temps + 4) * (60/bpm)
                 st.write(f"Durée : {int(duree_estimee)}s")
+            else: duree_estimee = 10
         with col_v2:
-            btn_video = st.button("🎥 Générer Vidéo")
+            btn_video = st.button("🎥 Générer Vidéo + Audio")
 
         if btn_video:
-            with st.status("🎬 Création...", expanded=True) as status:
+            # Utilisation de st.status pour une meilleure UX
+            with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
+                st.write("🎹 Étape 1/3 : Mixage Audio...")
                 sequence = parser_texte(st.session_state.code_actuel)
                 audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
+                
                 if audio_buffer:
+                    st.write("🎨 Étape 2/3 : Création des visuels...")
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
                     img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
+                    
                     if img_buffer:
+                        st.write("🎞️ Étape 3/3 : Montage vidéo (Patientez, c'est lourd !)...")
+                        # Barre de progression simulée pour faire patienter
+                        progress_bar = st.progress(0)
                         try:
+                            # On simule un avancement car moviepy ne donne pas de callback simple ici
+                            progress_bar.progress(30)
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                            progress_bar.progress(100)
                             st.session_state.video_path = video_path 
-                            status.update(label="✅ Terminé !", state="complete", expanded=False)
-                        except Exception as e: st.error(f"Erreur : {e}"); status.update(label="❌ Erreur !", state="error")
+                            status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
+                            st.success("Vidéo terminée et synchronisée ! 🥳")
+                        except Exception as e:
+                            st.error(f"Erreur lors du montage : {e}")
+                            status.update(label="❌ Erreur !", state="error")
 
         if st.session_state.video_path and os.path.exists(st.session_state.video_path):
             st.video(st.session_state.video_path)
             with open(st.session_state.video_path, "rb") as file:
-                st.download_button(label="⬇️ Télécharger Vidéo", data=file, file_name="ngoni_video.mp4", mime="video/mp4")
+                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4")
 
+# --- TAB AUDIO (ET GROOVE BOX) ---
 with tab4:
-    col_g, col_d = st.columns(2)
-    with col_g:
-        st.subheader("🎧 Audio")
-        if not HAS_PYDUB: st.error("❌ Pydub manquant.")
+    col_gauche, col_droite = st.columns(2)
+    
+    with col_gauche:
+        st.subheader("🎧 Générateur Audio")
+        if not HAS_PYDUB:
+             st.error("❌ Le module 'pydub' n'est pas installé.")
         else:
-            bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
-            if st.button("🎵 Générer MP3"):
-                with st.status("🎵 Mixage...", expanded=True) as status:
-                    seq = parser_texte(st.session_state.code_actuel)
-                    mp3 = generer_audio_mix(seq, bpm_audio, acc_config)
-                    if mp3:
-                        st.session_state.audio_buffer = mp3
-                        status.update(label="✅ Terminé !", state="complete", expanded=False)
+            bpm_audio = st.slider("Vitesse Morceau (BPM)", 30, 200, 100, key="bpm_audio")
+            btn_audio = st.button("🎵 Générer MP3 du Morceau")
+            
+            if btn_audio:
+                with st.status("🎵 Mixage en cours...", expanded=True) as status:
+                    sequence = parser_texte(st.session_state.code_actuel)
+                    mp3_buffer = generer_audio_mix(sequence, bpm_audio, acc_config)
+                    if mp3_buffer:
+                        st.session_state.audio_buffer = mp3_buffer
+                        status.update(label="✅ Mixage terminé !", state="complete", expanded=False)
+                        st.success("Terminé !")
+
             if st.session_state.audio_buffer:
                 st.audio(st.session_state.audio_buffer, format="audio/mp3")
-                st.download_button(label="⬇️ Télécharger MP3", data=st.session_state.audio_buffer, file_name="export.mp3", mime="audio/mpeg")
+                st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg")
 
-    with col_d:
-        st.subheader("🥁 Métronome")
-        bpm_metro = st.slider("Vitesse", 30, 200, 80, key="bpm_metro")
-        duree_metro = st.slider("Durée (s)", 10, 300, 60, step=10)
-        if st.button("▶️ Lancer"):
-            with st.status("🥁 Création...", expanded=True) as status:
-                metro = generer_metronome(bpm_metro, duree_metro)
-                if metro:
-                    st.session_state.metronome_buffer = metro
+    with col_droite:
+        st.subheader("🥁 Groove Box (Métronome)")
+        st.info("Un outil simple pour s'entraîner en rythme.")
+        
+        bpm_metro = st.slider("Vitesse Métronome (BPM)", 30, 200, 80, key="bpm_metro")
+        duree_metro = st.slider("Durée (secondes)", 10, 300, 60, step=10)
+        
+        if st.button("▶️ Lancer le Métronome"):
+            with st.status("🥁 Création du beat...", expanded=True) as status:
+                metro_buffer = generer_metronome(bpm_metro, duree_metro)
+                if metro_buffer:
+                    st.session_state.metronome_buffer = metro_buffer
                     status.update(label="✅ Prêt !", state="complete", expanded=False)
+        
         if st.session_state.metronome_buffer:
             st.audio(st.session_state.metronome_buffer, format="audio/mp3")
