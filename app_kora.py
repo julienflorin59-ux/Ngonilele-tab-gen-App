@@ -11,7 +11,6 @@ import numpy as np
 import shutil
 from fpdf import FPDF
 import mido
-import random # Nécessaire pour l'aléatoire
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -42,7 +41,7 @@ if 'partition_buffers' not in st.session_state: st.session_state.partition_buffe
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
 if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
-if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None # Nouveau pour le métronome
+if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 
 # ==============================================================================
@@ -55,10 +54,7 @@ if st.session_state.get('first_run', True):
 # 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
-    "--- Nouveau / Vide ---": """
-1   4D
-+   4G
-""",
+    "--- Nouveau / Vide ---": "",
     "Manitoumani -M- & Lamomali": """
 1   4D
 +   4G
@@ -149,10 +145,8 @@ with st.expander("❓ Comment ça marche ? (Mode d'emploi)"):
     st.markdown("""
     1.  **Menu Gauche** : Réglages, Accordage et **Import MIDI**.
     2.  **Boutons Rapides** : Utilisez les boutons colorés au-dessus de l'éditeur pour écrire sans clavier.
-    3.  **Audio Rapide** : Appuyez sur le bouton "Lecture Rapide" sous l'éditeur pour vérifier votre rythme.
-    4.  **Exports** : 
-        * **PDF** : Téléchargez un livret complet prêt à imprimer.
-        * **Vidéo** : Pour s'entraîner avec le défilement.
+    3.  **Audio & Groove** : Onglet Audio pour générer le MP3 final ou lancer un **Métronome**.
+    4.  **Exports** : Téléchargez le PDF (Livret) ou la Vidéo pour vous entraîner.
     """)
 
 # ==============================================================================
@@ -173,7 +167,7 @@ except ImportError:
 HAS_PYDUB = False
 try:
     from pydub import AudioSegment
-    from pydub.generators import Sine # Nécessaire pour le métronome
+    from pydub.generators import Sine
     HAS_PYDUB = True
 except: pass
 
@@ -226,7 +220,7 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO & MIDI
+# 🎹 MOTEUR AUDIO & MIDI & METRONOME
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
     if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
@@ -258,16 +252,12 @@ def generer_audio_mix(sequence, bpm):
 def generer_metronome(bpm, duration_sec=30):
     """Génère une piste de métronome synthétique."""
     if not HAS_PYDUB: return None
-    
-    # Création du son "Click"
     tick_sound = Sine(1000).to_audio_segment(duration=50).fade_out(10)
     silence_duration = (60000 / bpm) - 50
     if silence_duration < 0: silence_duration = 0
-    
     one_beat = tick_sound + AudioSegment.silent(duration=silence_duration)
     total_beats = int((duration_sec * 1000) / (60000 / bpm)) + 1
     metronome_track = one_beat * total_beats
-    
     buffer = io.BytesIO()
     metronome_track.export(buffer, format="mp3")
     buffer.seek(0)
@@ -303,20 +293,6 @@ def midi_to_tab(midi_file, acc_config):
         if corde: result_lines.append(f"+ {corde}")
     
     return "\n".join(result_lines)
-
-# --- GÉNÉRATEUR ALÉATOIRE ---
-def generer_riff_aleatoire():
-    """Génère 8 notes aléatoires valides."""
-    cordes_gauche = ['1G', '2G', '3G', '4G', '5G', '6G']
-    cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
-    
-    riff = ["+ TXT Inspiration Auto"]
-    for _ in range(8):
-        prefix = "+" if random.random() > 0.3 else "="
-        if random.random() > 0.5: corde = random.choice(cordes_gauche)
-        else: corde = random.choice(cordes_droite)
-        riff.append(f"{prefix} {corde}")
-    return "\n".join(riff)
 
 # ==============================================================================
 # 🎨 MOTEUR AFFICHAGE & PDF
@@ -619,13 +595,6 @@ with tab1:
         # --- METHODE 1 : BOUTONS (NOUVELLE) ---
         st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
         
-        # --- NOUVEAU : BOUTON INSPIRATION ---
-        if st.button("🎲 Inspiration (Générer une idée)", help="Ajoute 8 temps aléatoires pour vous donner une idée", type="secondary", use_container_width=True):
-            riff = generer_riff_aleatoire()
-            ajouter_texte(riff)
-            st.success("Idée ajoutée au code ! 👇")
-        # ------------------------------------
-
         bc1, bc2, bc3, bc4 = st.columns(4)
         with bc1: 
             st.caption("Gauche")
