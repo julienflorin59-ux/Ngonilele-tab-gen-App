@@ -11,7 +11,7 @@ import numpy as np
 import shutil
 from fpdf import FPDF
 import random 
-import mido  # <--- Module nécessaire pour l'import MIDI
+import mido  # Module nécessaire pour l'import MIDI
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -50,7 +50,7 @@ if 'debug_info' not in st.session_state: st.session_state.debug_info = ""
 # 🚨 MESSAGE D'AIDE
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, importer du MIDI, changer l'apparence ou m'envoyer ta tablature pour que je l'ajoute à la banque de morceaux !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour commencer !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -226,7 +226,6 @@ def parser_texte(texte):
 # 🎹 MOTEUR AUDIO
 # ==============================================================================
 def get_note_freq(note_name):
-    # Fréquences Octave 4 (Standard)
     base_freqs = {'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23, 'G': 392.00, 'A': 440.00, 'B': 493.88}
     return base_freqs.get(note_name, 440.0)
 
@@ -238,7 +237,7 @@ def generer_audio_mix(sequence, bpm, acc_config):
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     
     for corde in cordes_utilisees:
-        # 1. TENTATIVE MP3
+        # 1. MP3
         loaded = False
         if os.path.exists(DOSSIER_SAMPLES):
             nom_fichier = f"{corde}.mp3"
@@ -251,8 +250,7 @@ def generer_audio_mix(sequence, bpm, acc_config):
                 if os.path.exists(chemin_min): 
                     samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
                     loaded = True
-        
-        # 2. FALLBACK SYNTHÉTISEUR
+        # 2. SYNTHÉ
         if not loaded:
             note_name = 'C' 
             if corde in acc_config: note_name = acc_config[corde]['n']
@@ -260,23 +258,19 @@ def generer_audio_mix(sequence, bpm, acc_config):
             tone = Sine(freq).to_audio_segment(duration=600).fade_out(400)
             samples_loaded[corde] = tone - 5 
 
-    if not samples_loaded: 
-        st.error("Aucun son généré."); return None
+    if not samples_loaded: return None
 
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     if duree_totale_ms < 1000: duree_totale_ms = 1000
-        
     mix = AudioSegment.silent(duration=duree_totale_ms)
-    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
             t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
-            
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
@@ -294,73 +288,92 @@ def generer_metronome(bpm, duration_sec=30):
     return buffer
 
 # ==============================================================================
-# 🎹 MOTEUR IMPORT MIDI (NOUVEAU)
+# 🎹 MOTEUR IMPORT MIDI INTELLIGENT (V2)
 # ==============================================================================
 def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
     """
-    Convertit un fichier MIDI en syntaxe texte pour l'éditeur.
-    Utilise la bibliothèque MIDO pour lire les notes.
+    Conversion intelligente MIDI -> Tablature.
+    - Gère l'alternance des mains (si possible)
+    - Nettoie les accords (simultanéité)
     """
     mid = mido.MidiFile(file=midi_file)
     result_lines = []
     
-    # 1. Dictionnaire Inverse : Note (lettre) -> Liste des cordes qui la jouent
-    # Ex: {'G': ['1G', '4D', '6G'], 'C': ['2G', '5G']}
+    # 1. Carte des notes vers les cordes disponibles
+    # Ex: 'C': ['2G', '5G']
     note_to_strings = {}
-    
     for code, props in acc_config.items():
-        note_name = props['n'] # 'G', 'C', 'A'...
-        if note_name not in note_to_strings:
-            note_to_strings[note_name] = []
+        note_name = props['n']
+        if note_name not in note_to_strings: note_to_strings[note_name] = []
         note_to_strings[note_name].append(code)
 
-    # 2. Lecture des notes MIDI
+    # 2. Lecture et mise à plat des événements
     events = []
     abs_time = 0
-    count_total = 0
-    
     for msg in mid:
         abs_time += msg.time
         if msg.type == 'note_on' and msg.velocity > 0:
-            count_total += 1
-            # Conversion 60 (Do central) -> 0 -> 'C'
-            note_index = msg.note % 12
-            note_char = NOTE_NAMES_MODULO[note_index]
-            events.append({'time': abs_time, 'note_char': note_char})
+            note_idx = msg.note % 12
+            note_char = NOTE_NAMES_MODULO[note_idx]
+            events.append({'time': abs_time, 'note_char': note_char, 'pitch': msg.note})
             
-    # Tri chronologique (important pour les fichiers MIDI multi-pistes mal ordonnés)
     events.sort(key=lambda x: x['time'])
     
-    # 3. Ecriture de la tablature
+    # 3. Traitement Intelligent
     last_time = -1.0
     is_first = True
-    count_mapped = 0
     
+    # Mémoire pour l'alternance (G ou D)
+    last_hand_side = None # 'G' ou 'D'
+
     for evt in events:
         n_char = evt['note_char']
         
-        # On cherche si on a une corde pour cette note dans l'accordage actuel
-        if n_char in note_to_strings and note_to_strings[n_char]:
-            # On prend la première corde disponible (Simplification)
-            corde = note_to_strings[n_char][0]
-            
-            count_mapped += 1
-            t = evt['time']
-            
-            if is_first:
-                prefix = "1"
-                is_first = False
-            else:
-                diff = t - last_time
-                if diff < time_threshold:
-                    prefix = "=" # Accord (simultané)
+        # Choix de la corde
+        corde_choisie = None
+        possibles = note_to_strings.get(n_char, [])
+        
+        if not possibles:
+            continue # Note introuvable sur l'instrument
+
+        if len(possibles) == 1:
+            corde_choisie = possibles[0]
+        else:
+            # ALGORITHME D'ALTERNANCE
+            # Si on a le choix (ex: 2G et 5G vs 1D), on essaie de changer de main
+            if last_hand_side:
+                # Si la dernière était G, on cherche une D
+                candidats_opposes = [c for c in possibles if (last_hand_side == 'G' and 'D' in c) or (last_hand_side == 'D' and 'G' in c)]
+                if candidats_opposes:
+                    corde_choisie = candidats_opposes[0] # On prend la première opposée trouvée
                 else:
-                    prefix = "+" # Nouvelle note
+                    corde_choisie = possibles[0] # Pas le choix, on reste du même côté
+            else:
+                corde_choisie = possibles[0]
+
+        # Mise à jour de la mémoire main
+        if 'G' in corde_choisie: last_hand_side = 'G'
+        elif 'D' in corde_choisie: last_hand_side = 'D'
+
+        # Gestion du Temps (Rythme)
+        t = evt['time']
+        if is_first:
+            prefix = "1"
+            is_first = False
+        else:
+            diff = t - last_time
+            # Si la différence est minime, c'est un accord (=)
+            # Sinon c'est une nouvelle note (+)
+            if diff < time_threshold:
+                prefix = "="
+            else:
+                prefix = "+"
+        
+        result_lines.append(f"{prefix}   {corde_choisie}")
+        last_time = t
             
-            result_lines.append(f"{prefix}   {corde}")
-            last_time = t
-            
-    st.session_state.debug_info = f"Notes MIDI détectées: {count_total} | Notes transcrites: {count_mapped}"
+    count_total = len(events)
+    st.session_state.debug_info = f"Notes MIDI : {count_total} | Mode: Alternance des mains active"
     return "\n".join(result_lines)
 
 # ==============================================================================
@@ -533,19 +546,14 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     return output_filename
 
 def generer_pdf_livret(buffers, titre):
-    # Orientation P (Portrait), A4
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     for item in buffers:
         pdf.add_page()
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}.png"
         with open(temp_img, "wb") as f:
             f.write(item['buf'].getbuffer())
-        
-        # A4 Portrait = 210mm width. Marge 10mm. Max w = 190.
         pdf.image(temp_img, x=10, y=10, w=190)
-        
         if os.path.exists(temp_img): os.remove(temp_img)
-        
     buf = io.BytesIO()
     pdf_output = pdf.output(dest='S').encode('latin-1')
     buf.write(pdf_output)
@@ -579,10 +587,8 @@ def mise_a_jour_texte():
     st.session_state.audio_buffer = None
 
 def ajouter_texte(txt):
-    if 'code_actuel' in st.session_state:
-        st.session_state.code_actuel += "\n" + txt
-    else:
-        st.session_state.code_actuel = txt
+    if 'code_actuel' in st.session_state: st.session_state.code_actuel += "\n" + txt
+    else: st.session_state.code_actuel = txt
     st.session_state.widget_input = st.session_state.code_actuel
 
 def annuler_derniere_ligne():
@@ -593,38 +599,28 @@ def annuler_derniere_ligne():
 
 with st.sidebar:
     st.header("🎚️ Réglages & Import")
-    
     st.markdown("### 📚 Banque de Morceaux")
     st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau)
     st.caption("⚠️ Remplacera le texte actuel.")
 
     st.markdown("---")
-    st.markdown("### 🎹 Import MIDI")
-    midi_file = st.file_uploader(
-        label="Ajoutes un fichier midi ici pour le convertir en tablature",
-        help="Astuce : tu peux jouer ton morceau sur un clavier midi -> l'exporter en fichier midi -> et l'ajouter ici pour le transformer en tablature",
-        type=["mid", "midi"]
-    )
+    st.markdown("### 🎹 Import MIDI (V2)")
+    midi_file = st.file_uploader(label="Convertir un fichier midi", type=["mid", "midi"])
     
-    # Sensibilité MIDI (Simultané vs Arpège)
-    sensitivity = st.slider("Sensibilité Rythmique MIDI", 0.01, 0.20, 0.05, 0.01, help="Réglez ce seuil pour grouper les notes en accords (=).")
+    # Sensibilité MIDI
+    sensitivity = st.slider("Sensibilité Rythmique MIDI", 0.01, 0.20, 0.06, 0.01, help="Ajustez si les accords (=) sont mal détectés.")
 
-    # TRAITEMENT DU FICHIER MIDI
     if midi_file is not None:
-        if st.button("⚡ Convertir MIDI en Tablature", type="primary"):
-            # On recupere les configs cordes (definies plus bas, mais accessibles via session si besoin ou defauts)
+        if st.button("⚡ Convertir (Mode Intelligent)", type="primary"):
             DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
             temp_acc_config = {}
             for k in POSITIONS_X.keys():
-                # On essaie de récupérer la valeur actuelle de l'interface, sinon défaut
                 val = st.session_state.get(k, DEF_ACC[k])
                 temp_acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
-
-            # On passe la sensibilité ici
             tab_text = midi_to_tab(midi_file, temp_acc_config, time_threshold=sensitivity)
             st.session_state.code_actuel = tab_text
             st.session_state.widget_input = tab_text
-            st.success("Conversion terminée ! Vérifiez l'onglet Éditeur.")
+            st.success("Conversion terminée avec alternance des mains !")
             st.rerun()
 
     if st.session_state.debug_info:
@@ -635,12 +631,11 @@ with st.sidebar:
     
     with st.expander("🎨 Apparence", expanded=False):
         bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
-        use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
-        bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
+        use_bg_img = st.checkbox("Texture Ngonilélé", True)
+        bg_alpha = st.slider("Transparence", 0.0, 1.0, 0.2)
         st.markdown("---")
-        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
+        force_white_print = st.checkbox("🖨️ Impression N&B", value=True)
 
-    # AFFICHER 'CONTRIBUER' DANS LE MENU (MAIS À LA FIN)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
     mon_email = "julienflorin59@gmail.com" 
@@ -648,7 +643,6 @@ with st.sidebar:
     corps_mail = f"Bonjour,\n\nVoici une proposition :\n\n{st.session_state.code_actuel}"
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
-
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
@@ -675,10 +669,7 @@ with tab1:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        
-        # --- METHODE 1 : BOUTONS (NOUVELLE) ---
-        st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
-        
+        st.info("⌨️ **Saisie par Boutons**")
         bc1, bc2, bc3, bc4 = st.columns(4)
         with bc1: 
             st.caption("Gauche")
@@ -698,55 +689,34 @@ with tab1:
             st.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
         with bc3:
             st.caption("Outils")
-            st.button("↩️ Effacer Ligne", on_click=annuler_derniere_ligne, use_container_width=True)
-            st.button("🟰 Notes Simultanées", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            st.button("🔁 Notes Doublées", on_click=ajouter_texte, args=("x2",), use_container_width=True)
-            st.button("🔇 Insérer Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            st.button("↩️ Effacer", on_click=annuler_derniere_ligne, use_container_width=True)
+            st.button("🟰 Accord", on_click=ajouter_texte, args=("=",), use_container_width=True)
+            st.button("🔁 Doubler", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            st.button("🔇 Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
         with bc4:
             st.caption("Structure")
-            st.button("📄 Insérer Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
-            st.button("📝 Insérer Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
+            st.button("📄 Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+            st.button("📝 Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
 
-        st.write("")
-        st.write("")
-        
-        # --- METHODE 2 : TEXTE (ANCIENNE) ---
-        st.warning("📝 **Éditeur Texte (Ancienne méthode / Corrections)**")
+        st.write(""); st.write("")
+        st.warning("📝 **Éditeur Texte**")
         st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
         
-        # --- LECTEUR AUDIO RAPIDE ---
         st.markdown("---")
         col_play_btn, col_play_bpm = st.columns([1, 1])
-        with col_play_bpm:
-            bpm_preview = st.number_input("BPM", 40, 200, 100)
+        with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100)
         with col_play_btn:
-            st.write("") 
-            st.write("") 
+            st.write(""); st.write("")
             if st.button("🎧 Écouter l'extrait"):
-                with st.status("🎵 Génération de l'aperçu...", expanded=True) as status:
-                    st.write("Analyse de la partition...")
+                with st.status("🎵 Génération...", expanded=True) as status:
                     seq_prev = parser_texte(st.session_state.code_actuel)
-                    
-                    st.write("Mixage audio...")
-                    prog = st.progress(0)
-                    prog.progress(50) 
-                    
-                    # On passe la config des cordes pour le synthé de secours
                     audio_prev = generer_audio_mix(seq_prev, bpm_preview, acc_config)
-                    
-                    prog.progress(100) 
-                    status.update(label="✅ Aperçu prêt !", state="complete", expanded=False)
-                    
-                    # DEBUG : Afficher ce qui a été compris par le parser
-                    if seq_prev and len(seq_prev) > 0:
-                        st.info(f"Lecture de {len(seq_prev)} événements. Première note : {seq_prev[0]['corde']}")
-
-                if audio_prev:
-                    st.audio(audio_prev, format="audio/mp3")
+                    status.update(label="✅ Prêt !", state="complete", expanded=False)
+                if audio_prev: st.audio(audio_prev, format="audio/mp3")
 
         with st.expander("Gérer le fichier"):
-            st.download_button(label="💾 Sauvegarder le code (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition.replace(' ', '_')}.txt", mime="text/plain")
-            uploaded_file = st.file_uploader("📂 Charger (.txt)", type="txt")
+            st.download_button(label="💾 Sauvegarder", data=st.session_state.code_actuel, file_name=f"{titre_partition.replace(' ', '_')}.txt", mime="text/plain")
+            uploaded_file = st.file_uploader("📂 Charger", type="txt")
             if uploaded_file:
                 stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
                 st.session_state.code_actuel = stringio.read()
@@ -756,16 +726,13 @@ with tab1:
         st.subheader("Aperçu Partition")
         if st.button("🔄 Générer la partition", type="primary", use_container_width=True):
             st.session_state.partition_buffers = [] 
-            
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
-            # Pour l'aperçu, on utilise status pour faire joli aussi
-            with st.status("📸 Génération des images...", expanded=True) as status:
+            with st.status("📸 Génération...", expanded=True) as status:
                 sequence = parser_texte(st.session_state.code_actuel)
                 
-                # 1. Légende
-                st.write("📖 Création de la légende...")
+                # Légende
                 fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
                 if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
                 else: fig_leg_dl = fig_leg_ecran
@@ -773,83 +740,7 @@ with tab1:
                 st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
                 if force_white_print: plt.close(fig_leg_dl)
                 
-                # 2. Pages
+                # Pages
                 pages_data = []; current_page = []
                 for n in sequence:
                     if n['corde'] == 'PAGE_BREAK':
-                        if current_page: pages_data.append(current_page); current_page = []
-                    else: current_page.append(n)
-                if current_page: pages_data.append(current_page)
-                
-                if not pages_data: st.warning("Aucune note détectée.")
-                else:
-                    st.write(f"📄 Traitement de {len(pages_data)} pages...")
-                    for idx, page in enumerate(pages_data):
-                        fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
-                        if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
-                        else: fig_dl = fig_ecran
-                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
-                        st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
-                        if force_white_print: plt.close(fig_dl)
-                
-                st.session_state.partition_generated = True
-                status.update(label="✅ Partition prête !", state="complete", expanded=False)
-
-        # --- AFFICHAGE PERSISTANT ---
-        if st.session_state.partition_generated and st.session_state.partition_buffers:
-            # --- EXPORT PDF EN FIN DE CHAINE ---
-            # On génère le PDF seulement au moment de l'affichage final
-            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-            
-            st.download_button(
-                label="📕 Télécharger le Livret Complet (PDF Portrait)",
-                data=pdf_buffer,
-                file_name=f"{titre_partition}.pdf",
-                mime="application/pdf",
-                type="primary",
-                use_container_width=True
-            )
-            
-            st.markdown("---")
-
-            for item in st.session_state.partition_buffers:
-                if item['type'] == 'legende':
-                    st.markdown("#### Page 1 : Légende")
-                    st.pyplot(item['img_ecran'])
-                elif item['type'] == 'page':
-                    idx = item['idx']
-                    st.markdown(f"#### Page {idx}")
-                    st.pyplot(item['img_ecran'])
-
-# --- TAB VIDEO ---
-with tab3:
-    st.subheader("Générateur de Vidéo Défilante 🎥")
-    st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
-    
-    if not HAS_MOVIEPY:
-        st.error("❌ Le module 'moviepy' n'est pas installé.")
-    elif not HAS_PYDUB:
-        st.error("❌ Le module 'pydub' n'est pas installé.")
-    else:
-        col_v1, col_v2 = st.columns(2)
-        with col_v1:
-            bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
-            seq = parser_texte(st.session_state.code_actuel)
-            if seq:
-                nb_temps = seq[-1]['temps'] - seq[0]['temps']
-                duree_estimee = (nb_temps + 4) * (60/bpm)
-                st.write(f"Durée : {int(duree_estimee)}s")
-            else: duree_estimee = 10
-        with col_v2:
-            btn_video = st.button("🎥 Générer Vidéo + Audio")
-
-        if btn_video:
-            # Utilisation de st.status pour une meilleure UX
-            with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
-                st.write("🎹 Étape 1/3 : Mixage Audio...")
-                sequence = parser_texte(st.session_state.code_actuel)
-                audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
-                
-                if audio_buffer:
-                    st.write("🎨 Étape 2/3 : Création des visuels...")
-                    styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
