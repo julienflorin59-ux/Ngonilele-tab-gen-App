@@ -506,8 +506,8 @@ with tab1:
         
         `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant
         
-        `=` : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
-        """)
+        **=** : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
+        """, icon="💡")
         
         with st.expander("❓ Sauvegarder / Recharger"):
             st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
