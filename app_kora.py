@@ -308,7 +308,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     if not mode_white and options_visuelles['use_bg'] and os.path.exists(CHEMIN_IMAGE_FOND):
         try: img_fond = mpimg.imread(CHEMIN_IMAGE_FOND); h_px, w_px = img_fond.shape[:2]; ratio = w_px / h_px; largeur_finale = 15.0 * 0.7; hauteur_finale = (largeur_finale / ratio) * 1.4; y_center = (y_top + y_bot) / 2; extent = [-largeur_finale/2, largeur_finale/2, y_center - hauteur_finale/2, y_center + hauteur_finale/2]; ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
         except: pass
-    
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     ax.text(-3.5, y_top_cordes + 2.0, "Cordes de Gauche", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt); ax.text(3.5, y_top_cordes + 2.0, "Cordes de Droite", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
@@ -317,12 +316,11 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # --- AJOUT DE LA GRILLE HORIZONTALE ---
+    # --- AJOUT DE LA GRILLE HORIZONTALE (Plus foncée #666666) ---
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
-        # Ligne grise fine pour chaque temps, derrière les notes (zorder=0.5)
-        ax.axhline(y=y, color='#CCCCCC', linestyle='-', linewidth=1, alpha=0.5, zorder=0.5)
-    # --------------------------------------
+        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+    # ------------------------------------------------------------
 
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps']); processed_t = set()
     for n in sorted_notes:
@@ -368,11 +366,11 @@ def generer_image_longue(sequence, config_acc, styles):
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
     
-    # --- AJOUT DE LA GRILLE HORIZONTALE (POUR LA VIDEO) ---
+    # --- AJOUT DE LA GRILLE HORIZONTALE (Pour vidéo aussi) ---
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
-        ax.axhline(y=y, color='#CCCCCC', linestyle='-', linewidth=1, alpha=0.5, zorder=0.5)
-    # ------------------------------------------------------
+        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+    # ---------------------------------------------------------
 
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
@@ -410,7 +408,7 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
     window_h = int(w * 9 / 16); 
     if window_h > h: window_h = h
-    video_h = 600 
+    video_h = 600
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
     audio_clip = AudioFileClip("temp_audio.mp3")
