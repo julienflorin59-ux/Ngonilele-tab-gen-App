@@ -177,7 +177,8 @@ POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D':
 COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
-NOTE_TO_MIDI_BASE = {'C': 60, 'D': 62, 'E': 64, 'F': 65, 'G': 67, 'A': 69, 'B': 71}
+# Map Modulo 12 strict
+NOTE_NAMES_MODULO = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 def get_font(size, weight='normal', style='normal'):
     if os.path.exists(CHEMIN_POLICE): return fm.FontProperties(fname=CHEMIN_POLICE, size=size, weight=weight, style=style)
@@ -222,14 +223,14 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO (V3.8: AVEC FALLBACK SYNTHÈSE)
+# 🎹 MOTEUR AUDIO (V3.9: STRICT SANS TRANSPOSITION)
 # ==============================================================================
 def get_note_freq(note_name):
+    # Fréquences Octave 4 (Standard)
     base_freqs = {'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23, 'G': 392.00, 'A': 440.00, 'B': 493.88}
     return base_freqs.get(note_name, 440.0)
 
 def generer_audio_mix(sequence, bpm, acc_config):
-    """Génère l'audio. Si MP3 absent, utilise un synthé."""
     if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
     if not sequence: return None
     
@@ -251,20 +252,17 @@ def generer_audio_mix(sequence, bpm, acc_config):
                     samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
                     loaded = True
         
-        # 2. FALLBACK SYNTHÉTISEUR (Si MP3 absent ou échec)
+        # 2. FALLBACK SYNTHÉTISEUR STRICT (Sans décalage d'octave)
         if not loaded:
-            # On devine la fréquence selon la config
             note_name = 'C' 
             if corde in acc_config: note_name = acc_config[corde]['n']
             
+            # On prend la fréquence standard de la note (ex G = 392Hz)
             freq = get_note_freq(note_name)
-            # Petit ajustement d'octave pour faire "vrai"
-            if corde in ['5G','6G','5D','6D']: freq /= 2
-            if corde in ['1G','2G','1D','2D']: freq *= 2
             
-            # Son type "Pluck" (Sine wave avec fade out court)
+            # Pas de modification d'octave ici pour rester fidèle à la note demandée
             tone = Sine(freq).to_audio_segment(duration=600).fade_out(400)
-            samples_loaded[corde] = tone - 5 # Volume ajusté
+            samples_loaded[corde] = tone - 5 
 
     if not samples_loaded: 
         st.error("Aucun son généré."); return None
@@ -299,78 +297,70 @@ def generer_metronome(bpm, duration_sec=30):
     buffer.seek(0)
     return buffer
 
+# --- MOTEUR MIDI V3.9 : MAPPING STRICT PAR NOM ---
 def midi_to_tab(midi_file, acc_config, time_threshold=0.05):
-    """
-    Convertit MIDI -> Tablature avec mapping 'Plus Proche Voisin' (aucune note rejetée).
-    time_threshold: écart en secondes pour considérer deux notes comme un accord (=)
-    """
     mid = mido.MidiFile(file=midi_file)
     result_lines = []
     
-    # 1. CONSTRUCTION DE LA CARTE DE L'INSTRUMENT
-    ngoni_map = {}
+    # 1. Dictionnaire Inverse : Note (lettre) -> Liste des cordes qui la jouent
+    # Ex: {'G': ['1G', '4D', '6G'], 'C': ['2G', '5G']}
+    note_to_strings = {}
     
     for code, props in acc_config.items():
-        note_char = props['n'] 
-        base_val = NOTE_TO_MIDI_BASE.get(note_char, 60)
-        
-        # Ajustement d'octave par défaut du Ngoni
-        if code in ['5G', '6G', '5D', '6D']: base_val -= 12
-        elif code in ['1G', '2G', '1D', '2D']: base_val += 12
-        
-        ngoni_map[code] = [base_val - 24, base_val - 12, base_val, base_val + 12, base_val + 24]
+        note_name = props['n'] # 'G', 'C', 'A'...
+        if note_name not in note_to_strings:
+            note_to_strings[note_name] = []
+        note_to_strings[note_name].append(code)
 
-    def find_best_string(target_note):
-        best_code = None
-        min_dist = 9999
-        for code, candidates in ngoni_map.items():
-            for cand in candidates:
-                dist = abs(target_note - cand)
-                if dist < min_dist:
-                    min_dist = dist
-                    best_code = code
-        return best_code
-
-    # 2. EXTRACTION
-    all_events = []
+    # 2. Lecture des notes MIDI
+    events = []
     abs_time = 0
     count_total = 0
+    
     for msg in mid:
         abs_time += msg.time
         if msg.type == 'note_on' and msg.velocity > 0:
             count_total += 1
-            all_events.append({'time': abs_time, 'note': msg.note})
+            # Conversion 67 -> 7 (Modulo 12) -> 'G'
+            note_index = msg.note % 12
+            note_char = NOTE_NAMES_MODULO[note_index]
+            events.append({'time': abs_time, 'note_char': note_char})
             
-    all_events.sort(key=lambda x: x['time'])
+    events.sort(key=lambda x: x['time'])
     
-    # 3. GÉNÉRATION
+    # 3. Ecriture
     last_time = -1.0
     is_first = True
     count_mapped = 0
     
-    for evt in all_events:
-        t = evt['time']
-        n = evt['note']
+    # Pour alterner si plusieurs cordes ont la même note (optionnel, on prend la première pour l'instant)
+    
+    for evt in events:
+        n_char = evt['note_char']
         
-        corde = find_best_string(n)
-        
-        if corde:
+        # On cherche si on a une corde pour cette note
+        if n_char in note_to_strings and note_to_strings[n_char]:
+            # On prend la première corde disponible (ou une logique plus complexe si besoin)
+            # Pour être strict : on prend la première de la liste
+            corde = note_to_strings[n_char][0]
+            
             count_mapped += 1
+            t = evt['time']
+            
             if is_first:
                 prefix = "1"
                 is_first = False
             else:
                 diff = t - last_time
                 if diff < time_threshold:
-                    prefix = "=" # Accord
+                    prefix = "="
                 else:
-                    prefix = "+" # Note suivante
+                    prefix = "+"
             
-            # NETTOYAGE ABSOLU DE LA LIGNE POUR L'AUDIO
             result_lines.append(f"{prefix}   {corde}")
-            last_time = t 
+            last_time = t
             
-    st.session_state.debug_info = f"Notes MIDI détectées : {count_total} | Notes écrites : {count_mapped}"
+    st.session_state.debug_info = f"Notes détectées: {count_total} | Notes écrites: {count_mapped} (Mode Strict: Note Nom)"
     return "\n".join(result_lines)
 
 # ==============================================================================
