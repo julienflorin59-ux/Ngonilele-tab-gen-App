@@ -173,29 +173,33 @@ with col_titre:
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
-# 📖 MODE D'EMPLOI GÉNÉRAL
+# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
 # ==============================================================================
 with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown("### 1. Écrire la musique")
         st.write("""
+        * Utilisez l'onglet **"Éditeur"**.
         * Tapez votre code à gauche.
-        * Cliquez sur **"Générer la partition"**.
+        * Cliquez sur **"Générer la partition"** pour voir le résultat.
         * Téléchargez les images ou le fichier texte.
         """)
     with c2:
         st.markdown("### 2. Vidéo & Audio")
         st.write("""
-        * **Vidéo** : Créez une animation karaoké.
-        * **Audio** : Écoutez le rendu.
-        * **Vitesse** : Changez le BPM.
+        * Onglet **"Vidéo"** : Créez une animation défilante pour apprendre le rythme.
+        * Onglet **"Audio"** : Écoutez le rendu sonore.
+        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement au début !
         """)
     with c3:
         st.markdown("### 3. Réglages")
         st.write("""
-        * **Menu Rouge** : Banque, Apparence, Contribution.
-        * **Accordage** : Modifiez les notes des cordes.
+        * **Menu Rouge (Haut Gauche)** :
+            * *Banque de morceaux* : Chargez des exemples.
+            * *Apparence* : Changez la couleur de fond.
+            * *Contribution* : Envoyez-moi vos créations !
+        * Onglet **"Accordage"** : Changez les notes des cordes.
         """)
 
 # ==============================================================================
@@ -249,7 +253,10 @@ def parser_texte(texte):
                     p_upper = p.upper()
                     if p_upper.startswith('X') and p_upper[1:].isdigit(): repetition = int(p_upper[1:])
                     elif p_upper in ['I', 'P']: doigt = p_upper
-            if not doigt and corde_valide in AUTOMATIC_FINGERING: doigt = AUTOMATIC_FINGERING[corde_valide]
+            # --- CORRECTION DE L'ERREUR DE SYNTAXE ICI ---
+            if not doigt and corde_valide in AUTOMATIC_FINGERING: 
+                doigt = AUTOMATIC_FINGERING[corde_valide]
+            # ---------------------------------------------
             for i in range(repetition):
                 current_time = t + i
                 note = {'temps': current_time, 'corde': corde_valide}
@@ -341,7 +348,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # GRILLE HORIZONTALE STATIQUE (GRIS FONCÉ & OPAQUE)
+    # GRILLE HORIZONTALE STATIQUE
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
@@ -416,10 +423,11 @@ def generer_image_longue(sequence, config_acc, styles):
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
     
-    # GRILLE HORIZONTALE VIDEO
+    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+    # -----------------------------------------
 
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 3); ax.axis('off')
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, facecolor=c_fond, bbox_inches='tight'); plt.close(fig); buf.seek(0)
@@ -450,35 +458,18 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
         highlight_bar = highlight_bar.set_position(('center', bar_y))
         highlight_bar = highlight_bar.set_duration(duration_sec)
         
-        # CORRECTION DU SCROLL POUR ALIGNEMENT PARFAIT (t=0 -> Première note sous la barre)
-        # Le haut de l'image (y=0) correspond au temps 1.
-        # La barre est à bar_y.
-        # Donc à t=0, on veut que le haut de l'image soit à bar_y.
-        # Formule : position_y(t) = bar_y - (vitesse * t)
-        
-        total_pixels_to_scroll = h - video_h # Distance totale à parcourir pour arriver en bas
-        # Mais on veut juste faire défiler la partition...
-        # Disons que la partition fait h pixels de haut.
-        # vitesse en pixels/sec = h / duration_sec (approximatif)
-        
-        # Nouvelle formule de scroll précise :
-        pixel_speed = h / duration_sec
-        moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (pixel_speed * t)))
+        # OFFSET DE SCROLL POUR ALIGNEMENT
+        moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (h - video_h) * (t / duration_sec) ))
         
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-        
-        # Il est crucial de définir la durée sur le Composite final sinon erreur 'duration not set'
-        video_visual = video_visual.set_duration(duration_sec)
-
+        video_visual = video_visual.set_duration(duration_sec) # Correction durée manquante
     except:
-        # Fallback sans barre jaune si erreur
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-        video_visual = video_visual.set_duration(duration_sec)
+        video_visual = video_visual.set_duration(duration_sec) # Correction durée manquante
 
     # --- AUDIO ---
     audio_clip = AudioFileClip("temp_audio.mp3")
-    # On s'assure que l'audio a la même durée que la vidéo
-    audio_clip = audio_clip.set_duration(duration_sec)
+    audio_clip = audio_clip.subclip(0, duration_sec)
     
     final = video_visual.set_audio(audio_clip)
     final.fps = fps
@@ -494,6 +485,7 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
+# Session State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
