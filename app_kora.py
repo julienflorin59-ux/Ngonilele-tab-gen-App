@@ -4,6 +4,7 @@ import io
 import os
 import shutil
 import numpy as np
+import urllib.parse # <--- L'IMPORT QUI MANQUAIT !
 
 # ==============================================================================
 # 🚑 PATCH PYTHON 3.13 (POUR L'AUDIO)
@@ -55,6 +56,12 @@ st.set_page_config(
     page_icon=icon_page,
     initial_sidebar_state="collapsed"
 )
+
+# ==============================================================================
+# 🚨 MESSAGE D'AIDE
+# ==============================================================================
+if st.session_state.get('first_run', True):
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -140,6 +147,30 @@ BANQUE_TABLATURES = {
 """
 }
 
+# En-tête
+col_logo, col_titre = st.columns([1, 5])
+with col_logo:
+    if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
+    else: st.header("🪕")
+with col_titre:
+    st.title("Générateur de Tablature Ngonilélé")
+    st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
+
+# ==============================================================================
+# 📖 MODE D'EMPLOI
+# ==============================================================================
+with st.expander("📖 **COMMENT ÇA MARCHE ?**", expanded=False):
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown("### 1. Écrire")
+        st.write("Utilisez l'onglet **Éditeur**. Tapez votre code et cliquez sur **Générer**.")
+    with c2:
+        st.markdown("### 2. Vidéo & Audio")
+        st.write("Créez une animation karaoké ou exportez le son.")
+    with c3:
+        st.markdown("### 3. Réglages")
+        st.write("Menu de gauche : Banque de sons, Accordage, Apparence.")
+
 # ==============================================================================
 # 🧠 LOGIQUE METIER
 # ==============================================================================
@@ -214,7 +245,6 @@ def generer_audio_mix(sequence, bpm):
     t_min = sequence[0]['temps']
     dernier_t = sequence[-1]['temps']
     
-    # Durée totale (on ajoute une marge de fin)
     duree_totale_ms = int((dernier_t - t_min + 4) * ms_par_temps)
     mix = AudioSegment.silent(duration=duree_totale_ms)
     
@@ -222,7 +252,6 @@ def generer_audio_mix(sequence, bpm):
         corde = n['corde']
         if corde in samples_loaded:
             t = n['temps']
-            # Calage relatif au début du morceau
             pos_ms = int((t - t_min) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
@@ -304,21 +333,17 @@ def generer_image_longue_synchro(sequence, config_acc, styles):
     t_min = sequence[0]['temps']
     t_max = sequence[-1]['temps']
     
-    # --- PARAMETRES GEOMETRIQUES FIXES ---
-    UNITE_TEMPS = 1.0 # Distance verticale entre deux temps
-    MARGE_HAUT_UNIT = 3.0 # Espace au dessus de la première note
-    MARGE_BAS_UNIT = 2.0  # Espace en dessous de la dernière note
+    UNITE_TEMPS = 1.0 
+    MARGE_HAUT_UNIT = 3.0 
+    MARGE_BAS_UNIT = 2.0 
     
     nb_temps = t_max - t_min
     hauteur_totale_units = MARGE_HAUT_UNIT + nb_temps + MARGE_BAS_UNIT
     
-    # On fixe une échelle de pixels arbitraire mais constante
-    # 1 unité = 100 pixels (par exemple)
     PIXELS_PER_UNIT = 100 
     hauteur_px = int(hauteur_totale_units * PIXELS_PER_UNIT)
-    largeur_px = 1600 # Largeur fixe
+    largeur_px = 1600
     
-    # DPI pour matplotlib (pour correspondre aux pixels voulus)
     MY_DPI = 100
     figsize_w = largeur_px / MY_DPI
     figsize_h = hauteur_px / MY_DPI
@@ -327,50 +352,36 @@ def generer_image_longue_synchro(sequence, config_acc, styles):
     path_pouce = CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE
     path_index = CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX
 
-    # Création Figure SANS marges automatiques
     fig = plt.figure(figsize=(figsize_w, figsize_h), facecolor=c_fond)
-    ax = fig.add_axes([0, 0, 1, 1]) # Occupe 100% de l'image
+    ax = fig.add_axes([0, 0, 1, 1]) 
     ax.set_facecolor(c_fond)
-    
-    # On définit les limites Y pour que 1 unité de plot = 1 unité géométrique
-    # Y=0 sera le HAUT de l'image
-    # Y=-hauteur_totale sera le BAS
-    # La première note (t_min) sera placée à Y = -MARGE_HAUT_UNIT
     
     ax.set_xlim(-8, 8)
     ax.set_ylim(-hauteur_totale_units, 0)
     ax.axis('off')
     
-    # Position Y de la première note dans le repère Matplotlib
     y_start_notes = -MARGE_HAUT_UNIT
     
-    # --- DESSIN ---
     prop_note = get_font(24, 'bold'); prop_num = get_font(14, 'bold')
     
-    # Ligne centrale
     ax.vlines(0, -hauteur_totale_units + 1, -1, color=c_txt, lw=5, zorder=2)
     
-    # Cordes
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        # En-tête
-        ax.text(x, -1.0, code, ha='center', color='gray', fontproperties=prop_num)
-        ax.text(x, -1.8, note, ha='center', color=c, fontproperties=prop_note)
-        ax.vlines(x, -hauteur_totale_units, -2.0, colors=c, lw=3, zorder=1)
+        y_head = 0.5 
+        ax.text(x, y_head + 0.8, code, ha='center', color='gray', fontproperties=prop_num)
+        ax.text(x, y_head + 0.2, note, ha='center', color=c, fontproperties=prop_note)
+        ax.vlines(x, -hauteur_totale_units, y_head, colors=c, lw=3, zorder=1)
 
     notes_par_temps = {}
     
-    # Boucle sur tous les temps pour la grille
     for t_offset in range(nb_temps + 1):
-        y_pos = y_start_notes - t_offset # On descend de 1 unité par temps
+        y_pos = y_start_notes - t_offset
         ax.axhline(y=y_pos, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
 
-    # Boucle Notes
     for n in sequence:
         if n['corde'] == 'PAGE_BREAK': continue
         t = n['temps']
-        
-        # Position Y relative au début
         delta_t = t - t_min
         y_pos = y_start_notes - delta_t
         
@@ -392,24 +403,16 @@ def generer_image_longue_synchro(sequence, config_acc, styles):
                     except: pass
                 else: ax.text(x - 0.70, y_pos, doigt, ha='center', va='center', color=c_txt, zorder=7)
 
-    # Liaisons
     for y, group in notes_par_temps.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
 
-    # EXPORT
     buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=MY_DPI, facecolor=c_fond) # Pas de bbox_inches='tight' !
+    fig.savefig(buf, format='png', dpi=MY_DPI, facecolor=c_fond)
     plt.close(fig)
     buf.seek(0)
     
-    # INFO CRUCIALE POUR LA VIDEO : 
-    # A quelle distance (en pixels) du haut de l'image se trouve la première note (t_min) ?
-    # En unités : MARGE_HAUT_UNIT
-    # En pixels : MARGE_HAUT_UNIT * PIXELS_PER_UNIT
     offset_pixels = MARGE_HAUT_UNIT * PIXELS_PER_UNIT
-    
-    # Combien de pixels pour 1 temps ?
     px_per_beat = PIXELS_PER_UNIT
     
     return buf, offset_pixels, px_per_beat
@@ -423,42 +426,26 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, offset_px, px
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
     
-    # Fenêtre vidéo
     video_h = 600
     window_size = (w, video_h)
     
-    # --- SYNCHRONISATION PARFAITE ---
-    # Position de la Barre Jaune (Fixe)
     bar_y = 150 
-    
-    # Vitesse de défilement (Pixels / seconde)
-    # 1 temps = px_per_beat pixels
-    # 1 temps = 60 / BPM secondes
-    # Vitesse = px_per_beat / (60/BPM) = px_per_beat * BPM / 60
     speed_px_sec = px_per_beat * (bpm / 60.0)
-    
-    # Position de l'image à t=0
-    # A t=0, la première note (située à offset_px du haut de l'image) doit être sous la barre (bar_y)
-    # Donc le haut de l'image (y=0) doit être à (bar_y - offset_px)
     start_y = bar_y - offset_px
     
-    # Fonction de mouvement : Y(t) = Start - (Vitesse * t)
     moving_clip = clip_img.set_position(lambda t: ('center', start_y - (speed_px_sec * t)))
     
-    # Barre Jaune
     try:
         from moviepy.video.tools.drawing import color_gradient
         highlight_bar = ColorClip(size=(w, int(px_per_beat)), color=[255, 215, 0]) 
-        highlight_bar = highlight_bar.set_opacity(0.3).set_position(('center', bar_y - int(px_per_beat/2))) # Centrée sur bar_y
+        highlight_bar = highlight_bar.set_opacity(0.3).set_position(('center', bar_y - int(px_per_beat/2))) 
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=window_size)
     except:
         video_visual = CompositeVideoClip([moving_clip], size=window_size)
         
     video_visual = video_visual.set_duration(duration_sec)
 
-    # Audio
     audio_clip = AudioFileClip("temp_audio.mp3")
-    # On coupe si besoin, mais normalement generer_audio_mix donne la bonne durée
     if audio_clip.duration > duration_sec:
         audio_clip = audio_clip.subclip(0, duration_sec)
     
@@ -474,7 +461,6 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, offset_px, px
 # ==============================================================================
 # 🎛️ INTERFACE
 # ==============================================================================
-# En-tête
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
@@ -486,7 +472,6 @@ with col_titre:
 if st.session_state.get('first_run', True):
     st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu !")
 
-# Initialisation State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -502,7 +487,6 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
-# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -516,6 +500,7 @@ with st.sidebar:
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
+    
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
     mon_email = "julienflorin59@gmail.com" 
