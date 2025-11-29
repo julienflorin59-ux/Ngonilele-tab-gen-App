@@ -52,7 +52,7 @@ if st.session_state.get('first_run', True):
     st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, importer du MIDI, changer l'apparence ou m'envoyer ta tablature pour que je l'ajoute à la banque de morceaux !")
 
 # ==============================================================================
-# 🎵 BANQUE DE DONNÉES (CORRIGÉE : VIDE = VIDE)
+# 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
@@ -665,38 +665,58 @@ with tab1:
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
-            sequence = parser_texte(st.session_state.code_actuel)
-            
-            # 1. Légende
-            fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
-            if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
-            else: fig_leg_dl = fig_leg_ecran
-            buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
-            st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
-            if force_white_print: plt.close(fig_leg_dl)
-            
-            # 2. Pages
-            pages_data = []; current_page = []
-            for n in sequence:
-                if n['corde'] == 'PAGE_BREAK':
-                    if current_page: pages_data.append(current_page); current_page = []
-                else: current_page.append(n)
-            if current_page: pages_data.append(current_page)
-            
-            if not pages_data: st.warning("Aucune note détectée.")
-            else:
-                for idx, page in enumerate(pages_data):
-                    fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
-                    if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
-                    else: fig_dl = fig_ecran
-                    buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
-                    st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
-                    if force_white_print: plt.close(fig_dl)
-            
-            st.session_state.partition_generated = True
+            # Pour l'aperçu, on utilise status pour faire joli aussi
+            with st.status("📸 Génération des images...", expanded=True) as status:
+                sequence = parser_texte(st.session_state.code_actuel)
+                
+                # 1. Légende
+                st.write("📖 Création de la légende...")
+                fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
+                if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
+                else: fig_leg_dl = fig_leg_ecran
+                buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
+                st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
+                if force_white_print: plt.close(fig_leg_dl)
+                
+                # 2. Pages
+                pages_data = []; current_page = []
+                for n in sequence:
+                    if n['corde'] == 'PAGE_BREAK':
+                        if current_page: pages_data.append(current_page); current_page = []
+                    else: current_page.append(n)
+                if current_page: pages_data.append(current_page)
+                
+                if not pages_data: st.warning("Aucune note détectée.")
+                else:
+                    st.write(f"📄 Traitement de {len(pages_data)} pages...")
+                    for idx, page in enumerate(pages_data):
+                        fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
+                        if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
+                        else: fig_dl = fig_ecran
+                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
+                        st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
+                        if force_white_print: plt.close(fig_dl)
+                
+                st.session_state.partition_generated = True
+                status.update(label="✅ Partition prête !", state="complete", expanded=False)
 
         # --- AFFICHAGE PERSISTANT ---
         if st.session_state.partition_generated and st.session_state.partition_buffers:
+            # --- EXPORT PDF EN FIN DE CHAINE ---
+            # On génère le PDF seulement au moment de l'affichage final
+            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+            
+            st.download_button(
+                label="📕 Télécharger le Livret Complet (PDF Portrait)",
+                data=pdf_buffer,
+                file_name=f"{titre_partition}.pdf",
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True
+            )
+            
+            st.markdown("---")
+
             for item in st.session_state.partition_buffers:
                 if item['type'] == 'legende':
                     st.markdown("#### Page 1 : Légende")
@@ -705,22 +725,6 @@ with tab1:
                     idx = item['idx']
                     st.markdown(f"#### Page {idx}")
                     st.pyplot(item['img_ecran'])
-
-            # --- EXPORT PDF EN FIN DE CHAINE ---
-            st.markdown("---")
-            st.success("✅ Partition générée !")
-            
-            # On génère le PDF seulement au moment de l'affichage final
-            # Cela évite de ralentir le calcul des images ci-dessus
-            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-            
-            st.download_button(
-                label="📕 Télécharger le Livret Complet (PDF Portrait)",
-                data=pdf_buffer,
-                file_name=f"{titre_partition}.pdf",
-                mime="application/pdf",
-                type="primary"
-            )
 
 # --- TAB VIDEO ---
 with tab3:
@@ -745,23 +749,32 @@ with tab3:
             btn_video = st.button("🎥 Générer Vidéo + Audio")
 
         if btn_video:
-            with st.spinner("Génération de la piste Audio..."):
+            # Utilisation de st.status pour une meilleure UX
+            with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
+                st.write("🎹 Étape 1/3 : Mixage Audio...")
                 sequence = parser_texte(st.session_state.code_actuel)
                 audio_buffer = generer_audio_mix(sequence, bpm)
                 
-            if audio_buffer:
-                with st.spinner("Calibration de l'image..."):
+                if audio_buffer:
+                    st.write("🎨 Étape 2/3 : Création des visuels...")
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
                     img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
-                
-                if img_buffer:
-                    with st.spinner("Montage Synchronisé..."):
+                    
+                    if img_buffer:
+                        st.write("🎞️ Étape 3/3 : Montage vidéo (Patientez, c'est lourd !)...")
+                        # Barre de progression simulée pour faire patienter
+                        progress_bar = st.progress(0)
                         try:
+                            # On simule un avancement car moviepy ne donne pas de callback simple ici
+                            progress_bar.progress(30)
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                            progress_bar.progress(100)
                             st.session_state.video_path = video_path 
+                            status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
                             st.success("Vidéo terminée et synchronisée ! 🥳")
                         except Exception as e:
                             st.error(f"Erreur lors du montage : {e}")
+                            status.update(label="❌ Erreur !", state="error")
 
         if st.session_state.video_path and os.path.exists(st.session_state.video_path):
             st.video(st.session_state.video_path)
@@ -781,11 +794,12 @@ with tab4:
             btn_audio = st.button("🎵 Générer MP3 du Morceau")
             
             if btn_audio:
-                with st.spinner("Mixage..."):
+                with st.status("🎵 Mixage en cours...", expanded=True) as status:
                     sequence = parser_texte(st.session_state.code_actuel)
                     mp3_buffer = generer_audio_mix(sequence, bpm_audio)
                     if mp3_buffer:
                         st.session_state.audio_buffer = mp3_buffer
+                        status.update(label="✅ Mixage terminé !", state="complete", expanded=False)
                         st.success("Terminé !")
 
             if st.session_state.audio_buffer:
@@ -800,10 +814,11 @@ with tab4:
         duree_metro = st.slider("Durée (secondes)", 10, 300, 60, step=10)
         
         if st.button("▶️ Lancer le Métronome"):
-            with st.spinner("Création de la piste rythmique..."):
+            with st.status("🥁 Création du beat...", expanded=True) as status:
                 metro_buffer = generer_metronome(bpm_metro, duree_metro)
                 if metro_buffer:
                     st.session_state.metronome_buffer = metro_buffer
+                    status.update(label="✅ Prêt !", state="complete", expanded=False)
         
         if st.session_state.metronome_buffer:
             st.audio(st.session_state.metronome_buffer, format="audio/mp3")
