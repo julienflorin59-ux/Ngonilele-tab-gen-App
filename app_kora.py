@@ -611,6 +611,16 @@ with tab1:
         
         # --- METHODE 1 : BOUTONS (NOUVELLE) ---
         st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
+
+        # --- CSS POUR REDUIRE LA TAILLE DES BOUTONS ---
+        st.markdown("""
+        <style>
+        div[data-testid="stButton"] button {
+            font-size: 13px !important;
+            padding: 5px 10px !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
         
         bc1, bc2, bc3, bc4 = st.columns(4)
         with bc1: 
