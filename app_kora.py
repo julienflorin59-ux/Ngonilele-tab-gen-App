@@ -486,7 +486,8 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
     notes_par_temps = {}; rayon = 0.30
     for n in sequence:
-        if n['corde'] == 'PAGE_BREAK': continue 
+        if n['corde'] == 'PAGE_BREAK':
+            continue 
         t_absolu = n['temps']; y = -(t_absolu - t_min)
         if y not in notes_par_temps: notes_par_temps[y] = []
         notes_par_temps[y].append(n); code = n['corde']
@@ -744,3 +745,92 @@ with tab1:
                 pages_data = []; current_page = []
                 for n in sequence:
                     if n['corde'] == 'PAGE_BREAK':
+                        if current_page: pages_data.append(current_page); current_page = []
+                    else: current_page.append(n)
+                if current_page: pages_data.append(current_page)
+                
+                if not pages_data: st.warning("Aucune note détectée.")
+                else:
+                    for idx, page in enumerate(pages_data):
+                        fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
+                        if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
+                        else: fig_dl = fig_ecran
+                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
+                        st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
+                        if force_white_print: plt.close(fig_dl)
+                st.session_state.partition_generated = True
+                status.update(label="✅ Terminé !", state="complete", expanded=False)
+
+        if st.session_state.partition_generated and st.session_state.partition_buffers:
+            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+            st.download_button(label="📕 Télécharger PDF", data=pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+            st.markdown("---")
+            for item in st.session_state.partition_buffers:
+                if item['type'] == 'legende': st.markdown("#### Page 1"); st.pyplot(item['img_ecran'])
+                elif item['type'] == 'page': st.markdown(f"#### Page {item['idx']}"); st.pyplot(item['img_ecran'])
+
+with tab3:
+    st.subheader("Générateur de Vidéo 🎥")
+    if not HAS_MOVIEPY or not HAS_PYDUB:
+        st.error("❌ Modules manquants (moviepy ou pydub).")
+    else:
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
+            seq = parser_texte(st.session_state.code_actuel)
+            if seq:
+                nb_temps = seq[-1]['temps'] - seq[0]['temps']
+                duree_estimee = (nb_temps + 4) * (60/bpm)
+                st.write(f"Durée : {int(duree_estimee)}s")
+        with col_v2:
+            btn_video = st.button("🎥 Générer Vidéo")
+
+        if btn_video:
+            with st.status("🎬 Création...", expanded=True) as status:
+                sequence = parser_texte(st.session_state.code_actuel)
+                audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
+                if audio_buffer:
+                    styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
+                    img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
+                    if img_buffer:
+                        try:
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                            st.session_state.video_path = video_path 
+                            status.update(label="✅ Terminé !", state="complete", expanded=False)
+                        except Exception as e: st.error(f"Erreur : {e}"); status.update(label="❌ Erreur !", state="error")
+
+        if st.session_state.video_path and os.path.exists(st.session_state.video_path):
+            st.video(st.session_state.video_path)
+            with open(st.session_state.video_path, "rb") as file:
+                st.download_button(label="⬇️ Télécharger Vidéo", data=file, file_name="ngoni_video.mp4", mime="video/mp4")
+
+with tab4:
+    col_g, col_d = st.columns(2)
+    with col_g:
+        st.subheader("🎧 Audio")
+        if not HAS_PYDUB: st.error("❌ Pydub manquant.")
+        else:
+            bpm_audio = st.slider("Vitesse (BPM)", 30, 200, 100, key="bpm_audio")
+            if st.button("🎵 Générer MP3"):
+                with st.status("🎵 Mixage...", expanded=True) as status:
+                    seq = parser_texte(st.session_state.code_actuel)
+                    mp3 = generer_audio_mix(seq, bpm_audio, acc_config)
+                    if mp3:
+                        st.session_state.audio_buffer = mp3
+                        status.update(label="✅ Terminé !", state="complete", expanded=False)
+            if st.session_state.audio_buffer:
+                st.audio(st.session_state.audio_buffer, format="audio/mp3")
+                st.download_button(label="⬇️ Télécharger MP3", data=st.session_state.audio_buffer, file_name="export.mp3", mime="audio/mpeg")
+
+    with col_d:
+        st.subheader("🥁 Métronome")
+        bpm_metro = st.slider("Vitesse", 30, 200, 80, key="bpm_metro")
+        duree_metro = st.slider("Durée (s)", 10, 300, 60, step=10)
+        if st.button("▶️ Lancer"):
+            with st.status("🥁 Création...", expanded=True) as status:
+                metro = generer_metronome(bpm_metro, duree_metro)
+                if metro:
+                    st.session_state.metronome_buffer = metro
+                    status.update(label="✅ Prêt !", state="complete", expanded=False)
+        if st.session_state.metronome_buffer:
+            st.audio(st.session_state.metronome_buffer, format="audio/mp3")
