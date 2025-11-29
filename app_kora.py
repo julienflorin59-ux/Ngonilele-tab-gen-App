@@ -585,7 +585,7 @@ with tab1:
             st.markdown("""
             * **1G, 2D...** : Indique la corde (1=Haut, G=Gauche, D=Droite).
             * **+** : Passe au temps suivant (note suivante).
-            * **=** : Reste sur le même temps (note simultanée).
+            * **=** : Reste sur le même temps (notes simultanées).
             * **S** : Silence (ne rien jouer).
             * **TXT** : Ajoute un texte (ex: `+ TXT Refrain`).
             * **PAGE** : Force un saut de page.
