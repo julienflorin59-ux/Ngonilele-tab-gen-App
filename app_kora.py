@@ -33,39 +33,59 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🎨 CSS HACK : MENU ROUGE
+# 🎨 CSS HACK V7 : MENU ROUGE (MULTI-CIBLAGE)
 # ==============================================================================
 st.markdown("""
     <style>
-    [data-testid="stSidebarCollapsedControl"] {
+    /* CIBLAGE 1 : Par ID (Standard) */
+    [data-testid="stSidebarCollapsedControl"],
+    /* CIBLAGE 2 : Par Label (Accessibilité - Très robuste) */
+    button[aria-label="Collapsed sidebar"],
+    /* CIBLAGE 3 : Par position (Dernier recours) */
+    header[data-testid="stHeader"] > div:first-child button {
         background-color: #FF4B4B !important;
         border: 2px solid white !important;
         color: white !important;
         border-radius: 8px !important;
-        padding: 5px !important;
+        padding: 5px 10px !important;
         margin-top: 5px !important;
         margin-left: 5px !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
-        z-index: 100000 !important;
+        height: 3.5rem !important;
+        width: auto !important;
+        min-width: 60px !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
         display: flex !important;
         align-items: center !important;
-        width: auto !important;
+        justify-content: center !important;
+        z-index: 1000001 !important;
     }
-    [data-testid="stSidebarCollapsedControl"] svg {
+
+    /* Force la flèche en blanc */
+    [data-testid="stSidebarCollapsedControl"] svg,
+    button[aria-label="Collapsed sidebar"] svg {
         fill: white !important;
         stroke: white !important;
+        color: white !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
     }
-    [data-testid="stSidebarCollapsedControl"]::after {
+
+    /* Ajoute le texte MENU */
+    [data-testid="stSidebarCollapsedControl"]::after,
+    button[aria-label="Collapsed sidebar"]::after {
         content: "MENU";
         font-weight: 900 !important;
         font-size: 14px !important;
         color: white !important;
-        margin-left: 8px;
-        margin-right: 5px;
-        padding-top: 2px;
+        margin-left: 5px !important;
+        padding-top: 2px !important;
     }
+
+    /* Force l'affichage du Header sur mobile */
     @media (max-width: 640px) {
-        [data-testid="stHeader"] {
+        header[data-testid="stHeader"] {
             display: block !important;
             visibility: visible !important;
         }
@@ -316,11 +336,11 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # --- AJOUT DE LA GRILLE HORIZONTALE (Plus foncée #666666) ---
+    # --- AJOUT DE LA GRILLE HORIZONTALE (Version 41 : Foncée et Opaque) ---
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # ------------------------------------------------------------
+    # ----------------------------------------------------------------------
 
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps']); processed_t = set()
     for n in sorted_notes:
@@ -366,11 +386,11 @@ def generer_image_longue(sequence, config_acc, styles):
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
     
-    # --- AJOUT DE LA GRILLE HORIZONTALE (Pour vidéo aussi) ---
+    # --- AJOUT DE LA GRILLE HORIZONTALE (VIDEO) ---
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # ---------------------------------------------------------
+    # ----------------------------------------------
 
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
