@@ -33,42 +33,59 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🎨 CSS HACK : MENU ROUGE
+# 🎨 CSS HACK V8 : LE BOUTON ROUGE (FORCE MAXIMALE)
 # ==============================================================================
 st.markdown("""
     <style>
+    /* Cible le bouton par son attribut data-testid (Standard Streamlit) */
+    section[data-testid="stSidebar"] > div > div > button,
     [data-testid="stSidebarCollapsedControl"] {
         background-color: #FF4B4B !important;
         border: 2px solid white !important;
         color: white !important;
         border-radius: 8px !important;
-        padding: 5px !important;
+        padding: 4px !important;
         margin-top: 5px !important;
         margin-left: 5px !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
-        z-index: 100000 !important;
+        height: 3.5rem !important;
+        width: auto !important;
+        min-width: 60px !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
         display: flex !important;
         align-items: center !important;
-        width: auto !important;
+        justify-content: center !important;
+        z-index: 1000000 !important; /* Toujours au dessus */
+        position: fixed !important; /* Force la position */
+        top: 3rem !important;
+        left: 0.5rem !important;
     }
-    [data-testid="stSidebarCollapsedControl"] svg {
+
+    /* Force la flèche à l'intérieur en blanc */
+    [data-testid="stSidebarCollapsedControl"] svg,
+    [data-testid="stSidebarCollapsedControl"] i {
         fill: white !important;
+        color: white !important;
         stroke: white !important;
+        min-width: 24px !important;
+        min-height: 24px !important;
     }
+
+    /* Ajoute le texte "MENU" */
     [data-testid="stSidebarCollapsedControl"]::after {
         content: "MENU";
         font-weight: 900 !important;
         font-size: 14px !important;
         color: white !important;
-        margin-left: 8px;
-        margin-right: 5px;
-        padding-top: 2px;
+        margin-left: 5px !important;
+        padding-top: 2px !important;
+        text-transform: uppercase;
     }
-    @media (max-width: 640px) {
-        [data-testid="stHeader"] {
-            display: block !important;
-            visibility: visible !important;
-        }
+
+    /* Cache le bouton d'origine s'il est en double (par sécurité) */
+    header[data-testid="stHeader"] {
+        z-index: 1000 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -173,7 +190,7 @@ with col_titre:
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
-# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
+# 📖 MODE D'EMPLOI GÉNÉRAL
 # ==============================================================================
 with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
     c1, c2, c3 = st.columns(3)
@@ -182,15 +199,15 @@ with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False
         st.write("""
         * Utilisez l'onglet **"Éditeur"**.
         * Tapez votre code à gauche.
-        * Cliquez sur **"Générer la partition"** pour voir le résultat.
+        * Cliquez sur **"Générer la partition"**.
         * Téléchargez les images ou le fichier texte.
         """)
     with c2:
         st.markdown("### 2. Vidéo & Audio")
         st.write("""
-        * Onglet **"Vidéo"** : Créez une animation défilante pour apprendre le rythme.
+        * Onglet **"Vidéo"** : Créez une animation pour apprendre le rythme.
         * Onglet **"Audio"** : Écoutez le rendu sonore.
-        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement au début !
+        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement.
         """)
     with c3:
         st.markdown("### 3. Réglages")
@@ -199,7 +216,6 @@ with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False
             * *Banque de morceaux* : Chargez des exemples.
             * *Apparence* : Changez la couleur de fond.
             * *Contribution* : Envoyez-moi vos créations !
-        * Onglet **"Accordage"** : Changez les notes des cordes.
         """)
 
 # ==============================================================================
@@ -253,10 +269,12 @@ def parser_texte(texte):
                     p_upper = p.upper()
                     if p_upper.startswith('X') and p_upper[1:].isdigit(): repetition = int(p_upper[1:])
                     elif p_upper in ['I', 'P']: doigt = p_upper
-            # --- CORRECTION DE L'ERREUR DE SYNTAXE ICI ---
-            if not doigt and corde_valide in AUTOMATIC_FINGERING: 
+            
+            # --- CORRECTION IMPORTANTE (Ligne réparée) ---
+            if not doigt and corde_valide in AUTOMATIC_FINGERING:
                 doigt = AUTOMATIC_FINGERING[corde_valide]
             # ---------------------------------------------
+
             for i in range(repetition):
                 current_time = t + i
                 note = {'temps': current_time, 'corde': corde_valide}
@@ -344,6 +362,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     ax.text(-3.5, y_top_cordes + 2.0, "Cordes de Gauche", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt); ax.text(3.5, y_top_cordes + 2.0, "Cordes de Droite", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
+    
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
@@ -546,10 +565,10 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- AJOUT : LEGENDE NOTATION (ANTI-SECHE) ---
+        # --- MODIFICATION ICI : LEGENDE CLAIRE ---
         st.info("""
         💡 **Légende rapide :** `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant  
-        `:` : Simultané &nbsp; | &nbsp; `S` : Silence &nbsp; | &nbsp; `x2` : Répéter
+        **=** : Simultané &nbsp; | &nbsp; `S` : Silence &nbsp; | &nbsp; `x2` : Répéter
         """)
         
         with st.expander("❓ Sauvegarder / Recharger"):
