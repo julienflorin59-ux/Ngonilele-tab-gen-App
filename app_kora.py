@@ -55,12 +55,6 @@ if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 if 'last_click_value' not in st.session_state: st.session_state.last_click_value = None
 
 # ==============================================================================
-# 🚨 MESSAGE D'AIDE
-# ==============================================================================
-if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE 'MENU' EN HAUT À GAUCHE** pour choisir un morceau, changer l'apparence (imprimer en fond blanc) ou m'envoyer ta tablature !")
-
-# ==============================================================================
 # 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
@@ -141,6 +135,7 @@ BANQUE_TABLATURES = {
 """
 }
 
+# En-tête
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
@@ -305,79 +300,79 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE & VISUEL INTERACTIF (FIABLE)
+# 🎨 MOTEUR AFFICHAGE & VISUEL INTERACTIF (CORRIGÉ & SIMPLIFIÉ)
 # ==============================================================================
 
-# Mapping précis des positions X (Unité arbitraire pour Matplotlib)
-# On imagine un espace de 0 à 14. Tige au milieu (7).
-X_POS_MAP = {
-    '6G': 1, '5G': 2, '4G': 3, '3G': 4, '2G': 5, '1G': 6,
-    '1D': 8, '2D': 9, '3D': 10, '4D': 11, '5D': 12, '6D': 13
-}
+# Ordre d'affichage et de détection (Gauche à Droite)
+ORDRE_VISUEL = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
 
-def dessiner_interface_ngoni_style_img(config_acc):
+def dessiner_interface_ngoni_style_img(config_acc, width_px=800, height_px=200):
     """
-    Crée une image du N'goni compacte et propre.
+    Crée une image du N'goni divisée en 12 colonnes exactes.
+    Chaque corde est centrée dans sa colonne.
     """
-    fig, ax = plt.subplots(figsize=(10, 3), facecolor='#e5c4a1')
+    # DPI = 100 par défaut dans Matplotlib
+    # Pour avoir width_px, on met figsize = width_px / 100
+    figsize_w = width_px / 100
+    figsize_h = height_px / 100
+    
+    fig, ax = plt.subplots(figsize=(figsize_w, figsize_h), facecolor='#e5c4a1')
     ax.set_facecolor('#e5c4a1')
     
-    # Tige centrale
-    ax.axvline(x=7, color='black', linewidth=4)
+    # Echelle 0 à 12 (12 cordes)
+    ax.set_xlim(0, 12)
+    ax.set_ylim(0, 4)
+    
+    # Tige centrale (Entre la 6ème et 7ème corde, donc à x=6)
+    ax.axvline(x=6, color='black', linewidth=4, alpha=0.3)
     
     def get_col(corde_key):
         note = config_acc[corde_key]['n']
         return COULEURS_CORDES_REF.get(note, '#333333')
 
-    # Dessin des cordes selon X_POS_MAP
-    for code, x in X_POS_MAP.items():
+    # Dessin des cordes
+    for i, code in enumerate(ORDRE_VISUEL):
+        # Centre de la colonne i (qui va de i à i+1) -> i + 0.5
+        x_center = i + 0.5
         col = get_col(code)
         
-        # Le nom de la corde (1G, 2G...) en haut
-        ax.text(x, 2.2, code, ha='center', va='center', color=col, fontweight='bold', fontsize=14)
+        # Le nom de la corde (1G, 2G...) en haut, GRAS, NOIR, avec contour BLANC pour lisibilité
+        txt = ax.text(x_center, 3.2, code, ha='center', va='center', color='black', fontweight='bold', fontsize=12)
+        txt.set_path_effects([patches.PathPatch(None, facecolor='white', linewidth=2, edgecolor='white')])
         
-        # Bulle visuelle (déco)
-        circle = plt.Circle((x, 1.8), 0.3, color=col, ec='black', zorder=2)
+        # Bulle colorée
+        circle = plt.Circle((x_center, 2.0), 0.35, color=col, ec='black', lw=1.5, zorder=2)
         ax.add_patch(circle)
         
         # La corde
-        ax.plot([x, x], [0, 1.6], color=col, linewidth=3, zorder=1)
+        ax.plot([x_center, x_center], [0, 2.0], color=col, linewidth=3, zorder=1)
 
-    ax.set_xlim(0, 14)
-    ax.set_ylim(0, 2.5)
     ax.axis('off')
     
     buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches='tight', facecolor='#e5c4a1', pad_inches=0)
+    fig.savefig(buf, format="png", bbox_inches='tight', facecolor='#e5c4a1', pad_inches=0, dpi=100)
     plt.close(fig)
     buf.seek(0) 
     return buf
 
-def traiter_clic_ngoni_fiable(x_pixel, width_image_pixel):
+def traiter_clic_ngoni_fiable(x_pixel, width_image_total):
     """
-    Logique du plus proche voisin.
-    On projette le clic pixel sur l'échelle 0-14 du dessin.
+    Divise la largeur totale en 12 zones égales.
+    Retourne le code de la corde correspondante.
     """
-    if width_image_pixel == 0: return None
+    if width_image_total <= 0: return None
     
-    # L'image générée a un xlim(0, 14).
-    x_projeté = (x_pixel / width_image_pixel) * 14.0
+    # Largeur d'une colonne
+    w_col = width_image_total / 12.0
     
-    # On cherche quelle corde est la plus proche de x_projeté
-    meilleure_corde = None
-    dist_min = 1000
+    # Index de la colonne cliquée (0 à 11)
+    idx = int(x_pixel / w_col)
     
-    for code, x_cible in X_POS_MAP.items():
-        dist = abs(x_projeté - x_cible)
-        if dist < dist_min:
-            dist_min = dist
-            meilleure_corde = code
-            
-    # Seuil de sécurité : si on clique trop loin d'une corde (ex: milieu vide), on ignore ?
-    # Ici, avec un seuil de 0.8, ça couvre tout confortablement.
-    if dist_min < 0.8:
-        return meilleure_corde
-    return None
+    # Sécurité
+    if idx < 0: idx = 0
+    if idx > 11: idx = 11
+    
+    return ORDRE_VISUEL[idx]
 
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -570,37 +565,40 @@ with tab1:
     with col_input:
         st.subheader("🎛️ Studio de Composition")
         
-        # --- 1. BOUTONS CLASSIQUES (PRIORITAIRES) ---
-        with st.expander("⌨️ Saisie par Boutons (Classique)", expanded=True):
-            st.caption("Main Gauche")
-            c1, c2, c3, c4, c5, c6 = st.columns(6)
-            c1.button("1G", on_click=ajouter_texte, args=("+ 1G",), use_container_width=True)
-            c2.button("2G", on_click=ajouter_texte, args=("+ 2G",), use_container_width=True)
-            c3.button("3G", on_click=ajouter_texte, args=("+ 3G",), use_container_width=True)
-            c4.button("4G", on_click=ajouter_texte, args=("+ 4G",), use_container_width=True)
-            c5.button("5G", on_click=ajouter_texte, args=("+ 5G",), use_container_width=True)
-            c6.button("6G", on_click=ajouter_texte, args=("+ 6G",), use_container_width=True)
+        # --- 1. BOUTONS CLASSIQUES (RESTAUROÉS & VISIBLES) ---
+        st.caption("Main Gauche")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.button("1G", on_click=ajouter_texte, args=("+ 1G",), use_container_width=True)
+        c2.button("2G", on_click=ajouter_texte, args=("+ 2G",), use_container_width=True)
+        c3.button("3G", on_click=ajouter_texte, args=("+ 3G",), use_container_width=True)
+        c4.button("4G", on_click=ajouter_texte, args=("+ 4G",), use_container_width=True)
+        
+        c5, c6, empty1, empty2 = st.columns(4)
+        c5.button("5G", on_click=ajouter_texte, args=("+ 5G",), use_container_width=True)
+        c6.button("6G", on_click=ajouter_texte, args=("+ 6G",), use_container_width=True)
+        
+        st.caption("Main Droite")
+        d1, d2, d3, d4 = st.columns(4)
+        d1.button("1D", on_click=ajouter_texte, args=("+ 1D",), use_container_width=True)
+        d2.button("2D", on_click=ajouter_texte, args=("+ 2D",), use_container_width=True)
+        d3.button("3D", on_click=ajouter_texte, args=("+ 3D",), use_container_width=True)
+        d4.button("4D", on_click=ajouter_texte, args=("+ 4D",), use_container_width=True)
+        
+        d5, d6, empty3, empty4 = st.columns(4)
+        d5.button("5D", on_click=ajouter_texte, args=("+ 5D",), use_container_width=True)
+        d6.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
             
-            st.caption("Main Droite")
-            d1, d2, d3, d4, d5, d6 = st.columns(6)
-            d1.button("1D", on_click=ajouter_texte, args=("+ 1D",), use_container_width=True)
-            d2.button("2D", on_click=ajouter_texte, args=("+ 2D",), use_container_width=True)
-            d3.button("3D", on_click=ajouter_texte, args=("+ 3D",), use_container_width=True)
-            d4.button("4D", on_click=ajouter_texte, args=("+ 4D",), use_container_width=True)
-            d5.button("5D", on_click=ajouter_texte, args=("+ 5D",), use_container_width=True)
-            d6.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
-            
-            st.caption("Outils")
-            o1, o2, o3, o4, o5 = st.columns(5)
-            o1.button("Simul (=)", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            o2.button("x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
-            o3.button("Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
-            o4.button("Annuler", on_click=annuler_derniere_ligne, use_container_width=True)
-            o5.button("Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+        st.caption("Outils")
+        o1, o2, o3, o4, o5 = st.columns(5)
+        o1.button("Simul (=)", on_click=ajouter_texte, args=("=",), use_container_width=True)
+        o2.button("x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+        o3.button("Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+        o4.button("Annuler", on_click=annuler_derniere_ligne, use_container_width=True)
+        o5.button("Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
 
         st.write("")
 
-        # --- 2. MODE VISUEL INTERACTIF (DANS UN EXPANDER) ---
+        # --- 2. MODE VISUEL INTERACTIF (CORRIGÉ & LARGE) ---
         if HAS_CLICK_COORD:
             with st.expander("🎨 Saisie Visuelle Interactive (Manche)", expanded=False):
                 col_opt1, col_opt2, col_opt3 = st.columns(3)
@@ -610,21 +608,22 @@ with tab1:
 
                 if is_silence: ajouter_texte("+ S")
 
-                # Image interactive (buffer PNG)
-                img_buf = dessiner_interface_ngoni_style_img(acc_config)
+                # Image interactive (Fixée à 800px pour un mapping parfait)
+                WIDTH_IMG = 800
+                img_buf = dessiner_interface_ngoni_style_img(acc_config, width_px=WIDTH_IMG, height_px=200)
                 
                 # Conversion PIL
                 img_pil = Image.open(img_buf)
-                value = streamlit_image_coordinates(img_pil, key="ngoni_click")
+                
+                # Le composant force la largeur de l'image (si container width n'est pas utilisé)
+                value = streamlit_image_coordinates(img_pil, key="ngoni_click", width=WIDTH_IMG)
 
-                # Logique d'ajout sur clic (Plus robuste)
+                # Logique d'ajout sur clic (Plus robuste, basée sur 12 colonnes)
                 if value and value != st.session_state.last_click_value:
                     st.session_state.last_click_value = value
                     x_clic = value['x']
-                    # Notre image matplotlib fait 10 inches de large avec dpi par défaut (100) -> 1000px
-                    width_img = 1000 
                     
-                    corde_detectee = traiter_clic_ngoni_fiable(x_clic, width_img)
+                    corde_detectee = traiter_clic_ngoni_fiable(x_clic, WIDTH_IMG)
                     
                     if corde_detectee:
                         prefix = "+ " if mode_ajout == "Suivant (+)" else "= "
