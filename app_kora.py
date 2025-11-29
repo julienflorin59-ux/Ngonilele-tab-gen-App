@@ -455,6 +455,7 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
+# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -477,6 +478,7 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
+# ONGLETS
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
@@ -500,9 +502,9 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- MODIFICATION ICI : LEGENDE PARFAITE (V50) ---
+        # --- MODIFICATION ICI : LEGENDE CORRIGÉE (V55) ---
         st.info("""
-        💡 **Légende rapide :**
+        **Légende rapide :**
         
         `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant
         
