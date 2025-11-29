@@ -177,11 +177,9 @@ with col_titre:
 # ==============================================================================
 HAS_MOVIEPY = False
 try:
-    # On essaie d'importer tout ce dont on a besoin
     from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip, ColorClip
     HAS_MOVIEPY = True
 except ImportError:
-    # Tentative alternative pour certaines versions de moviepy
     try:
         from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
         from moviepy.video.VideoClip import ColorClip
@@ -356,28 +354,54 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-# --- MOTEUR VIDEO ---
-def generer_image_longue(sequence, config_acc, styles):
-    if not sequence: return None
+# --- MOTEUR VIDEO SYNCHRONISÉ ---
+def generer_image_longue_calibree(sequence, config_acc, styles):
+    """
+    Génère l'image et retourne les métriques pour la synchro.
+    Retourne: (buffer, pixels_par_temps, offset_premiere_note_px)
+    """
+    if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
-    lignes_totales = t_max - t_min + 2; hauteur_fig = (lignes_totales * 0.75) + 4
+    
+    # Configuration stricte de la figure pour maîtriser les pixels
+    y_max_header = 3.0
+    y_min_footer = -(t_max - t_min) - 2.0
+    hauteur_unites = y_max_header - y_min_footer
+    
+    # 1 unité de plot = X pixels. On fixe la largeur à 16 pouces.
+    # La hauteur dépendra du contenu.
+    FIG_WIDTH = 16
+    FIG_HEIGHT = hauteur_unites * 0.8 # Ratio arbitraire pour l'aspect
+    DPI = 100
+    
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     path_pouce = CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE
     path_index = CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX
-    fig, ax = plt.subplots(figsize=(16, hauteur_fig), facecolor=c_fond); ax.set_facecolor(c_fond)
-    y_top = 2.0; y_bot = - (t_max - t_min) - 1.0
+    
+    fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond)
+    ax.set_facecolor(c_fond)
+    
+    # On force les limites Y pour que le mapping Pixel <-> Temps soit linéaire et connu
+    ax.set_ylim(y_min_footer, y_max_header)
+    ax.set_xlim(-7.5, 7.5)
+    
+    y_top = 2.0
+    y_bot = y_min_footer + 1.0 # Visuel
+    
     prop_note_us = get_font(24, 'bold'); prop_note_eu = get_font(18, 'normal', 'italic'); prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold'); prop_annotation = get_font(16, 'bold')
+    
+    # Entête Cordes
     ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
     
-    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
+    # Grille
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # -----------------------------------------
 
+    # Notes
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
         t = n['temps']; 
@@ -404,78 +428,98 @@ def generer_image_longue(sequence, config_acc, styles):
     for y, group in notes_par_temps.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 3); ax.axis('off')
-    buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, facecolor=c_fond, bbox_inches='tight'); plt.close(fig); buf.seek(0)
-    return buf
+    
+    ax.axis('off')
+    
+    # --- CALIBRATION DU SCROLL ---
+    # On convertit les coordonnées "Data" (0 = première note, -1 = deuxième note) en Pixels
+    # transform(0,0) renvoie (x_px, y_px) depuis le BAS-GAUCHE de l'image
+    px_y_t0 = ax.transData.transform((0, 0))[1]
+    px_y_t1 = ax.transData.transform((0, -1))[1]
+    
+    # Hauteur totale image en px
+    total_h_px = FIG_HEIGHT * DPI
+    
+    # Distance en pixels pour 1 temps (attention y augmente vers le haut dans matplotlib)
+    pixels_par_temps = px_y_t0 - px_y_t1
+    
+    # Position en pixels de la première note depuis le HAUT de l'image
+    # (Moviepy utilise le coin HAUT-GAUCHE comme 0,0)
+    offset_premiere_note_px = total_h_px - px_y_t0
+    
+    buf = io.BytesIO(); 
+    # IMPORTANT : bbox_inches=None pour ne pas couper et fausser les calculs
+    fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None); 
+    plt.close(fig); buf.seek(0)
+    
+    return buf, pixels_par_temps, offset_premiere_note_px
 
-def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
-    # Sauvegarde des fichiers temporaires
-    with open("temp_score.png", "wb") as f:
-        f.write(image_buffer.getbuffer())
-    with open("temp_audio.mp3", "wb") as f:
-        f.write(audio_buffer.getbuffer())
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
+    pixels_par_temps, offset_premiere_note_px = metrics
+    
+    # Sauvegarde temporaire
+    with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
+    with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
 
-    # Chargement de l'image
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
     
-    # Hauteur de la fenêtre vidéo
-    video_h = 600 
+    video_h = 600
     window_h = int(w * 9 / 16)
-    if window_h > h: 
-        window_h = h
+    if window_h > h: window_h = h
     
-    # --- SCROLLING LOGIC ---
-    # Position de la barre de lecture (fixe)
-    bar_y = 150
+    # --- LOGIQUE DE SCROLL PRÉCISE ---
+    # La barre jaune est fixe à l'écran
+    bar_y = 150 
     
-    # Calcul du défilement
+    # Position initiale de l'image (Y) :
+    # On veut que la "Première Note" (située à 'offset_premiere_note_px' du haut de l'image)
+    # soit positionnée sous la "Barre Jaune" (située à 'bar_y' de l'écran).
+    start_y = bar_y - offset_premiere_note_px
+    
+    # Vitesse de défilement :
+    # On connait les Pixels par Temps (beat).
+    # On connait le BPM (Beats par Minute).
+    # Vitesse (px/sec) = (Pixels/Temps) * (Temps/Minute) / 60
+    speed_px_sec = pixels_par_temps * (bpm / 60.0)
+    
     def scroll_func(t):
-        current_y = bar_y - (h - video_h + bar_y) * (t / duration_sec)
+        # L'image remonte, donc on soustrait
+        current_y = start_y - (speed_px_sec * t)
         return ('center', current_y)
 
-    # On applique la position et la durée à l'image
     moving_clip = clip_img.set_position(scroll_func)
     moving_clip = moving_clip.set_duration(duration_sec)
     
-    # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
+    # Barre jaune
     highlight_bar = None
     try:
-        # Barre jaune semi-transparente
-        bar_height = 40
+        bar_height = int(pixels_par_temps) # La barre fait la taille d'une note exactement
         highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0))
         highlight_bar = highlight_bar.set_opacity(0.3)
-        highlight_bar = highlight_bar.set_position(('center', bar_y))
+        # On centre la barre verticalement sur bar_y
+        highlight_bar = highlight_bar.set_position(('center', bar_y - bar_height/2))
         highlight_bar = highlight_bar.set_duration(duration_sec)
-    except:
-        pass
+    except: pass
         
-    # Composition avec la barre si disponible
     if highlight_bar:
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
     else:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
 
-    # --- FIX CRITIQUE: FORCER LA DURÉE SUR LE COMPOSITE ---
     video_visual = video_visual.set_duration(duration_sec)
 
-    # --- AUDIO ---
     audio_clip = AudioFileClip("temp_audio.mp3")
     audio_clip = audio_clip.subclip(0, duration_sec)
     
-    # --- FINAL ---
     final = video_visual.set_audio(audio_clip)
     final.fps = fps
     
     output_filename = "ngoni_video_sound.mp4"
     final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
     
-    # Nettoyage
     try:
-        audio_clip.close()
-        final.close()
-        video_visual.close()
-        clip_img.close()
+        audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
     except: pass
         
     return output_filename
@@ -614,7 +658,8 @@ with tab3:
             seq = parser_texte(st.session_state.code_actuel)
             if seq:
                 nb_temps = seq[-1]['temps'] - seq[0]['temps']
-                duree_estimee = nb_temps * (60/bpm)
+                # Petit buffer audio à la fin
+                duree_estimee = (nb_temps + 4) * (60/bpm)
                 st.write(f"Durée : {int(duree_estimee)}s")
             else: duree_estimee = 10
         with col_v2:
@@ -626,18 +671,19 @@ with tab3:
                 audio_buffer = generer_audio_mix(sequence, bpm)
                 
             if audio_buffer:
-                with st.spinner("Génération de l'image..."):
+                with st.spinner("Calibration de l'image..."):
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                    img_buffer = generer_image_longue(sequence, acc_config, styles_video)
+                    # On appelle la nouvelle fonction calibrée
+                    img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
                 
                 if img_buffer:
-                    with st.spinner("Montage Final (Soyez patient)..."):
+                    with st.spinner("Montage Synchronisé..."):
                         try:
-                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duree_estimee)
-                            st.success("Vidéo terminée ! 🥳")
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                            st.success("Vidéo terminée et synchronisée ! 🥳")
                             st.video(video_path)
                             with open(video_path, "rb") as file:
-                                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video.mp4", mime="video/mp4")
+                                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4")
                         except Exception as e:
                             st.error(f"Erreur lors du montage : {e}")
 
