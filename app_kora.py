@@ -36,7 +36,7 @@ st.set_page_config(
 # 🚨 MESSAGE D'AIDE (HEADER)
 # ==============================================================================
 if st.session_state.get('first_run', True):
-    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu !")
+    st.info("👈 **CLIQUEZ SUR LA FLÈCHE GRISE (>) EN HAUT À GAUCHE** pour ouvrir le menu, choisir un morceau ou changer l'accordage !")
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -132,19 +132,32 @@ with col_titre:
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
-# 📖 MODE D'EMPLOI
+# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
 # ==============================================================================
-with st.expander("📖 **COMMENT ÇA MARCHE ?**", expanded=False):
+with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown("### 1. Écrire")
-        st.write("Utilisez l'onglet **Éditeur**. Tapez votre code et cliquez sur **Générer**.")
+        st.markdown("### 1. Écrire la musique")
+        st.write("""
+        * Utilisez l'onglet **"Éditeur"**.
+        * Tapez votre code à gauche.
+        * Cliquez sur **"Générer la partition"**.
+        """)
     with c2:
         st.markdown("### 2. Vidéo & Audio")
-        st.write("Créez une animation karaoké ou exportez le son.")
+        st.write("""
+        * Onglet **"Vidéo"** : Créez une animation karaoké.
+        * Onglet **"Audio"** : Écoutez le rendu sonore.
+        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement !
+        """)
     with c3:
-        st.markdown("### 3. Réglages")
-        st.write("Menu de gauche : Banque de sons, Accordage, Apparence.")
+        st.markdown("### 3. Réglages (Menu à gauche)")
+        st.write("""
+        * **Banque** : Chargez des exemples.
+        * **Apparence** : Changez la couleur de fond.
+        * **Contribution** : Envoyez-moi vos créations !
+        * **Accordage** : Changez les notes des cordes.
+        """)
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -209,13 +222,12 @@ def parser_texte(texte):
     return data
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO (Calcul Durée Précise)
+# 🎹 MOTEUR AUDIO
 # ==============================================================================
 def generer_audio_mix(sequence, bpm):
-    if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None, 0
-    if not sequence: return None, 0
-    if not os.path.exists(DOSSIER_SAMPLES): st.error(f"❌ Dossier '{DOSSIER_SAMPLES}' introuvable."); return None, 0
-    
+    if not HAS_PYDUB: st.error("❌ Pydub manquant."); return None
+    if not sequence: return None
+    if not os.path.exists(DOSSIER_SAMPLES): st.error(f"❌ Dossier '{DOSSIER_SAMPLES}' introuvable."); return None
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     for corde in cordes_utilisees:
@@ -225,29 +237,19 @@ def generer_audio_mix(sequence, bpm):
         else:
             chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
             if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
-            
-    if not samples_loaded: st.error("Aucun MP3 valide."); return None, 0
-
+    if not samples_loaded: st.error("Aucun MP3 valide."); return None
     ms_par_temps = 60000 / bpm
-    
-    t_min = sequence[0]['temps']
     dernier_t = sequence[-1]['temps']
-    
-    # Durée totale exacte en ms
-    duree_totale_ms = int((dernier_t - t_min + 4) * ms_par_temps) 
+    duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     mix = AudioSegment.silent(duration=duree_totale_ms)
-    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
-            t = n['temps']
-            pos_ms = int((t - t_min) * ms_par_temps)
+            t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
-            
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
-    
-    # On retourne aussi la durée exacte en secondes pour la vidéo
+    # On retourne le buffer et la durée précise en secondes
     return buffer, duree_totale_ms / 1000.0
 
 # ==============================================================================
@@ -401,8 +403,6 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     pixel_speed = h / duration_sec
     
     # Offset : Si le son est en retard, on "retarde" l'image en la faisant partir de plus bas.
-    # Si on ajoute de la distance, l'image mettra plus de temps à atteindre la barre.
-    # Essai empirique : 100px de délai (environ 0.2-0.5s selon la vitesse)
     offset_synchro = 100 
     
     moving_clip = clip_img.set_position(lambda t: ('center', bar_y + offset_synchro - (pixel_speed * t)))
@@ -501,16 +501,14 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
+        # --- MODIFICATION ICI : LEGENDE CORRIGÉE (V57) ---
+        st.info("""
+        **Légende rapide :**
         
-        # --- CORRECTION FINALE LEGENDE (SANS DOUBLE ICÔNE) ---
-        st.markdown("""
-        <div style="background-color: #262730; padding: 10px; border-radius: 5px; border: 1px solid #444;">
-        💡 <b>Légende rapide :</b><br>
-        <code>1</code> : Temps 1 &nbsp;|&nbsp; <code>4D</code> : Corde &nbsp;|&nbsp; <code>+</code> : Temps suivant<br>
-        <code>=</code> : Simultané &nbsp;|&nbsp; <code>S</code> : Silence &nbsp;|&nbsp; <code>x2</code> : Répéter
-        </div>
-        """, unsafe_allow_html=True)
-        # -----------------------------------------------------
+        `1` : Temps 1 &nbsp; | &nbsp; `4D` : Corde &nbsp; | &nbsp; `+` : Temps suivant
+        
+        `=` : Notes simultanées &nbsp; | &nbsp; `s` : Silence &nbsp; | &nbsp; `x2` : Répéter
+        """, icon="💡")
         
         with st.expander("❓ Sauvegarder / Recharger"):
             st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
@@ -580,17 +578,11 @@ with tab3:
         with col_v1:
             bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
             seq = parser_texte(st.session_state.code_actuel)
-            # Correction affichage durée
             if seq:
-                # On utilise generer_audio_mix juste pour avoir la durée, sans générer le fichier
-                # Petit hack : on recalcule la durée théorique
-                ms_par_temps = 60000 / bpm
-                t_min = seq[0]['temps']
-                dernier_t = seq[-1]['temps']
-                duree_ms = int((dernier_t - t_min + 4) * ms_par_temps)
-                st.write(f"Durée exacte : {duree_ms/1000:.1f}s")
-            else: st.write("Durée : -")
-            
+                nb_temps = seq[-1]['temps'] - seq[0]['temps']
+                duree_estimee = nb_temps * (60/bpm)
+                st.write(f"Durée : {int(duree_estimee)}s")
+            else: duree_estimee = 10
         with col_v2:
             btn_video = st.button("🎥 Générer Vidéo + Audio")
 
@@ -603,13 +595,12 @@ with tab3:
             if audio_buffer:
                 with st.spinner("Génération de l'image..."):
                     styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                    img_buffer = generer_image_longue(sequence, acc_config, styles_video)
+                    img_buffer, ratio_first, ratio_unit = generer_image_longue(sequence, acc_config, styles_video)
                 
                 if img_buffer:
                     with st.spinner("Montage Final (Soyez patient)..."):
                         try:
-                            # On passe la durée exacte calculée par l'audio
-                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duration_sec)
+                            video_path = creer_video_avec_son(img_buffer, audio_buffer, duration_sec=duration_sec, fps=24)
                             st.success("Vidéo terminée ! 🥳")
                             st.video(video_path)
                             with open(video_path, "rb") as file:
