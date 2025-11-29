@@ -173,36 +173,6 @@ with col_titre:
     st.markdown("Créez vos partitions, réglez l'accordage et téléchargez le résultat.")
 
 # ==============================================================================
-# 📖 MODE D'EMPLOI GÉNÉRAL (ACCORDÉON)
-# ==============================================================================
-with st.expander("📖 **COMMENT ÇA MARCHE ? (Guide Complet)**", expanded=False):
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown("### 1. Écrire la musique")
-        st.write("""
-        * Utilisez l'onglet **"Éditeur"**.
-        * Tapez votre code à gauche.
-        * Cliquez sur **"Générer la partition"** pour voir le résultat.
-        * Téléchargez les images ou le fichier texte.
-        """)
-    with c2:
-        st.markdown("### 2. Vidéo & Audio")
-        st.write("""
-        * Onglet **"Vidéo"** : Créez une animation défilante pour apprendre le rythme.
-        * Onglet **"Audio"** : Écoutez le rendu sonore.
-        * **Astuce :** Réglez la vitesse (BPM) pour travailler lentement au début !
-        """)
-    with c3:
-        st.markdown("### 3. Réglages")
-        st.write("""
-        * **Menu Rouge (Haut Gauche)** :
-            * *Banque de morceaux* : Chargez des exemples.
-            * *Apparence* : Changez la couleur de fond.
-            * *Contribution* : Envoyez-moi vos créations !
-        * Onglet **"Accordage"** : Changez les notes des cordes.
-        """)
-
-# ==============================================================================
 # 🧠 MOTEUR LOGIQUE
 # ==============================================================================
 HAS_MOVIEPY = False
@@ -295,7 +265,7 @@ def generer_audio_mix(sequence, bpm):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE
+# 🎨 MOTEUR AFFICHAGE (Images Statiques)
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -378,7 +348,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-# --- VIDEO ---
+# --- MOTEUR VIDEO ---
 def generer_image_longue(sequence, config_acc, styles):
     if not sequence: return None
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
@@ -393,6 +363,13 @@ def generer_image_longue(sequence, config_acc, styles):
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
+    
+    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
+    for t in range(t_min, t_max + 1):
+        y = -(t - t_min)
+        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+    # -----------------------------------------
+
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
         t = n['temps']; 
@@ -419,13 +396,6 @@ def generer_image_longue(sequence, config_acc, styles):
     for y, group in notes_par_temps.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
-    
-    # --- GRILLE HORIZONTALE VIDEO (Foncée) ---
-    for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
-        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    # -----------------------------------------
-
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 3); ax.axis('off')
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, facecolor=c_fond, bbox_inches='tight'); plt.close(fig); buf.seek(0)
     return buf
@@ -441,25 +411,40 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     video_h = 600 
     
     # --- SCROLLING LOGIC ---
+    # On fait défiler de bas en haut (simulation lecture)
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
     
     # --- BARRE DE LECTURE (HIGHLIGHT BAR) ---
-    bar_height = 50 
+    # Création d'une barre jaune semi-transparente
+    bar_height = 50 # Hauteur approximative d'une ligne de note
+    # Position Y de la barre : disons au tiers supérieur de l'écran (200px)
     bar_y = 150 
     
     try:
         from moviepy.video.tools.drawing import color_gradient
+        # Solution simple : ColorClip
+        # ColorClip(size, color)
         highlight_bar = ColorClip(size=(w, bar_height), color=[255, 215, 0]) # Or/Jaune
         highlight_bar = highlight_bar.set_opacity(0.3) # Transparence
         highlight_bar = highlight_bar.set_position(('center', bar_y))
         highlight_bar = highlight_bar.set_duration(duration_sec)
         
-        # OFFSET DE SCROLL POUR ALIGNEMENT
+        # Note : Si ColorClip plante sur le Cloud (dépend d'ImageMagick), on l'enlèvera.
+        # Mais normalement avec moviepy 1.0.3 ça passe.
+        
+        # AJOUTER UN OFFSET AU SCROLL POUR QUE LA PREMIERE NOTE SOIT SOUS LA BARRE A T=0
+        # Le premier temps (t=1) est à Y=0 sur l'image.
+        # A t=0, l'image est à Y=0 dans la vidéo.
+        # Donc la première note est tout en haut (Y=0).
+        # Si la barre est à Y=150, il faut décaler l'image de +150 vers le bas au départ.
+        
         moving_clip = clip_img.set_position(lambda t: ('center', bar_y - (h - video_h) * (t / duration_sec) ))
+        # ATTENTION : Le calcul de scroll est approximatif, c'est du bricolage visuel.
         
         video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
     except:
+        # Fallback si ColorClip échoue
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
 
     # --- AUDIO ---
@@ -480,7 +465,6 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
 # 🎛️ INTERFACE STREAMLIT
 # ==============================================================================
 
-# Session State
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
@@ -496,7 +480,6 @@ def charger_morceau():
 
 def mise_a_jour_texte(): st.session_state.code_actuel = st.session_state.widget_input
 
-# BARRE LATERALE
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -519,7 +502,6 @@ with st.sidebar:
     mailto_link = f"mailto:{mon_email}?subject={urllib.parse.quote(sujet_mail)}&body={urllib.parse.quote(corps_mail)}"
     st.markdown(f'<a href="{mailto_link}" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
-# ONGLETS
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio"])
 
 with tab2:
@@ -543,9 +525,6 @@ with tab1:
     col_input, col_view = st.columns([1, 2])
     with col_input:
         st.subheader("Code")
-        # --- AJOUT : LEGENDE NOTATION (ANTI-SECHE) ---
-        st.info("💡 **Légende rapide :**\n`1` = Temps 1 • `4D` = Corde 4 Droite • `+` = Temps suivant • `=` = Simultané • `S` = Silence • `x2` = Répéter")
-        
         with st.expander("❓ Sauvegarder / Recharger"):
             st.write("Pour ne pas perdre votre travail, téléchargez le fichier .txt")
         uploaded_file = st.file_uploader("📂 Charger un fichier (.txt)", type="txt")
