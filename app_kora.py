@@ -29,64 +29,45 @@ st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
     page_icon=icon_page,
-    initial_sidebar_state="collapsed" # Le menu est fermé au départ
+    initial_sidebar_state="collapsed"
 )
 
 # ==============================================================================
-# 🎨 CSS HACK V6 : LE MENU ROUGE (BLINDÉ)
+# 🎨 CSS HACK : MENU ROUGE
 # ==============================================================================
 st.markdown("""
     <style>
-    /* Cible le bouton par son ID officiel */
     [data-testid="stSidebarCollapsedControl"] {
         background-color: #FF4B4B !important;
         border: 2px solid white !important;
         color: white !important;
         border-radius: 8px !important;
-        padding: 8px !important;
+        padding: 5px !important;
         margin-top: 5px !important;
         margin-left: 5px !important;
-        height: 3.5rem !important;
-        width: auto !important;
-        min-width: 50px !important;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
-        opacity: 1 !important;
-        visibility: visible !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
+        z-index: 100000 !important;
         display: flex !important;
         align-items: center !important;
+        width: auto !important;
     }
-
-    /* Cible aussi le bouton générique du header si l'ID change */
-    header[data-testid="stHeader"] > div:first-child button {
-        background-color: #FF4B4B !important;
-        border: 2px solid white !important;
-    }
-
-    /* Force la flèche SVG à l'intérieur à être blanche et plus grosse */
     [data-testid="stSidebarCollapsedControl"] svg {
         fill: white !important;
-        color: white !important;
-        width: 24px !important;
-        height: 24px !important;
         stroke: white !important;
-        stroke-width: 1px !important;
     }
-
-    /* Ajoute le texte "MENU" à côté */
     [data-testid="stSidebarCollapsedControl"]::after {
         content: "MENU";
         font-weight: 900 !important;
         font-size: 14px !important;
         color: white !important;
-        margin-left: 8px !important;
-        padding-right: 5px !important;
-        letter-spacing: 1px !important;
+        margin-left: 8px;
+        margin-right: 5px;
+        padding-top: 2px;
     }
-    
-    /* Assure que le header est bien visible sur mobile */
     @media (max-width: 640px) {
-        header[data-testid="stHeader"] {
-            z-index: 999999 !important;
+        [data-testid="stHeader"] {
+            display: block !important;
+            visibility: visible !important;
         }
     }
     </style>
@@ -194,7 +175,6 @@ with col_titre:
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
 # ==============================================================================
-# IMPORTS SÉCURISÉS
 HAS_MOVIEPY = False
 try:
     from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
@@ -328,12 +308,22 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     if not mode_white and options_visuelles['use_bg'] and os.path.exists(CHEMIN_IMAGE_FOND):
         try: img_fond = mpimg.imread(CHEMIN_IMAGE_FOND); h_px, w_px = img_fond.shape[:2]; ratio = w_px / h_px; largeur_finale = 15.0 * 0.7; hauteur_finale = (largeur_finale / ratio) * 1.4; y_center = (y_top + y_bot) / 2; extent = [-largeur_finale/2, largeur_finale/2, y_center - hauteur_finale/2, y_center + hauteur_finale/2]; ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
         except: pass
+    
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     ax.text(-3.5, y_top_cordes + 2.0, "Cordes de Gauche", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt); ax.text(3.5, y_top_cordes + 2.0, "Cordes de Droite", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
+    
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
+    
+    # --- AJOUT DE LA GRILLE HORIZONTALE ---
+    for t in range(t_min, t_max + 1):
+        y = -(t - t_min)
+        # Ligne grise fine pour chaque temps, derrière les notes (zorder=0.5)
+        ax.axhline(y=y, color='#CCCCCC', linestyle='-', linewidth=1, alpha=0.5, zorder=0.5)
+    # --------------------------------------
+
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps']); processed_t = set()
     for n in sorted_notes:
         t = n['temps']; 
@@ -377,6 +367,13 @@ def generer_image_longue(sequence, config_acc, styles):
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
+    
+    # --- AJOUT DE LA GRILLE HORIZONTALE (POUR LA VIDEO) ---
+    for t in range(t_min, t_max + 1):
+        y = -(t - t_min)
+        ax.axhline(y=y, color='#CCCCCC', linestyle='-', linewidth=1, alpha=0.5, zorder=0.5)
+    # ------------------------------------------------------
+
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
         t = n['temps']; 
