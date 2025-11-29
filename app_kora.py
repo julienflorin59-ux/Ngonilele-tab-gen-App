@@ -33,48 +33,60 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 🎨 CSS HACK : MENU ROUGE (CIBLAGE PRÉCIS)
+# 🎨 CSS HACK V6 : LE MENU ROUGE (BLINDÉ)
 # ==============================================================================
 st.markdown("""
     <style>
-    /* 1. Cible UNIQUEMENT le bouton qui ouvre la sidebar (à gauche) */
+    /* Cible le bouton par son ID officiel */
     [data-testid="stSidebarCollapsedControl"] {
         background-color: #FF4B4B !important;
         border: 2px solid white !important;
         color: white !important;
         border-radius: 8px !important;
-        padding: 5px !important;
+        padding: 8px !important;
         margin-top: 5px !important;
         margin-left: 5px !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.5) !important;
-        z-index: 100000 !important;
+        height: 3.5rem !important;
+        width: auto !important;
+        min-width: 50px !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
         display: flex !important;
         align-items: center !important;
-        width: auto !important; /* Laisse la largeur s'adapter au texte */
     }
 
-    /* 2. Force l'icône de la flèche en blanc */
+    /* Cible aussi le bouton générique du header si l'ID change */
+    header[data-testid="stHeader"] > div:first-child button {
+        background-color: #FF4B4B !important;
+        border: 2px solid white !important;
+    }
+
+    /* Force la flèche SVG à l'intérieur à être blanche et plus grosse */
     [data-testid="stSidebarCollapsedControl"] svg {
         fill: white !important;
+        color: white !important;
+        width: 24px !important;
+        height: 24px !important;
         stroke: white !important;
+        stroke-width: 1px !important;
     }
 
-    /* 3. Ajoute le mot MENU à côté de la flèche */
+    /* Ajoute le texte "MENU" à côté */
     [data-testid="stSidebarCollapsedControl"]::after {
         content: "MENU";
-        font-weight: 900;
-        font-size: 14px;
-        color: white;
-        margin-left: 8px;
-        margin-right: 5px;
-        padding-top: 2px;
+        font-weight: 900 !important;
+        font-size: 14px !important;
+        color: white !important;
+        margin-left: 8px !important;
+        padding-right: 5px !important;
+        letter-spacing: 1px !important;
     }
-
-    /* 4. Protection pour Mobile : Assure que le header est visible */
+    
+    /* Assure que le header est bien visible sur mobile */
     @media (max-width: 640px) {
-        [data-testid="stHeader"] {
-            display: block !important;
-            visibility: visible !important;
+        header[data-testid="stHeader"] {
+            z-index: 999999 !important;
         }
     }
     </style>
@@ -401,7 +413,7 @@ def creer_video_avec_son(image_buffer, audio_buffer, duration_sec, fps=24):
     clip_img = ImageClip("temp_score.png"); w, h = clip_img.size
     window_h = int(w * 9 / 16); 
     if window_h > h: window_h = h
-    video_h = 600
+    video_h = 600 
     moving_clip = clip_img.set_position(lambda t: ('center', -1 * (h - video_h) * (t / duration_sec) ))
     moving_clip = moving_clip.set_duration(duration_sec)
     audio_clip = AudioFileClip("temp_audio.mp3")
