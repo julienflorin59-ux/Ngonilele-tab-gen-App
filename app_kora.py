@@ -179,6 +179,10 @@ AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G
 # Map Modulo 12 strict
 NOTE_NAMES_MODULO = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
+# --- DEFINITIONS ACCORDAGE PAR DEFAUT ---
+NOTES_GAMME = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
+
 def get_font(size, weight='normal', style='normal'):
     if os.path.exists(CHEMIN_POLICE): return fm.FontProperties(fname=CHEMIN_POLICE, size=size, weight=weight, style=style)
     return fm.FontProperties(family='sans-serif', size=size, weight=weight, style=style)
@@ -589,17 +593,15 @@ with tab2:
     st.subheader("Configuration des cordes")
     col_g, col_d = st.columns(2)
     acc_config = {}
-    notes_gamme = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
-    DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
     with col_g:
         st.write("**Main Gauche**")
         for i in range(1, 7):
-            k = f"{i}G"; val = st.selectbox(f"Corde {k}", notes_gamme, index=notes_gamme.index(DEF_ACC[k]), key=k)
+            k = f"{i}G"; val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(DEF_ACC[k]), key=k)
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
     with col_d:
         st.write("**Main Droite**")
         for i in range(1, 7):
-            k = f"{i}D"; val = st.selectbox(f"Corde {k}", notes_gamme, index=notes_gamme.index(DEF_ACC[k]), key=k)
+            k = f"{i}D"; val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(DEF_ACC[k]), key=k)
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
 with tab1:
@@ -609,61 +611,119 @@ with tab1:
     with col_input:
         st.subheader("Éditeur")
         
-        # --- METHODE 1 : BOUTONS (NOUVELLE) ---
-        st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
+        # ONGLETS DE SAISIE
+        subtab_btn, subtab_visu, subtab_txt = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "📝 Texte"])
 
-        # --- CSS MODIFIE (V3: AGRESSIF SUR LE TEXTE INTERNE) ---
-        st.markdown("""
-        <style>
-        /* Cibler le conteneur du bouton dans les colonnes */
-        div[data-testid="column"] .stButton button {
-            width: 100%;
-            height: auto !important;
-            min-height: 0px !important;
-            padding: 4px 8px !important;
-            line-height: 1 !important;
-        }
-        /* CIBLER LE TEXTE INTERNE SPECIFIQUEMENT */
-        div[data-testid="column"] .stButton button p {
-            font-size: 13px !important;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
-        bc1, bc2, bc3, bc4 = st.columns(4)
-        with bc1: 
-            st.caption("Gauche")
-            st.button("1G", on_click=ajouter_texte, args=("+ 1G",), use_container_width=True)
-            st.button("2G", on_click=ajouter_texte, args=("+ 2G",), use_container_width=True)
-            st.button("3G", on_click=ajouter_texte, args=("+ 3G",), use_container_width=True)
-            st.button("4G", on_click=ajouter_texte, args=("+ 4G",), use_container_width=True)
-            st.button("5G", on_click=ajouter_texte, args=("+ 5G",), use_container_width=True)
-            st.button("6G", on_click=ajouter_texte, args=("+ 6G",), use_container_width=True)
-        with bc2:
-            st.caption("Droite")
-            st.button("1D", on_click=ajouter_texte, args=("+ 1D",), use_container_width=True)
-            st.button("2D", on_click=ajouter_texte, args=("+ 2D",), use_container_width=True)
-            st.button("3D", on_click=ajouter_texte, args=("+ 3D",), use_container_width=True)
-            st.button("4D", on_click=ajouter_texte, args=("+ 4D",), use_container_width=True)
-            st.button("5D", on_click=ajouter_texte, args=("+ 5D",), use_container_width=True)
-            st.button("6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
-        with bc3:
-            st.caption("Outils")
-            st.button("↩️ Effacer Ligne", on_click=annuler_derniere_ligne, use_container_width=True)
-            st.button("🟰 Notes Simultanées", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            st.button("🔁 Notes Doublées", on_click=ajouter_texte, args=("x2",), use_container_width=True)
-            st.button("🔇 Insérer Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
-        with bc4:
-            st.caption("Structure")
-            st.button("📄 Insérer Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
-            st.button("📝 Insérer Texte", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
+        # ========================================================
+        # 1. SAISIE BOUTONS (Grille Compacte)
+        # ========================================================
+        with subtab_btn:
+            st.info("⌨️ **Mode Rapide (Grille Compacte)**")
 
-        st.write("")
-        st.write("")
-        
-        # --- METHODE 2 : TEXTE (ANCIENNE) ---
-        st.warning("📝 **Éditeur Texte (Ancienne méthode / Corrections)**")
-        st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
+            # --- CSS POUR BOUTONS COMPACTS ---
+            st.markdown("""
+            <style>
+            /* Cibler le conteneur du bouton dans les colonnes */
+            div[data-testid="column"] .stButton button {
+                width: 100%;
+                height: auto !important;
+                min-height: 0px !important;
+                padding: 4px 8px !important;
+                line-height: 1 !important;
+            }
+            /* CIBLER LE TEXTE INTERNE SPECIFIQUEMENT */
+            div[data-testid="column"] .stButton button p {
+                font-size: 13px !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            bc1, bc2, bc3, bc4 = st.columns(4)
+            with bc1: 
+                st.caption("Gauche")
+                st.button("1G", key="btn_1G", on_click=ajouter_texte, args=("+ 1G",), use_container_width=True)
+                st.button("2G", key="btn_2G", on_click=ajouter_texte, args=("+ 2G",), use_container_width=True)
+                st.button("3G", key="btn_3G", on_click=ajouter_texte, args=("+ 3G",), use_container_width=True)
+                st.button("4G", key="btn_4G", on_click=ajouter_texte, args=("+ 4G",), use_container_width=True)
+                st.button("5G", key="btn_5G", on_click=ajouter_texte, args=("+ 5G",), use_container_width=True)
+                st.button("6G", key="btn_6G", on_click=ajouter_texte, args=("+ 6G",), use_container_width=True)
+            with bc2:
+                st.caption("Droite")
+                st.button("1D", key="btn_1D", on_click=ajouter_texte, args=("+ 1D",), use_container_width=True)
+                st.button("2D", key="btn_2D", on_click=ajouter_texte, args=("+ 2D",), use_container_width=True)
+                st.button("3D", key="btn_3D", on_click=ajouter_texte, args=("+ 3D",), use_container_width=True)
+                st.button("4D", key="btn_4D", on_click=ajouter_texte, args=("+ 4D",), use_container_width=True)
+                st.button("5D", key="btn_5D", on_click=ajouter_texte, args=("+ 5D",), use_container_width=True)
+                st.button("6D", key="btn_6D", on_click=ajouter_texte, args=("+ 6D",), use_container_width=True)
+            with bc3:
+                st.caption("Outils")
+                st.button("↩️ Effacer", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
+                st.button("🟰 Simultané", key="btn_simul", on_click=ajouter_texte, args=("=",), use_container_width=True)
+                st.button("🔁 Doublées", key="btn_x2", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+                st.button("🔇 Silence", key="btn_silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            with bc4:
+                st.caption("Structure")
+                st.button("📄 Page", key="btn_page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+                st.button("📝 Texte", key="btn_txt", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
+
+        # ========================================================
+        # 2. SAISIE VISUELLE (NOUVELLE)
+        # ========================================================
+        with subtab_visu:
+            st.info("🎨 **Mode Visuel (Schéma du Manche)**")
+            
+            # Map des couleurs des cordes (approximatif basé sur l'image)
+            # Gauche 6->1 : Cyan, Rouge, BleuFoncé, Jaune, Rouge, Cyan
+            # Droite 1->6 : Vert, BleuFoncé, Orange, Cyan, Violet, Jaune
+            COLORS_VISU = {
+                '6G': '#00BFFF', '5G': '#FF4B4B', '4G': '#00008B', '3G': '#FFD700', '2G': '#FF4B4B', '1G': '#00BFFF',
+                '1D': '#32CD32', '2D': '#00008B', '3D': '#FFA500', '4D': '#00BFFF', '5D': '#9400D3', '6D': '#FFD700'
+            }
+
+            # On crée 13 colonnes : 6Gauche + 1Separateur + 6Droite
+            cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
+            
+            # -- GAUCHE (De 6G à 1G) --
+            cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
+            for i, corde in enumerate(cordes_gauche):
+                with cols_visu[i]:
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_texte, args=(f"+ {corde}",), use_container_width=True)
+                    # Indicateur visuel couleur
+                    c = COLORS_VISU.get(corde, 'gray')
+                    st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
+
+            # -- SEPARATEUR (Chevalet) --
+            with cols_visu[6]:
+                st.markdown("<div style='height:100px; width:4px; background-color:black; margin:0 auto; border-radius:2px;'></div>", unsafe_allow_html=True)
+
+            # -- DROITE (De 1D à 6D) --
+            cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
+            for i, corde in enumerate(cordes_droite):
+                with cols_visu[i+7]:
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_texte, args=(f"+ {corde}",), use_container_width=True)
+                    # Indicateur visuel couleur
+                    c = COLORS_VISU.get(corde, 'gray')
+                    st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
+
+            st.write("") # Espace
+            
+            # -- BARRE D'OUTILS EN DESSOUS (Similaire à avant mais alignée) --
+            c_tools = st.columns(6)
+            with c_tools[0]: st.button("↩️", key="v_undo", help="Effacer ligne", on_click=annuler_derniere_ligne, use_container_width=True)
+            with c_tools[1]: st.button("🟰", key="v_simul", help="Simultané", on_click=ajouter_texte, args=("=",), use_container_width=True)
+            with c_tools[2]: st.button("🔁", key="v_x2", help="Doubler (x2)", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            with c_tools[3]: st.button("🔇", key="v_sil", help="Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            with c_tools[4]: st.button("📄", key="v_page", help="Nouvelle Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+            with c_tools[5]: st.button("📝", key="v_txt", help="Ajouter Texte", on_click=ajouter_texte, args=("+ TXT Msg",), use_container_width=True)
+
+        # ========================================================
+        # 3. SAISIE TEXTE (ANCIENNE)
+        # ========================================================
+        with subtab_txt:
+            st.warning("📝 **Éditeur Texte (Ancienne méthode / Corrections)**")
+            st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
         
         # --- LECTEUR AUDIO RAPIDE ---
         st.markdown("---")
