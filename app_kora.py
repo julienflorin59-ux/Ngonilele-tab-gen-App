@@ -710,6 +710,20 @@ with tab1:
                 st.caption("Structure")
                 st.button("📄 Insérer Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
                 st.button("📝 Insérer Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
+            
+            # --- AJOUT BOUTON SAUVEGARDE BLOC (BOUTONS) ---
+            st.markdown("---")
+            with st.expander("📦 Sauvegarder ce motif en tant que Bloc"):
+                st.caption("Sauvegarde le contenu actuel de l'éditeur texte comme un nouveau bloc.")
+                b_name_btn = st.text_input("Nom du bloc", key="name_blk_btn")
+                if st.button("Sauvegarder", key="btn_save_btn"):
+                    if b_name_btn and st.session_state.code_actuel:
+                        st.session_state.stored_blocks[b_name_btn] = st.session_state.code_actuel
+                        st.toast(f"Bloc '{b_name_btn}' créé !", icon="📦")
+                    elif not st.session_state.code_actuel:
+                        st.error("L'éditeur est vide.")
+                    else:
+                        st.error("Nom du bloc requis.")
 
         with subtab_visu:
             st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎨 Mode Visuel (Schéma du Manche)</strong></div>""", unsafe_allow_html=True)
@@ -946,7 +960,7 @@ with tab1:
         if st.session_state.partition_generated and st.session_state.pdf_buffer:
             st.markdown("---")
             # Le clic ici recharge la page, mais 'partition_generated' reste True dans le session_state, donc l'affichage au-dessus persiste !
-            st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+            st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition.pdf", mime="application/pdf", type="primary", use_container_width=True)
 
 # --- TAB VIDÉO ---
 with tab3:
