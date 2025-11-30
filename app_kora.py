@@ -13,7 +13,7 @@ import shutil
 from fpdf import FPDF
 import random
 import pandas as pd 
-import re # Nécessaire pour le parsing des blocs
+import re 
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -52,6 +52,7 @@ def load_image_asset(path):
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE
 # ==============================================================================
+# Initialisation des variables de session pour qu'elles survivent au rechargement
 if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
@@ -60,9 +61,9 @@ if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
 
-# --- INITIALISATION SÉQUENCEUR & BLOCS ---
+# --- INITIALISATION SÉQUENCEUR (Dictionnaire) ---
 if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {} 
-if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {} # NOUVEAU: Stockage des blocs
+if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {} 
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -234,14 +235,10 @@ def parser_texte(texte):
     data.sort(key=lambda x: x['temps'])
     return data
 
-# --- NOUVEAU : FONCTION DE COMPILATION DES BLOCS ---
 def compiler_arrangement(structure_str, blocks_dict):
     full_text = ""
-    # On découpe par le symbole '+'
     parts = [p.strip() for p in structure_str.split('+') if p.strip()]
-    
     for part in parts:
-        # Détection du format "NomBloc x2"
         match = re.match(r"(.+?)\s*[xX]\s*(\d+)", part)
         if match:
             block_name = match.group(1).strip()
@@ -249,16 +246,12 @@ def compiler_arrangement(structure_str, blocks_dict):
         else:
             block_name = part
             repeat_count = 1
-            
         if block_name in blocks_dict:
             content = blocks_dict[block_name].strip()
-            # On ajoute le contenu N fois
             for _ in range(repeat_count):
                 full_text += content + "\n"
         else:
-            # Si le bloc n'existe pas, on l'ajoute comme commentaire ou erreur
             full_text += f"+ TXT [Bloc '{block_name}' introuvable]\n"
-            
     return full_text
 
 # ==============================================================================
@@ -756,6 +749,20 @@ with tab1:
             with c_tools[3]: st.button("🔇", key="v_sil", help="Insérer un silence", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True)
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Message", "Texte"), use_container_width=True)
+            
+            # --- AJOUT BOUTON SAUVEGARDE BLOC (VISUEL) ---
+            st.markdown("---")
+            with st.expander("📦 Sauvegarder ce motif en tant que Bloc"):
+                st.caption("Sauvegarde le contenu actuel de l'éditeur texte comme un nouveau bloc.")
+                b_name_visu = st.text_input("Nom du bloc", key="name_blk_visu")
+                if st.button("Sauvegarder", key="btn_save_visu"):
+                    if b_name_visu and st.session_state.code_actuel:
+                        st.session_state.stored_blocks[b_name_visu] = st.session_state.code_actuel
+                        st.toast(f"Bloc '{b_name_visu}' créé !", icon="📦")
+                    elif not st.session_state.code_actuel:
+                        st.error("L'éditeur est vide.")
+                    else:
+                        st.error("Nom du bloc requis.")
 
         with subtab_seq:
             st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎹 Séquenceur (Grille Compacte)</strong></div>""", unsafe_allow_html=True)
@@ -799,11 +806,29 @@ with tab1:
                 if st.button("🗑️ Vider"):
                     for k in st.session_state.seq_grid: st.session_state.seq_grid[k] = False
                     st.rerun()
+            
+            # --- AJOUT PHRASE D'AIDE ---
+            st.caption("👇 Scrollez vers le bas pour voir le code généré dans l'éditeur texte.")
+
             st.markdown("---")
             st.caption("Structure & Annotations")
             c_struct_1, c_struct_2 = st.columns(2)
             with c_struct_1: st.button("📄 Insérer Page", key="seq_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
             with c_struct_2: st.button("📝 Insérer Texte", key="seq_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
+
+            # --- AJOUT BOUTON SAUVEGARDE BLOC (SEQUENCEUR) ---
+            st.markdown("---")
+            with st.expander("📦 Sauvegarder ce motif en tant que Bloc"):
+                st.caption("Sauvegarde le contenu actuel de l'éditeur texte comme un nouveau bloc.")
+                b_name_seq = st.text_input("Nom du bloc", key="name_blk_seq")
+                if st.button("Sauvegarder", key="btn_save_seq"):
+                    if b_name_seq and st.session_state.code_actuel:
+                        st.session_state.stored_blocks[b_name_seq] = st.session_state.code_actuel
+                        st.toast(f"Bloc '{b_name_seq}' créé !", icon="📦")
+                    elif not st.session_state.code_actuel:
+                        st.error("L'éditeur est vide.")
+                    else:
+                        st.error("Nom du bloc requis.")
 
         # --- NOUVEAU ONGLET : GESTION DES BLOCS ---
         with subtab_blocs:
