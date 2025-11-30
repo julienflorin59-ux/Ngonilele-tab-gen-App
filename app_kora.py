@@ -478,32 +478,36 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
-# ✅ NOUVELLE FONCTION : Générer uniquement l'en-tête pour la vidéo (CORRIGÉE)
+# ✅ NOUVELLE FONCTION : Générer uniquement l'en-tête pour la vidéo (CORRIGÉE + ESPACÉE)
 def generer_entete_seul(config_acc, styles):
+    # On augmente la hauteur pour avoir de la place
     FIG_WIDTH = 16
-    FIG_HEIGHT = 2.0 # Légèrement augmenté pour tout voir
+    FIG_HEIGHT = 3.5 
     DPI = 100
     c_fond = styles['FOND']; c_txt = styles['TEXTE']
     
     plt.close('all')
     fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
-    # Zoom sur la zone utile
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(0.0, 4.0); ax.axis('off')
+    # On zoome sur la zone utile mais avec plus de marge en haut
+    ax.set_xlim(-7.5, 7.5); ax.set_ylim(0.0, 4.5); ax.axis('off')
 
     prop_note_us = get_font_cached(24, 'bold')
     prop_note_eu = get_font_cached(18, 'normal', 'italic')
     prop_numero = get_font_cached(14, 'bold')
 
     y_base = 1.5
+    # Ligne verticale centrale
     ax.vlines(0, 0, y_base + 1.8, color=c_txt, lw=5, zorder=2)
 
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        # Positionnement plus espacé
-        ax.text(x, y_base + 1.3, code, ha='center', color='gray', fontproperties=prop_numero)
-        ax.text(x, y_base + 0.8, note, ha='center', color=c, fontproperties=prop_note_us) # US Note (Remonté)
-        ax.text(x, y_base + 0.0, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu) # EU Note
-        ax.vlines(x, 0, y_base, colors=c, lw=3, zorder=1)
+        
+        # Espacement vertical augmenté pour éviter le chevauchement
+        ax.text(x, y_base + 2.2, code, ha='center', color='gray', fontproperties=prop_numero) # 6G tout en haut
+        ax.text(x, y_base + 1.2, note, ha='center', color=c, fontproperties=prop_note_us)    # G au milieu
+        ax.text(x, y_base + 0.2, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu) # sol en bas
+        
+        ax.vlines(x, 0, y_base + 2.0, colors=c, lw=3, zorder=1)
 
     buf = io.BytesIO()
     fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
@@ -529,9 +533,9 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     w, h = clip_img.size
     
     video_h = 600
-    # ✅ AJUSTEMENT POSITION BARRE ET SYNC
-    bar_y = 160 # Position visuelle de la barre
-    start_y = bar_y - offset_premiere_note_px # Sync
+    # ✅ BARRE REMONTÉE A 130 pour être juste sous les notes (plus confortable)
+    bar_y = 130 
+    start_y = bar_y - offset_premiere_note_px # La synchro se recalcule automatiquement ici
     speed_px_sec = pixels_par_temps * (bpm / 60.0)
     
     def scroll_func(t):
@@ -542,7 +546,7 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
     
     # ✅ CLIP HEADER FIXE (Positionné tout en haut)
-    header_clip = ImageClip("temp_header.png").set_position(('center', 0)).set_duration(duration_sec)
+    header_clip = ImageClip("temp_header.png").set_position(('center', -20)).set_duration(duration_sec) # Petit décalage -20 pour remonter un chouia
 
     # Barre de lecture (Jaune)
     try:
@@ -790,6 +794,21 @@ with tab1:
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
             
+            # ✅ CSS SÉCURISÉ (Plus de bug d'affichage)
+            st.markdown("""
+            <style>
+                div[data-testid="stCheckbox"] {
+                    margin-bottom: -15px !important;
+                    margin-top: -15px !important;
+                    display: flex;
+                    justify-content: center;
+                }
+                div[data-testid="stCheckbox"] > label {
+                    display: none;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+
             # Entête des cordes (Horizontal)
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
