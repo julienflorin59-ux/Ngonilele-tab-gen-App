@@ -680,8 +680,13 @@ def generer_pdf_livret(buffers, titre):
     for item in buffers:
         pdf.add_page()
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}_{random.randint(0,1000)}.png"
+        
+        # Note: Dans cette version, les buffers contiennent déjà l'image PNG encodée 
+        # (contrairement à l'ancienne version qui écrivait depuis le Figure object)
+        item['buf'].seek(0) # Assurer que la lecture commence au début
         with open(temp_img, "wb") as f:
-            f.write(item['buf'].getbuffer())
+            f.write(item['buf'].read()) 
+
         pdf.image(temp_img, x=10, y=10, w=190)
         if os.path.exists(temp_img): os.remove(temp_img)
     buf = io.BytesIO()
@@ -797,7 +802,7 @@ with st.sidebar:
 
         **3. Légende de la Syntaxe**
         * `+` : Nouvelle note (avance d'un temps).
-        * `=` : Note simultanée (jouée en même temps que la précédente).
+        * ` = ` : Note simultanée (jouée en même temps que la précédente).
         * `S` : Silence.
         * `PAGE` : Saut de page pour le PDF.
         * `TXT` : Ajouter une annotation.
@@ -1096,6 +1101,9 @@ with tab1:
             st.session_state.partition_buffers = [] 
             st.session_state.pdf_buffer = None
             
+            # DPI REDUIT A 150 POUR LE PDF (OPTIMISATION VITESSE)
+            DPI_PDF_OPTIMISE = 150 
+            
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
@@ -1106,9 +1114,18 @@ with tab1:
                 
                 # Génération Légende
                 fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
-                if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
-                else: fig_leg_dl = fig_leg_ecran
-                buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
+                
+                # OPTIMISATION (RÉUTILISATION OU NOUVEAU RENDU)
+                if force_white_print:
+                    # Rendu spécifique pour PDF (fond blanc)
+                    fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
+                    buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=DPI_PDF_OPTIMISE, facecolor=styles_print['FOND'], bbox_inches='tight'); buf_leg.seek(0)
+                    plt.close(fig_leg_dl) # Libération mémoire immédiate
+                else:
+                    # Réutilisation de la figure écran (Vitesse Max)
+                    fig_leg_dl = fig_leg_ecran
+                    buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=DPI_PDF_OPTIMISE, facecolor=styles_ecran['FOND'], bbox_inches='tight'); buf_leg.seek(0)
+
                 st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
                 
                 # Génération Pages
@@ -1122,11 +1139,21 @@ with tab1:
                 if not pages_data: st.warning("Aucune note.")
                 else:
                     for idx, page in enumerate(pages_data):
+                        # Génération de la figure pour l'écran (toujours nécessaire pour l'aperçu)
                         fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
-                        if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
-                        else: fig_dl = fig_ecran
-                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
+
+                        # OPTIMISATION (RÉUTILISATION OU NOUVEAU RENDU)
+                        if force_white_print:
+                            # Rendu spécifique pour PDF (fond blanc)
+                            fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
+                            buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=DPI_PDF_OPTIMISE, facecolor=styles_print['FOND'], bbox_inches='tight'); buf.seek(0)
+                            plt.close(fig_dl) # Libération mémoire immédiate
+                        else:
+                            # Réutilisation de la figure écran (Vitesse Max)
+                            buf = io.BytesIO(); fig_ecran.savefig(buf, format="png", dpi=DPI_PDF_OPTIMISE, facecolor=styles_ecran['FOND'], bbox_inches='tight'); buf.seek(0)
+                            
                         st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
+                        plt.close(fig_ecran) # Libération mémoire immédiate
                 
                 st.session_state.partition_generated = True
                 status.write("✅ Visuels prêts !")
@@ -1134,7 +1161,7 @@ with tab1:
                 # --- AFFICHAGE IMMEDIAT DES IMAGES AVANT LE PDF ---
                 afficher_visuels(view_container)
                 visuals_rendered_this_run = True
-
+                
                 # --- ETAPE 2 : GENERATION PDF ---
                 status.write("📄 Assemblage du PDF en cours...")
                 st.toast("Visuels affichés ! Génération du PDF en cours...", icon="⏳")
