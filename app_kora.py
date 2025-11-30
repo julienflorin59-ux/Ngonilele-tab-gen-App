@@ -14,6 +14,8 @@ from fpdf import FPDF
 import random
 import pandas as pd 
 import re 
+import gc # GARBAGE COLLECTOR (Pour vider la mémoire)
+import glob # Pour trouver les fichiers temporaires
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -279,7 +281,7 @@ BANQUE_TABLATURES = {
 # En-tête
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
-    <strong>👈 Ouvrez le menu latéral</strong> (flèche en haut à gauche) pour : Charger un morceau, lire le Guide complet, ou 🐞 Signaler un bug !
+    <strong>👈 Cliquez sur la flèche > en haut à gauche</strong> pour ouvrir le menu et charger un morceau dans la banque, imprimer sur fond blanc, m'envoyer vos tablatures pour les ajouter à la banque !!
 </div>
 """, unsafe_allow_html=True)
 
@@ -666,6 +668,7 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         st.error(f"Erreur vidéo : {e}")
         return None
     finally:
+        # Nettoyage fichiers temporaires spécifiques
         if os.path.exists(temp_img_file): os.remove(temp_img_file)
         if os.path.exists(temp_audio_file): os.remove(temp_audio_file)
 
@@ -713,6 +716,20 @@ def charger_morceau():
         # Réinitialisation forcée des caches pour éviter les fantômes
         st.session_state.seq_grid = {}
         # st.session_state.stored_blocks = {} # On garde les blocs, c'est utile de les conserver
+        
+        # 1. Clean Matplotlib
+        plt.close('all')
+        
+        # 2. Force Garbage Collection
+        gc.collect()
+        
+        # 3. Clean physical temp files (optional but good practice)
+        for temp_file in glob.glob("temp_*"):
+            try: os.remove(temp_file)
+            except: pass
+        for temp_file in glob.glob("ngoni_video_*.mp4"):
+            try: os.remove(temp_file)
+            except: pass
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
