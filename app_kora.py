@@ -822,6 +822,15 @@ with tab1:
                     for k in st.session_state.seq_grid:
                         st.session_state.seq_grid[k] = False
                     st.rerun()
+            
+            # ✅ AJOUT DES BOUTONS DE STRUCTURE MANQUANTS
+            st.markdown("---")
+            st.caption("Structure & Annotations")
+            c_struct_1, c_struct_2 = st.columns(2)
+            with c_struct_1:
+                st.button("📄 Insérer Page", key="seq_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
+            with c_struct_2:
+                st.button("📝 Insérer Texte", key="seq_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
 
         st.markdown("---")
         st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
