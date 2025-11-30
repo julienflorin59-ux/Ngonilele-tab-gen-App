@@ -23,70 +23,109 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS "TOUT BEIGE" (STYLE TOTAL) ---
+# --- CSS "BEIGE ABSOLU" (Refonte totale du style) ---
 st.markdown("""
     <style>
-    /* 1. FOND PRINCIPAL & SIDEBAR */
-    .stApp, section[data-testid="stSidebar"] {
-        background-color: #e5c4a3 !important; /* Le beige demandé */
-        color: #2b2b2b !important; /* Texte gris foncé presque noir */
-    }
-    
-    /* 2. TEXTES (Titres, Paragraphes, Labels) */
-    p, h1, h2, h3, h4, h5, h6, li, span, label, .stMarkdown, div[data-testid="stCaptionContainer"] {
+    /* --- 1. RÈGLES GLOBALES --- */
+    /* Force la couleur de texte par défaut à gris foncé/noir partout pour la lisibilité sur beige */
+    /* C'est crucial pour éviter que le texte ne devienne blanc si le navigateur force un mode sombre */
+    * {
         color: #1a1a1a !important;
     }
-
-    /* 3. CHAMPS DE SAISIE (Texte, Nombres, Selectbox) */
-    /* On les met en beige très clair pour qu'ils ressortent sans être blancs */
-    .stTextInput input, .stTextArea textarea, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
-        background-color: #f3e5d8 !important; 
-        color: black !important;
-        border: 1px solid #c49a6c !important; /* Bordure beige foncé */
-    }
     
-    /* 4. BOUTONS CLASSIQUES (Beige Foncé / Camel) */
-    .stButton > button {
-        background-color: #c49a6c !important; 
-        color: black !important;
-        border: none !important;
-        font-weight: bold !important;
-    }
-    .stButton > button:hover {
-        background-color: #a87f55 !important; /* Encore plus foncé au survol */
-        color: white !important;
+    /* Fond principal de l'application */
+    .stApp {
+        background-color: #e5c4a3 !important;
     }
 
-    /* 5. BOUTONS PRIMAIRES (Générer/Insérer) -> Remplacer le Rouge par Marron Chaud */
+    /* --- 2. BARRE LATÉRALE (SIDEBAR) --- */
+    /* Force le fond beige sur tout le conteneur de la sidebar et ses enfants directs */
+    section[data-testid="stSidebar"] > div {
+        background-color: #e5c4a3 !important;
+    }
+    /* S'assure que le fond derrière les éléments de nav est aussi beige */
+    div[data-testid="stSidebarNav"] {
+        background-color: #e5c4a3 !important;
+    }
+
+    /* --- 3. BOUTONS STANDARDS (Ceux des éditeurs, Image 2 & 4) --- */
+    /* Couleur Camel au lieu du gris foncé */
+    div.stButton > button:not([kind="primary"]) {
+        background-color: #c49a6c !important; 
+        color: #1a1a1a !important; /* Texte noir */
+        border: none !important;
+        font-weight: 600 !important;
+    }
+    /* Survol des boutons standards */
+    div.stButton > button:not([kind="primary"]):hover {
+        background-color: #a87f55 !important; /* Camel plus foncé */
+        color: #f3e5d8 !important; /* Texte clair au survol */
+    }
+
+    /* --- 4. BOUTONS PRIMAIRES (Générer, Insérer, Télécharger) --- */
+    /* Marron chaud au lieu du rouge */
     button[kind="primary"] {
-        background-color: #8b5a2b !important; /* Marron chaud */
-        color: white !important;
+        background-color: #8b5a2b !important;
+        color: #f3e5d8 !important; /* Texte clair */
         border: none !important;
     }
     button[kind="primary"]:hover {
         background-color: #6d421b !important;
     }
-
-    /* 6. ONGLETS (TABS) */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: transparent !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #dcb28b !important; /* Onglet inactif */
-        color: #4a4a4a !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #f3e5d8 !important; /* Onglet actif */
-        color: black !important;
+    
+    /* Bouton rouge "Contribuer" dans la sidebar (exception) */
+    .sidebar-contrib-btn {
+         background-color: #FF4B4B !important; 
+         color: white !important;
     }
 
-    /* 7. CHECKBOX & SEQUENCEUR */
-    /* Forcer le fond des cases du séquenceur */
-    div[data-testid="stDataEditor"] {
+    /* --- 5. CHAMPS DE SAISIE (Inputs, Selectbox, Textarea) --- */
+    /* Fond beige clair, texte noir, bordure camel */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > div[data-baseweb="select"] {
         background-color: #f3e5d8 !important;
+        color: #1a1a1a !important;
+        border: 1px solid #c49a6c !important;
     }
-    /* Enlever le fond sombre des checkbox si présent */
-    [data-testid="stCheckbox"] label span {
+    /* S'assurer que le texte tapé est bien noir */
+    input::placeholder, textarea::placeholder {
+        color: #665c54 !important;
+    }
+
+    /* --- 6. ONGLETS (TABS) --- */
+    /* Fond des onglets inactifs */
+    [data-baseweb="tab"] {
+        background-color: #dcb28b !important;
+        color: #4a4a4a !important;
+        border: none !important;
+    }
+    /* Fond de l'onglet actif */
+    [aria-selected="true"] {
+        background-color: #f3e5d8 !important;
+        color: #1a1a1a !important;
+        font-weight: bold !important;
+    }
+    /* Barre de fond des onglets */
+    [data-baseweb="tab-list"] {
+        background-color: #e5c4a3 !important;
+    }
+
+    /* --- 7. DIVERS --- */
+    /* Expander (accordéons) */
+    .stExpander {
+        background-color: transparent !important;
+        border-color: #c49a6c !important;
+    }
+    /* Checkbox (enlever le fond sombre potentiel) */
+    [data-testid="stCheckbox"] label span:first-child {
+        background-color: #f3e5d8 !important;
+        border-color: #c49a6c !important;
+    }
+    
+    /* Nettoyage des conteneurs de widgets pour éviter les fonds blancs résiduels */
+    div.stMarkdown, div[data-testid="stText"], div[data-testid="stCaptionContainer"] {
         background-color: transparent !important;
     }
     </style>
@@ -609,7 +648,8 @@ with st.sidebar:
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
-    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+    # Bouton "Contribuer" en rouge (exception au thème beige)
+    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button class="sidebar-contrib-btn" style="width:100%; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
