@@ -423,37 +423,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None); plt.close(fig); buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
-    pixels_par_temps, offset_premiere_note_px = metrics
-    with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
-    with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-    clip_img = ImageClip("temp_score.png")
-    w, h = clip_img.size
-    video_h = 600; window_h = int(w * 9 / 16)
-    if window_h > h: window_h = h
-    bar_y = 150 
-    start_y = bar_y - offset_premiere_note_px
-    speed_px_sec = pixels_par_temps * (bpm / 60.0)
-    def scroll_func(t):
-        current_y = start_y - (speed_px_sec * t)
-        return ('center', current_y)
-    moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
-    try:
-        bar_height = int(pixels_par_temps)
-        highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
-        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-    except:
-        video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-    video_visual = video_visual.set_duration(duration_sec)
-    audio_clip = AudioFileClip("temp_audio.mp3").subclip(0, duration_sec)
-    final = video_visual.set_audio(audio_clip)
-    final.fps = fps
-    output_filename = "ngoni_video_sound.mp4"
-    final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
-    try: audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
-    except: pass
-    return output_filename
-
 def generer_pdf_livret(buffers, titre):
     # Orientation P (Portrait), A4
     pdf = FPDF(orientation='P', unit='mm', format='A4')
@@ -564,7 +533,6 @@ with tab1:
         st.subheader("Éditeur")
         
         # ONGLETS DE SAISIE
-        # Note: Plus de "subtab_txt" car le texte est sorti des onglets
         subtab_btn, subtab_visu = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)"])
 
         # ========================================================
@@ -625,9 +593,38 @@ with tab1:
         with subtab_visu:
             st.info("🎨 **Mode Visuel (Schéma du Manche)**")
             
-            # Map des couleurs des cordes (approximatif basé sur l'image)
-            # Gauche 6->1 : Cyan, Rouge, BleuFoncé, Jaune, Rouge, Cyan
-            # Droite 1->6 : Vert, BleuFoncé, Orange, Cyan, Violet, Jaune
+            # --- LOGIQUE D'AJOUT INTELLIGENT (WRAPPER) ---
+            def ajouter_note_visuelle(corde):
+                mode = st.session_state.visu_mode_doigt
+                suffixe = ""
+                feedback_doigt = ""
+                
+                # Logique "Auto"
+                if mode == "🖐️ Auto (Défaut)":
+                    if corde in ['1G','2G','3G','1D','2D','3D']: 
+                        feedback_doigt = " (Pouce)"
+                    else: 
+                        feedback_doigt = " (Index)"
+                elif mode == "👍 Force Pouce (P)":
+                    suffixe = " P"; feedback_doigt = " (Pouce)"
+                elif mode == "👆 Force Index (I)":
+                    suffixe = " I"; feedback_doigt = " (Index)"
+                
+                # Action
+                ajouter_texte(f"+ {corde}{suffixe}")
+                # Notification (Toast)
+                st.toast(f"✅ Note {corde} ajoutée{feedback_doigt}", icon="🎵")
+
+            # --- OUTILS SPECIFIQUES (Wrapper pour Toast) ---
+            def outil_visuel_wrapper(action, txt_code, msg_toast):
+                if action == "ajouter": ajouter_texte(txt_code)
+                elif action == "undo": annuler_derniere_ligne()
+                st.toast(msg_toast, icon="🛠️")
+
+            # Sélecteur de doigté
+            st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="visu_mode_doigt", horizontal=True)
+
+            # Map des couleurs des cordes
             COLORS_VISU = {
                 '6G': '#00BFFF', '5G': '#FF4B4B', '4G': '#00008B', '3G': '#FFD700', '2G': '#FF4B4B', '1G': '#00BFFF',
                 '1D': '#32CD32', '2D': '#00008B', '3D': '#FFA500', '4D': '#00BFFF', '5D': '#9400D3', '6D': '#FFD700'
@@ -642,7 +639,7 @@ with tab1:
             cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
             for i, corde in enumerate(cordes_gauche):
                 with cols_visu[i]:
-                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_texte, args=(f"+ {corde}",), use_container_width=True)
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True)
                     # Indicateur visuel couleur
                     c = COLORS_VISU.get(corde, 'gray')
                     st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
@@ -656,7 +653,7 @@ with tab1:
             cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
             for i, corde in enumerate(cordes_droite):
                 with cols_visu[i+7]:
-                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_texte, args=(f"+ {corde}",), use_container_width=True)
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True)
                     # Indicateur visuel couleur
                     c = COLORS_VISU.get(corde, 'gray')
                     st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
@@ -664,14 +661,14 @@ with tab1:
 
             st.write("") # Espace
             
-            # -- BARRE D'OUTILS EN DESSOUS (UPDATED TOOLTIPS) --
+            # -- BARRE D'OUTILS EN DESSOUS (UPDATED TOOLTIPS & TOASTS) --
             c_tools = st.columns(6)
-            with c_tools[0]: st.button("↩️", key="v_undo", help="Annuler la dernière action", on_click=annuler_derniere_ligne, use_container_width=True)
-            with c_tools[1]: st.button("🟰", key="v_simul", help="Notes Simultanées (Jouer en même temps)", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            with c_tools[2]: st.button("🔁", key="v_x2", help="Doubler la note (x2)", on_click=ajouter_texte, args=("x2",), use_container_width=True)
-            with c_tools[3]: st.button("🔇", key="v_sil", help="Insérer un silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
-            with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
-            with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=ajouter_texte, args=("+ TXT Msg",), use_container_width=True)
+            with c_tools[0]: st.button("↩️", key="v_undo", help="Annuler la dernière action", on_click=outil_visuel_wrapper, args=("undo", "", "Dernière action annulée"), use_container_width=True)
+            with c_tools[1]: st.button("🟰", key="v_simul", help="Notes Simultanées (Jouer en même temps)", on_click=outil_visuel_wrapper, args=("ajouter", "=", "Mode Simultané activé"), use_container_width=True)
+            with c_tools[2]: st.button("🔁", key="v_x2", help="Doubler la note (x2)", on_click=outil_visuel_wrapper, args=("ajouter", "x2", "Note doublée (x2)"), use_container_width=True)
+            with c_tools[3]: st.button("🔇", key="v_sil", help="Insérer un silence", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence inséré"), use_container_width=True)
+            with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Saut de page inséré"), use_container_width=True)
+            with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte inséré"), use_container_width=True)
 
         # ========================================================
         # 3. SAISIE TEXTE (PERMANENTE / HORS ONGLETS)
