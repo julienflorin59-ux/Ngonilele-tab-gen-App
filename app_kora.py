@@ -840,8 +840,7 @@ with tab2:
 
 with tab1:
     titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
-    # Colonnes principales - elles peuvent s'empiler si l'écran est vraiment trop étroit
-    col_input, col_view = st.columns([1, 1.5]) 
+    col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
         subtab_btn, subtab_visu, subtab_seq, subtab_blocs = st.tabs(["🔘 Boutons", "🎨 Visuel", "🎹 Séquenceur", "📦 Structure"])
@@ -906,10 +905,7 @@ with tab1:
                 st.toast(msg_toast, icon="🛠️")
             COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
             st.write("##### Cordes de Gauche _____________________ Cordes de Droite")
-            
-            # --- CORRECTION MISE EN PAGE MOBILE ---
-            cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1], gap="small")
-            
+            cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
             cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
             for i, corde in enumerate(cordes_gauche):
                 with cols_visu[i]:
@@ -918,7 +914,6 @@ with tab1:
                     st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
                     st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
             with cols_visu[6]:
-                # Colonne centrale (la barre séparatrice)
                 st.markdown("<div style='height:100px; width:4px; background-color:black; margin:0 auto; border-radius:2px;'></div>", unsafe_allow_html=True)
             cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
             for i, corde in enumerate(cordes_droite):
@@ -928,8 +923,6 @@ with tab1:
                     st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
                     st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
             st.write("")
-            
-            # Les outils peuvent rester en colonnes flexibles
             c_tools = st.columns(6)
             with c_tools[0]: st.button("↩️", key="v_undo", help="Annuler la dernière action", on_click=outil_visuel_wrapper, args=("undo", "", "Annulé !"), use_container_width=True)
             with c_tools[1]: st.button("🟰", key="v_simul", help="Notes Simultanées (Jouer en même temps)", on_click=outil_visuel_wrapper, args=("ajouter", "=", "Mode Simultané"), use_container_width=True)
@@ -956,34 +949,21 @@ with tab1:
             st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎹 Séquenceur (Grille Compacte)</strong></div>""", unsafe_allow_html=True)
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
-            
-            # --- CORRECTION MISE EN PAGE MOBILE DU SÉQUENCEUR ---
-            # Utilisation de petits ratios pour forcer la compression horizontale
-            small_col_ratio = 0.75 
-            cols_header = st.columns([1] + [small_col_ratio]*12, gap="small") 
+            # --- MODIFICATION ICI : Ordre inversé pour les cordes de gauche ---
+            cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
-            with cols_header[0]: st.write("**T**")
+            with cols[0]: st.write("**T**")
             for i, c in enumerate(cordes_list):
-                with cols_header[i+1]: st.markdown(f"**{c}**")
-            
+                with cols[i+1]: st.markdown(f"**{c}**")
             with st.container(height=400):
                 for t in range(nb_temps):
-                    # Chaque ligne de la grille utilise le même ratio compact
-                    cols_row = st.columns([1] + [small_col_ratio]*12, gap="small")
-                    with cols_row[0]: 
+                    cols = st.columns([0.8] + [1]*12)
+                    with cols[0]: 
                         st.write(""); st.caption(f"**{t+1}**")
                     for i, c in enumerate(cordes_list):
                         key = f"T{t}_{c}"
                         if key not in st.session_state.seq_grid: st.session_state.seq_grid[key] = False
-                        with cols_row[i+1]: 
-                            # Marge négative pour forcer le checkbox à rester très petit sur mobile
-                            st.markdown(
-                                f"""<style>div[data-testid="column"] input[type="checkbox"] {{ margin-top: -10px; margin-bottom: -10px; transform: scale(0.7); }}</style>""", 
-                                unsafe_allow_html=True
-                            )
-                            st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
-            # --- FIN CORRECTION MISE EN PAGE MOBILE DU SÉQUENCEUR ---
-            
+                        with cols[i+1]: st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
             st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
