@@ -972,7 +972,13 @@ with tab4:
 
     with col_droite:
         st.subheader("🥁 Groove Box (Métronome)")
-        st.info("Un outil simple pour s'entraîner en rythme.")
+        # ✅ REMPLACEMENT ICI : BLOC HTML STYLISÉ POUR LE MÉTRONOME
+        st.markdown("""
+        <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
+            Un outil simple pour s'entraîner en rythme.
+        </div>
+        """, unsafe_allow_html=True)
+        
         col_sig, col_bpm_metro = st.columns([1, 2])
         with col_sig: signature_metro = st.radio("Signature", ["4/4", "3/4"], horizontal=True)
         with col_bpm_metro: bpm_metro = st.slider("Vitesse (BPM)", 30, 200, 80, key="bpm_metro")
