@@ -612,12 +612,20 @@ with tab1:
         # --- METHODE 1 : BOUTONS (NOUVELLE) ---
         st.info("⌨️ **Saisie par Boutons (Nouvelle méthode)**")
 
-        # --- CSS POUR REDUIRE LA TAILLE DES BOUTONS ---
+        # --- CSS MODIFIE (V3: AGRESSIF SUR LE TEXTE INTERNE) ---
         st.markdown("""
         <style>
-        div[data-testid="stButton"] button {
+        /* Cibler le conteneur du bouton dans les colonnes */
+        div[data-testid="column"] .stButton button {
+            width: 100%;
+            height: auto !important;
+            min-height: 0px !important;
+            padding: 4px 8px !important;
+            line-height: 1 !important;
+        }
+        /* CIBLER LE TEXTE INTERNE SPECIFIQUEMENT */
+        div[data-testid="column"] .stButton button p {
             font-size: 13px !important;
-            padding: 5px 10px !important;
         }
         </style>
         """, unsafe_allow_html=True)
