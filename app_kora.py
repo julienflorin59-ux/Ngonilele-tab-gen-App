@@ -52,7 +52,6 @@ def load_image_asset(path):
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE
 # ==============================================================================
-# Initialisation des variables de session pour qu'elles survivent au rechargement
 if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
@@ -61,7 +60,6 @@ if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
 
-# --- INITIALISATION SÉQUENCEUR (Dictionnaire) ---
 if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {} 
 if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {} 
 
@@ -424,7 +422,9 @@ def generer_audio_mix(sequence, bpm, acc_config):
             t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
-    buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
+    
+    # OPTIMISATION AUDIO: Export en bitrate réduit pour chargement rapide
+    buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
     return buffer
 
 def generer_metronome(bpm, duration_sec=30, signature="4/4"):
@@ -442,7 +442,9 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     else: measure_block = beat_accent + beat_normal + beat_normal + beat_normal
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
     metronome_track = (measure_block * nb_mesures)[:int(duration_sec*1000)]
-    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3"); buffer.seek(0)
+    
+    # OPTIMISATION AUDIO: Export en bitrate réduit
+    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
     return buffer
 
 # ==============================================================================
@@ -624,7 +626,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
 # ==============================================================================
 # 🔧 FONCTION MANQUANTE (OPTIMISÉE)
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité
     pixels_par_temps, offset_premiere_note_px = metrics
     temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
     temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
