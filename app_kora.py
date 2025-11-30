@@ -10,8 +10,7 @@ import urllib.parse
 import numpy as np
 import shutil
 from fpdf import FPDF
-import random
-import pandas as pd # NOUVEAU : Indispensable pour le Séquenceur
+import random 
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -56,13 +55,6 @@ if 'video_path' not in st.session_state: st.session_state.video_path = None
 if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
-
-# Initialisation de la grille du séquenceur
-if 'df_sequenceur' not in st.session_state:
-    # Création d'une grille vide : Index = Cordes, Colonnes = Temps (8 temps)
-    rows = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-    cols = [f"T{i+1}" for i in range(8)]
-    st.session_state.df_sequenceur = pd.DataFrame(False, index=rows, columns=cols)
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -422,6 +414,8 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
     ax.set_ylim(y_min_footer, y_max_header); ax.set_xlim(-7.5, 7.5)
     
+    # ... [Code simplifié pour la réponse - Logique identique à generer_page_notes mais en une seule bande] ...
+    # Réintégration du code de dessin complet pour la vidéo
     y_top = 2.0; y_bot = y_min_footer + 1.0 
     prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic'); prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold'); prop_annotation = get_font_cached(16, 'bold')
     
@@ -567,13 +561,14 @@ with tab1:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur"])
+        subtab_btn, subtab_visu = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)"])
 
-        # --- LOGIQUE UNIFIÉE ---
+        # --- LOGIQUE UNIFIÉE POUR LES DOIGTS ---
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
             if mode == "👍 Force Pouce (P)": return " P", " (Pouce)"
             if mode == "👆 Force Index (I)": return " I", " (Index)"
+            # Auto
             if corde in ['1G','2G','3G','1D','2D','3D']: return "", " (Pouce)"
             return "", " (Index)"
 
@@ -652,52 +647,6 @@ with tab1:
             with c_tools[3]: st.button("🔇", key="v_sil", help="Insérer un silence", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True)
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
-
-        # --- ONGLET SÉQUENCEUR ---
-        with subtab_seq:
-            st.info("🎹 **Séquenceur (Grille 8 temps)**")
-            st.write("Cochez les cases pour composer (Colonnes = Temps, Lignes = Cordes).")
-            
-            # Affichage de la grille éditable
-            edited_df = st.data_editor(
-                st.session_state.df_sequenceur,
-                column_config={c: st.column_config.CheckboxColumn(width="small") for c in st.session_state.df_sequenceur.columns},
-                use_container_width=True,
-                height=450
-            )
-            
-            # Mise à jour du state si changement
-            if not edited_df.equals(st.session_state.df_sequenceur):
-                st.session_state.df_sequenceur = edited_df
-
-            col_seq_btn, col_seq_reset = st.columns([3, 1])
-            with col_seq_btn:
-                if st.button("📥 Insérer la séquence dans la partition", type="primary", use_container_width=True):
-                    # Conversion de la grille en code
-                    texte_genere = ""
-                    df = st.session_state.df_sequenceur
-                    
-                    for col_name in df.columns: # Pour chaque temps (T1, T2...)
-                        notes_activees = df.index[df[col_name]].tolist()
-                        
-                        if not notes_activees:
-                            texte_genere += "+ S\n" # Silence si vide
-                        else:
-                            premier = True
-                            for note in notes_activees:
-                                prefix = "+ " if premier else "= "
-                                # Ajout auto du doigté par défaut
-                                doigt = " P" if note in ['1G','2G','3G','1D','2D','3D'] else " I"
-                                texte_genere += f"{prefix}{note}\n" # Note simple pour l'instant (ajout P/I possible)
-                                premier = False
-                    
-                    ajouter_texte(texte_genere)
-                    st.toast("Séquence ajoutée avec succès !", icon="🎹")
-            
-            with col_seq_reset:
-                if st.button("🗑️ Vider Grille"):
-                    st.session_state.df_sequenceur[:] = False
-                    st.rerun()
 
         st.markdown("---")
         st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
