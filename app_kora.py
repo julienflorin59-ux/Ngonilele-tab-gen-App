@@ -598,6 +598,37 @@ with st.sidebar:
     if st.button("🔗 Créer un lien de partage"):
         url_share = f"https://share.streamlit.io/votre_app?code={urllib.parse.quote(st.session_state.code_actuel)}"
         st.code(url_share, language="text")
+    
+    # --- AJOUT DU GUIDE D'UTILISATION (LÉGENDE) ---
+    st.markdown("---")
+    with st.expander("📖 Guide & Légende", expanded=False):
+        st.markdown("""
+        ### 📖 Guide d'utilisation
+
+        **1. Écrire une partition**
+        Vous avez 3 méthodes dans l'onglet **Éditeur** :
+        * **🔘 Boutons** : Cliquez sur les noms des cordes (ex: 1G, 4D).
+        * **🎨 Visuel** : Cliquez sur les cordes du schéma.
+        * **🎹 Séquenceur** : Cochez les cases dans la grille.
+        * *Note :* Vous pouvez aussi écrire directement dans la zone de texte en bas (`+ 4G`, `= 1D`).
+
+        **2. Légende de la Syntaxe**
+        * `+` : Nouvelle note (avance d'un temps).
+        * `=` : Note simultanée (jouée en même temps que la précédente).
+        * `S` : Silence.
+        * `PAGE` : Saut de page pour le PDF.
+        * `TXT` : Ajouter une annotation.
+        * `P` / `I` : Force le doigté (Pouce / Index).
+
+        **3. Générer le rendu**
+        * **🔄 Générer la partition** : Affiche les pages et permet de télécharger le **PDF**.
+        * **🎧 Audio** : Écoutez le rendu MP3 dans l'onglet dédié.
+        * **🎬 Vidéo** : Créez une vidéo MP4 défilante (idéal pour YouTube/TikTok).
+
+        **4. Outils**
+        * **⚙️ Accordage** : Changez la note de chaque corde.
+        * **🥁 Groove Box** : Un métronome simple pour s'entraîner.
+        """)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
@@ -699,7 +730,6 @@ with tab1:
             st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎹 Séquenceur (Grille Compacte)</strong></div>""", unsafe_allow_html=True)
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
-            # --- MODIFICATION ICI : Ordre inversé pour les cordes de gauche ---
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
             with cols[0]: st.write("**T**")
