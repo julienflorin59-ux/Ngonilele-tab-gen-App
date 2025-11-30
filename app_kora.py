@@ -712,10 +712,9 @@ def charger_morceau():
         
         # Réinitialisation forcée des caches pour éviter les fantômes
         st.session_state.seq_grid = {}
-        st.session_state.stored_blocks = {}
+        # st.session_state.stored_blocks = {} # Maybe keep blocks? The user logic seemed to want a full reset, but usually blocks are kept. Let's stick to the previous logic but remove rerun.
         
-        # Force le rafraîchissement immédiat de l'UI
-        st.rerun()
+        # Note: No st.rerun() needed here!
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
