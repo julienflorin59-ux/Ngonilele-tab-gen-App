@@ -279,7 +279,7 @@ BANQUE_TABLATURES = {
 # En-tête
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
-    <strong>👈 Cliquez sur la flèche > en haut à gauche</strong> pour ouvrir le menu et charger un morceau dans la banque, imprimer sur fond blanc, m'envoyer vos tablatures pour les ajouter à la banque !!
+    <strong>👈 Ouvrez le menu latéral</strong> (flèche en haut à gauche) pour : Charger un morceau, lire le Guide complet, ou 🐞 Signaler un bug !
 </div>
 """, unsafe_allow_html=True)
 
@@ -712,9 +712,7 @@ def charger_morceau():
         
         # Réinitialisation forcée des caches pour éviter les fantômes
         st.session_state.seq_grid = {}
-        # st.session_state.stored_blocks = {} # Maybe keep blocks? The user logic seemed to want a full reset, but usually blocks are kept. Let's stick to the previous logic but remove rerun.
-        
-        # Note: No st.rerun() needed here!
+        # st.session_state.stored_blocks = {} # On garde les blocs, c'est utile de les conserver
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
@@ -772,7 +770,12 @@ with st.sidebar:
         * **🎹 Séquenceur** : Cochez les cases dans la grille.
         * *Note :* Vous pouvez aussi écrire directement dans la zone de texte en bas (`+ 4G`, `= 1D`).
 
-        **2. Légende de la Syntaxe**
+        **2. Les Blocs (Gain de temps !)**
+        * Dans les onglets Boutons, Visuel ou Séquenceur, ouvrez le panneau **"Sauvegarder ce motif..."**.
+        * Donnez un nom (ex: "Refrain") et validez.
+        * Allez dans l'onglet **Structure** et écrivez votre arrangement : `Refrain x2 + Couplet + Refrain`.
+
+        **3. Légende de la Syntaxe**
         * `+` : Nouvelle note (avance d'un temps).
         * `=` : Note simultanée (jouée en même temps que la précédente).
         * `S` : Silence.
@@ -780,12 +783,12 @@ with st.sidebar:
         * `TXT` : Ajouter une annotation.
         * `P` / `I` : Force le doigté (Pouce / Index).
 
-        **3. Générer le rendu**
+        **4. Générer le rendu**
         * **🔄 Générer la partition** : Affiche les pages et permet de télécharger le **PDF**.
         * **🎧 Audio** : Écoutez le rendu MP3 dans l'onglet dédié.
         * **🎬 Vidéo** : Créez une vidéo MP4 défilante (idéal pour YouTube/TikTok).
 
-        **4. Outils**
+        **5. Outils**
         * **⚙️ Accordage** : Changez la note de chaque corde.
         * **🥁 Groove Box** : Un métronome simple pour s'entraîner.
         """)
