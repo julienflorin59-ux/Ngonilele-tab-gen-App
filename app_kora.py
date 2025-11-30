@@ -19,7 +19,7 @@ import pandas as pd
 st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
-    page_icon="ico_ngonilele.png", # ✅ MODIFICATION FAVICON
+    page_icon="ico_ngonilele.png", 
     initial_sidebar_state="expanded"
 )
 
@@ -502,7 +502,9 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     try:
         bar_height = int(pixels_par_temps)
         highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
-        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
+        # Background modifié en BLANC pour éviter le mode sombre forcé sur la vidéo
+        bg_clip = ColorClip(size=(w, video_h), color=(255, 255, 255)).set_duration(duration_sec) 
+        video_visual = CompositeVideoClip([bg_clip, moving_clip, highlight_bar], size=(w, video_h))
     except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
         
@@ -590,7 +592,8 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
+        # ✅ COULEUR PAR DÉFAUT MODIFIÉE pour matcher le thème (ligne 448)
+        bg_color = st.color_picker("Couleur de fond", "#e5c4a3") 
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
