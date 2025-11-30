@@ -533,7 +533,7 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     w, h = clip_img.size
     
     video_h = 600
-    # ✅ BARRE REMONTÉE A 130 pour être juste sous les notes (plus confortable)
+    # ✅ BARRE REMONTÉE A 130 pour être juste sous les notes
     bar_y = 130 
     start_y = bar_y - offset_premiere_note_px # La synchro se recalcule automatiquement ici
     speed_px_sec = pixels_par_temps * (bpm / 60.0)
@@ -546,7 +546,7 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
     
     # ✅ CLIP HEADER FIXE (Positionné tout en haut)
-    header_clip = ImageClip("temp_header.png").set_position(('center', -20)).set_duration(duration_sec) # Petit décalage -20 pour remonter un chouia
+    header_clip = ImageClip("temp_header.png").set_position(('center', -20)).set_duration(duration_sec) 
 
     # Barre de lecture (Jaune)
     try:
@@ -556,7 +556,6 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         bg_clip = ColorClip(size=(w, video_h), color=(229, 196, 163)).set_duration(duration_sec) 
         
         # ✅ COMPOSITION : Fond + Partition + Header (FIXE) + Barre (PAR DESSUS TOUT)
-        # L'ordre est crucial : la barre est en dernier pour être toujours visible, même sur le header.
         video_visual = CompositeVideoClip([bg_clip, moving_clip, header_clip, highlight_bar], size=(w, video_h))
     except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
@@ -781,7 +780,7 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (CORRIGÉ : ORDRE CORDES GAUCHE INVERSÉ) ---
+        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET COMPLET AVEC GRILLE VISIBLE) ---
         with subtab_seq:
             # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
             st.markdown("""
@@ -794,24 +793,23 @@ with tab1:
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
             
-            # ✅ CSS SÉCURISÉ (Plus de bug d'affichage)
+            # ✅ CSS SÉCURISÉ (Centrage propre sans marges négatives destructrices)
             st.markdown("""
             <style>
                 div[data-testid="stCheckbox"] {
-                    margin-bottom: -15px !important;
-                    margin-top: -15px !important;
                     display: flex;
                     justify-content: center;
+                    align-items: center;
+                    min-height: 40px; /* Hauteur minimale garantie */
                 }
                 div[data-testid="stCheckbox"] > label {
-                    display: none;
+                    display: none; /* Cache le label mais garde la case */
                 }
             </style>
             """, unsafe_allow_html=True)
 
-            # ✅ MODIFICATION ICI : ORDRE CORDES GAUCHE INVERSÉ
+            # Entête des cordes (Horizontal) - CORDES GAUCHE INVERSÉES (6G -> 1G)
             cols = st.columns([0.8] + [1]*12) 
-            # CORDES GAUCHE DANS L'ORDRE 6G -> 1G (Miroir) puis DROITE 1D -> 6D
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
             
             with cols[0]: st.write("**T**")
@@ -833,6 +831,7 @@ with tab1:
                             st.session_state.seq_grid[key] = False
                             
                         with cols[i+1]:
+                            # Case à cocher sans label visible mais fonctionnelle
                             st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
 
             st.write("")
