@@ -13,6 +13,7 @@ import shutil
 from fpdf import FPDF
 import random
 import pandas as pd 
+import re # Nécessaire pour le parsing des blocs
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -51,7 +52,6 @@ def load_image_asset(path):
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE
 # ==============================================================================
-# Initialisation des variables de session pour qu'elles survivent au rechargement
 if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
@@ -60,9 +60,9 @@ if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
 
-# --- INITIALISATION SÉQUENCEUR (Dictionnaire) ---
-if 'seq_grid' not in st.session_state:
-    st.session_state.seq_grid = {} 
+# --- INITIALISATION SÉQUENCEUR & BLOCS ---
+if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {} 
+if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {} # NOUVEAU: Stockage des blocs
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -233,6 +233,33 @@ def parser_texte(texte):
         except: pass
     data.sort(key=lambda x: x['temps'])
     return data
+
+# --- NOUVEAU : FONCTION DE COMPILATION DES BLOCS ---
+def compiler_arrangement(structure_str, blocks_dict):
+    full_text = ""
+    # On découpe par le symbole '+'
+    parts = [p.strip() for p in structure_str.split('+') if p.strip()]
+    
+    for part in parts:
+        # Détection du format "NomBloc x2"
+        match = re.match(r"(.+?)\s*[xX]\s*(\d+)", part)
+        if match:
+            block_name = match.group(1).strip()
+            repeat_count = int(match.group(2))
+        else:
+            block_name = part
+            repeat_count = 1
+            
+        if block_name in blocks_dict:
+            content = blocks_dict[block_name].strip()
+            # On ajoute le contenu N fois
+            for _ in range(repeat_count):
+                full_text += content + "\n"
+        else:
+            # Si le bloc n'existe pas, on l'ajoute comme commentaire ou erreur
+            full_text += f"+ TXT [Bloc '{block_name}' introuvable]\n"
+            
+    return full_text
 
 # ==============================================================================
 # 🎹 MOTEUR AUDIO
@@ -630,7 +657,7 @@ with st.sidebar:
         * **🥁 Groove Box** : Un métronome simple pour s'entraîner.
         """)
     
-    # --- BOUTON REPORTER UN BUG ---
+    # --- BOUTON REPORTER UN BUG (ROUGE BORDEAUX) ---
     st.markdown("---")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com?subject=Rapport de Bug - Ngonilélé App" target="_blank"><button style="width:100%; background-color:#800020; color:white; padding:8px; border:none; border-radius:5px; cursor:pointer;">🐞 Reporter un bug</button></a>', unsafe_allow_html=True)
 
@@ -656,7 +683,7 @@ with tab1:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur (Grille Compacte)"])
+        subtab_btn, subtab_visu, subtab_seq, subtab_blocs = st.tabs(["🔘 Boutons", "🎨 Visuel", "🎹 Séquenceur", "📦 Structure"])
 
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
@@ -777,6 +804,43 @@ with tab1:
             c_struct_1, c_struct_2 = st.columns(2)
             with c_struct_1: st.button("📄 Insérer Page", key="seq_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
             with c_struct_2: st.button("📝 Insérer Texte", key="seq_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
+
+        # --- NOUVEAU ONGLET : GESTION DES BLOCS ---
+        with subtab_blocs:
+            st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>📦 Créer des blocs réutilisables</strong></div>""", unsafe_allow_html=True)
+            
+            c_bloc_1, c_bloc_2 = st.columns(2)
+            with c_bloc_1:
+                new_block_name = st.text_input("Nom du bloc (ex: Refrain)", placeholder="Refrain")
+                new_block_content = st.text_area("Contenu du bloc (Copiez le code ici)", height=150, placeholder="+ 4G\n= 1D...")
+                if st.button("💾 Sauvegarder le Bloc"):
+                    if new_block_name and new_block_content:
+                        st.session_state.stored_blocks[new_block_name] = new_block_content
+                        st.toast(f"Bloc '{new_block_name}' sauvegardé !", icon="💾")
+                    else:
+                        st.error("Le nom et le contenu sont requis.")
+            
+            with c_bloc_2:
+                st.write("**Blocs existants :**")
+                if st.session_state.stored_blocks:
+                    for b_name in st.session_state.stored_blocks:
+                        st.info(f"📦 {b_name}")
+                else:
+                    st.caption("Aucun bloc créé.")
+
+            st.markdown("---")
+            st.markdown("#### 🏗️ Assembler la structure")
+            structure_input = st.text_input("Ordre des blocs (utilisez + pour séparer)", placeholder="Refrain x2 + Couplet + Refrain")
+            
+            if st.button("🚀 Générer la partition complète depuis la structure", type="primary"):
+                if structure_input:
+                    full_code = compiler_arrangement(structure_input, st.session_state.stored_blocks)
+                    st.session_state.code_actuel = full_code
+                    st.session_state.widget_input = full_code
+                    st.toast("Partition assemblée avec succès !", icon="🚀")
+                    st.rerun()
+                else:
+                    st.error("Veuillez entrer une structure.")
 
         st.markdown("---")
         st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
