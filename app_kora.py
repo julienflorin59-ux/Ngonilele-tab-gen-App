@@ -23,6 +23,26 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- CSS POUR FORCER LE FOND BEIGE ET TEXTE NOIR ---
+st.markdown("""
+    <style>
+    /* Force la couleur de fond de l'application entière */
+    .stApp {
+        background-color: #e5c4a3;
+        color: black;
+    }
+    /* Force la couleur des textes par défaut pour la lisibilité */
+    p, h1, h2, h3, h4, h5, h6, li, span, label, .stMarkdown {
+        color: #2b2b2b !important;
+    }
+    /* Ajustement des inputs pour qu'ils ressortent bien */
+    .stTextInput input, .stTextArea textarea, .stNumberInput input {
+        background-color: #f0e6dc !important;
+        color: black !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 CHEMIN_POLICE = 'ML.ttf' 
 CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
 CHEMIN_ICON_POUCE = 'icon_pouce.png'
@@ -533,7 +553,7 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
+        bg_color = st.color_picker("Couleur de fond", "#e5c4a3") # DEFAULT BEIGE
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
@@ -658,29 +678,42 @@ with tab1:
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
             
-            # Mise à jour de la grille si la taille change
+            # CSS spécifique pour tasser les checkbox
+            st.markdown("""
+            <style>
+                /* Réduit drastiquement l'espace entre les checkbox */
+                [data-testid="stCheckbox"] {
+                    margin-bottom: -15px !important;
+                    margin-top: -15px !important;
+                }
+                /* Centre les checkbox */
+                [data-testid="stCheckbox"] > label {
+                    display: none; /* Cache le label à côté de la checkbox */
+                }
+            </style>
+            """, unsafe_allow_html=True)
+
+            # Entête des cordes (Horizontal)
+            cols = st.columns([0.6] + [1]*12) # 1 col pour "T", 12 pour les cordes
             cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-            for t in range(nb_temps):
-                for c in cordes_list:
-                    k = f"T{t}_{c}"
-                    if k not in st.session_state.seq_grid:
-                        st.session_state.seq_grid[k] = False
+            
+            with cols[0]: st.write("**T**")
+            for i, c in enumerate(cordes_list):
+                with cols[i+1]: st.markdown(f"**{c}**")
 
-            # Conteneur avec scroll
+            # Conteneur AVEC SCROLL (height fixe)
             with st.container(height=400):
-                # Entête des cordes
-                cols = st.columns([0.6] + [1]*12) # 1 col pour "T", 12 pour les cordes
-                with cols[0]: st.write("**T**")
-                for i, c in enumerate(cordes_list):
-                    with cols[i+1]: st.markdown(f"**{c}**")
-
-                # Grille
+                # Grille de temps
                 for t in range(nb_temps):
                     cols = st.columns([0.6] + [1]*12)
                     with cols[0]: st.caption(f"{t+1}") # Numéro du temps
                     
                     for i, c in enumerate(cordes_list):
                         key = f"T{t}_{c}"
+                        # Initialisation si clé manquante (changement nb_temps)
+                        if key not in st.session_state.seq_grid:
+                            st.session_state.seq_grid[key] = False
+                            
                         with cols[i+1]:
                             # Utilisation de label_visibility="collapsed" pour masquer le label proprement
                             st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
