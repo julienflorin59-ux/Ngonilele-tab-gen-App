@@ -907,7 +907,7 @@ with tab1:
             COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
             st.write("##### Cordes de Gauche _____________________ Cordes de Droite")
             
-            # --- CORRECTION MISE EN PAGE MOBILE ICI : Définir des colonnes très étroites ---
+            # --- CORRECTION MISE EN PAGE MOBILE ---
             cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1], gap="small")
             
             cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
@@ -956,21 +956,34 @@ with tab1:
             st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎹 Séquenceur (Grille Compacte)</strong></div>""", unsafe_allow_html=True)
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
-            # --- MISE EN PAGE FLEXIBLE MAIS CONTENUE ---
-            cols = st.columns([0.8] + [1]*12) 
+            
+            # --- CORRECTION MISE EN PAGE MOBILE DU SÉQUENCEUR ---
+            # Utilisation de petits ratios pour forcer la compression horizontale
+            small_col_ratio = 0.75 
+            cols_header = st.columns([1] + [small_col_ratio]*12, gap="small") 
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
-            with cols[0]: st.write("**T**")
+            with cols_header[0]: st.write("**T**")
             for i, c in enumerate(cordes_list):
-                with cols[i+1]: st.markdown(f"**{c}**")
+                with cols_header[i+1]: st.markdown(f"**{c}**")
+            
             with st.container(height=400):
                 for t in range(nb_temps):
-                    cols = st.columns([0.8] + [1]*12)
-                    with cols[0]: 
+                    # Chaque ligne de la grille utilise le même ratio compact
+                    cols_row = st.columns([1] + [small_col_ratio]*12, gap="small")
+                    with cols_row[0]: 
                         st.write(""); st.caption(f"**{t+1}**")
                     for i, c in enumerate(cordes_list):
                         key = f"T{t}_{c}"
                         if key not in st.session_state.seq_grid: st.session_state.seq_grid[key] = False
-                        with cols[i+1]: st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
+                        with cols_row[i+1]: 
+                            # Marge négative pour forcer le checkbox à rester très petit sur mobile
+                            st.markdown(
+                                f"""<style>div[data-testid="column"] input[type="checkbox"] {{ margin-top: -10px; margin-bottom: -10px; transform: scale(0.7); }}</style>""", 
+                                unsafe_allow_html=True
+                            )
+                            st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
+            # --- FIN CORRECTION MISE EN PAGE MOBILE DU SÉQUENCEUR ---
+            
             st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
