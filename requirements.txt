@@ -1,12 +1,16 @@
 streamlit
-matplotlib
 numpy
+pandas
+matplotlib
+# Audio et Vidéo
 pydub
-moviepy==1.0.3
+ffmpeg-python
+# Version spécifique pour compatibilité vidéo
+decorator==4.4.2
 imageio==2.9.0
 imageio-ffmpeg==0.4.2
-decorator==4.4.2
+moviepy==1.0.3
+# Utilitaires
 fpdf
 mido
 streamlit-image-coordinates
-pandas
