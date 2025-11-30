@@ -23,10 +23,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS "BEIGE TOTAL & HARMONIE" ---
+# --- CSS "BEIGE ABSOLU" (CORRIGÉ & COMPLET) ---
 st.markdown("""
     <style>
-    /* --- 1. COULEURS & VARIABLES --- */
+    /* VARIABLES COULEURS */
     :root {
         --beige-fond: #e5c4a3;
         --beige-clair-input: #f3e5d8;
@@ -34,96 +34,94 @@ st.markdown("""
         --beige-chameau-btn: #c49a6c;
         --marron-fonce-btn: #8b5a2b;
         --texte-fonce: #1a1a1a;
-        --texte-clair: #f3e5d8;
     }
 
-    /* Force la couleur de texte partout */
-    * { color: var(--texte-fonce) !important; }
+    /* 1. FOND GLOBAL & TEXTE */
+    .stApp, section[data-testid="stSidebar"] > div, div[data-testid="stSidebarNav"] {
+        background-color: var(--beige-fond) !important;
+        color: var(--texte-fonce) !important;
+    }
     
-    /* Fond principal & Sidebar */
-    .stApp, section[data-testid="stSidebar"] > div, div[data-testid="stSidebarNav"] { 
-        background-color: var(--beige-fond) !important; 
+    /* Force le texte noir partout */
+    h1, h2, h3, h4, h5, h6, p, li, span, label, div, button, input, textarea {
+        color: var(--texte-fonce) !important;
     }
 
-    /* --- 2. CHAMPS DE SAISIE (Text Area, Inputs, Selectbox) --- */
-    /* Cible précisément les zones de saisie pour les rendre beige clair */
-    .stTextInput input, 
-    .stTextArea textarea, 
-    .stNumberInput input, 
-    div[data-baseweb="select"] > div {
+    /* 2. TOUS LES CHAMPS DE SAISIE (Inputs, Selectbox, Upload) */
+    .stTextInput input, .stTextArea textarea, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
         background-color: var(--beige-clair-input) !important;
         color: var(--texte-fonce) !important;
         border: 1px solid var(--beige-chameau-btn) !important;
         border-radius: 8px !important;
     }
     
-    /* Couleur du placeholder (texte grisé quand vide) */
-    ::placeholder { color: #8c7b6e !important; opacity: 1 !important; }
-
-    /* Le menu déroulant (Pop-up) du sélecteur de morceaux */
+    /* Menu déroulant (Dropdown popover) */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: var(--beige-clair-input) !important;
     }
-    li[role="option"] {
-        color: var(--texte-fonce) !important;
-    }
-    /* Survol dans le menu déroulant */
     li[role="option"]:hover, li[role="option"][aria-selected="true"] {
         background-color: var(--beige-chameau-btn) !important;
     }
 
-    /* --- 3. BOUTONS (Tous les boutons gris/noirs deviennent Camel) --- */
+    /* Zone de Drag & Drop (Upload) */
+    [data-testid="stFileUploader"] section {
+        background-color: var(--beige-clair-input) !important;
+        border-color: var(--beige-chameau-btn) !important;
+    }
+
+    /* 3. BOUTONS (ARRONDIS & COULEURS) */
+    /* Boutons Standards (Gris -> Chameau) */
     div.stButton > button:not([kind="primary"]) {
         background-color: var(--beige-chameau-btn) !important; 
         color: var(--texte-fonce) !important;
-        border: 1px solid #b08d66 !important;
-        border-radius: 8px !important;
+        border: none !important;
+        border-radius: 12px !important; /* ARRONDI MARQUÉ */
         font-weight: 600 !important;
-        box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important;
+        box-shadow: 0px 2px 0px #a87f55 !important;
+        transition: all 0.1s;
     }
-    /* Au survol */
     div.stButton > button:not([kind="primary"]):hover {
-        background-color: var(--beige-moyen-inactif) !important;
-        color: black !important;
-        border-color: var(--marron-fonce-btn) !important;
+        background-color: #bca085 !important;
+        transform: translateY(1px);
     }
 
-    /* --- 4. BOUTONS PRIMAIRES (Générer, Insérer) --- */
+    /* Boutons Primaires (Rouge -> Marron) */
     button[kind="primary"], .sidebar-contrib-btn {
         background-color: var(--marron-fonce-btn) !important;
-        color: var(--texte-clair) !important;
+        color: #f3e5d8 !important; /* Texte clair */
+        border-radius: 12px !important;
         border: none !important;
-        border-radius: 8px !important;
     }
     button[kind="primary"]:hover {
         background-color: #6d421b !important;
     }
 
-    /* --- 5. ONGLETS (TABS) --- */
-    [data-baseweb="tab-list"] { background-color: transparent !important; gap: 8px; }
+    /* 4. ONGLETS (TABS) */
+    [data-baseweb="tab-list"] { gap: 10px; background-color: transparent !important; }
     [data-baseweb="tab"] {
         background-color: var(--beige-moyen-inactif) !important;
-        border-radius: 15px !important;
-        padding: 5px 15px !important;
+        border-radius: 20px !important;
+        padding: 4px 16px !important;
         border: none !important;
     }
     [aria-selected="true"] {
         background-color: var(--beige-clair-input) !important;
-        font-weight: bold !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
     }
 
-    /* --- 6. TABLEAUX (Séquenceur) & DIVERS --- */
-    div[data-testid="stDataEditor"] {
-        background-color: transparent !important;
-    }
+    /* 5. TABLEAUX & WIDGETS DIVERS */
     div[data-testid="stDataEditor"] div[role="grid"] {
         background-color: var(--beige-clair-input) !important;
     }
-    
-    /* Correction des labels et titres */
-    label, .stMarkdown p {
-        color: #2b2b2b !important;
+    .stExpander {
+        border-color: var(--beige-chameau-btn) !important;
+        background-color: transparent !important;
     }
+    /* Correction placeholder */
+    ::placeholder { color: #8c7b6e !important; opacity: 1 !important; }
+    
+    /* Masquer header/footer streamlit par défaut */
+    header[data-testid="stHeader"] { background-color: var(--beige-fond) !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -924,3 +922,91 @@ with tab1:
             st.markdown("---")
             pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
             st.download_button(label="📕 Télécharger le Livret PDF", data=pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+
+# --- TAB VIDÉO ---
+with tab3:
+    st.subheader("Générateur de Vidéo Défilante 🎥")
+    st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
+    
+    if not HAS_MOVIEPY: st.error("❌ Le module 'moviepy' n'est pas installé.")
+    elif not HAS_PYDUB: st.error("❌ Le module 'pydub' n'est pas installé.")
+    else:
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
+            seq = parser_texte(st.session_state.code_actuel)
+            if seq:
+                nb_temps = seq[-1]['temps'] - seq[0]['temps']
+                duree_estimee = (nb_temps + 4) * (60/bpm)
+                st.write(f"Durée : {int(duree_estimee)}s")
+            else: duree_estimee = 10
+        with col_v2:
+            btn_video = st.button("🎥 Générer Vidéo + Audio", type="primary", use_container_width=True)
+
+        if btn_video:
+            with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
+                st.write("🎹 Mixage Audio...")
+                sequence = parser_texte(st.session_state.code_actuel)
+                audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
+                
+                if audio_buffer:
+                    st.write("🎨 Création des visuels...")
+                    styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
+                    img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
+                    
+                    if img_buffer:
+                        st.write("🎞️ Montage vidéo (Patientez, c'est lourd !)...")
+                        progress_bar = st.progress(0)
+                        try:
+                            progress_bar.progress(30)
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                            progress_bar.progress(100)
+                            st.session_state.video_path = video_path 
+                            status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
+                            st.success("Vidéo terminée et synchronisée ! 🥳")
+                        except Exception as e:
+                            st.error(f"Erreur lors du montage : {e}")
+                            status.update(label="❌ Erreur !", state="error")
+
+        if st.session_state.video_path and os.path.exists(st.session_state.video_path):
+            st.video(st.session_state.video_path)
+            with open(st.session_state.video_path, "rb") as file:
+                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4", type="primary")
+
+# --- TAB AUDIO ---
+with tab4:
+    col_gauche, col_droite = st.columns(2)
+    with col_gauche:
+        st.subheader("🎧 Générateur Audio")
+        if not HAS_PYDUB: st.error("❌ Le module 'pydub' n'est pas installé.")
+        else:
+            bpm_audio = st.slider("Vitesse Morceau (BPM)", 30, 200, 100, key="bpm_audio")
+            if st.button("🎵 Générer MP3 du Morceau", type="primary", use_container_width=True):
+                with st.status("🎵 Mixage en cours...", expanded=True) as status:
+                    sequence = parser_texte(st.session_state.code_actuel)
+                    mp3_buffer = generer_audio_mix(sequence, bpm_audio, acc_config)
+                    if mp3_buffer:
+                        st.session_state.audio_buffer = mp3_buffer
+                        status.update(label="✅ Mixage terminé !", state="complete", expanded=False)
+                        st.success("Terminé !")
+
+            if st.session_state.audio_buffer:
+                st.audio(st.session_state.audio_buffer, format="audio/mp3")
+                st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg", type="primary")
+
+    with col_droite:
+        st.subheader("🥁 Groove Box (Métronome)")
+        st.info("Un outil simple pour s'entraîner en rythme.")
+        col_sig, col_bpm_metro = st.columns([1, 2])
+        with col_sig: signature_metro = st.radio("Signature", ["4/4", "3/4"], horizontal=True)
+        with col_bpm_metro: bpm_metro = st.slider("Vitesse (BPM)", 30, 200, 80, key="bpm_metro")
+        duree_metro = st.slider("Durée (secondes)", 10, 300, 60, step=10)
+        if st.button("▶️ Lancer le Métronome", type="primary", use_container_width=True):
+            with st.status("🥁 Création du beat...", expanded=True) as status:
+                metro_buffer = generer_metronome(bpm_metro, duree_metro, signature_metro)
+                if metro_buffer:
+                    st.session_state.metronome_buffer = metro_buffer
+                    status.update(label="✅ Prêt !", state="complete", expanded=False)
+        
+        if st.session_state.metronome_buffer:
+            st.audio(st.session_state.metronome_buffer, format="audio/mp3")
