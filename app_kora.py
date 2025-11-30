@@ -57,13 +57,16 @@ if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 
-# --- INITIALISATION SÉQUENCEUR (INVERSÉ : Temps en Lignes) ---
-if 'df_sequenceur' not in st.session_state:
-    # COLONNES = Les Cordes
-    cols_cordes = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-    # LIGNES = Les Temps (8 temps par défaut)
-    rows_temps = [f"T{i+1}" for i in range(8)]
-    st.session_state.df_sequenceur = pd.DataFrame(False, index=rows_temps, columns=cols_cordes)
+# --- INITIALISATION SÉQUENCEUR (Nouvelle structure dictionnaire pour st.checkbox) ---
+# On utilise un dictionnaire simple plutôt qu'un DataFrame pour la grille manuelle
+if 'seq_grid' not in st.session_state:
+    st.session_state.seq_grid = {} 
+    # Clés = "T{temps}_{corde}" (ex: "T0_1G")
+    # On initialise tout à False
+    cordes = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
+    for t in range(8):
+        for c in cordes:
+            st.session_state.seq_grid[f"T{t}_{c}"] = False
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -568,15 +571,17 @@ with tab1:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur"])
+        subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur (Grille Compacte)"])
 
-        # --- LOGIQUE UNIFIÉE ---
+        # --- LOGIQUE UNIFIÉE (FORCER L'AFFICHAGE DU DOIGT) ---
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
+            # On force TOUJOURS l'écriture (plus de vide)
             if mode == "👍 Force Pouce (P)": return " P", " (Pouce)"
             if mode == "👆 Force Index (I)": return " I", " (Index)"
-            if corde in ['1G','2G','3G','1D','2D','3D']: return "", " (Pouce)"
-            return "", " (Index)"
+            # Auto : On regarde si c'est une corde de pouce ou d'index par défaut
+            if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
+            return " I", " (Index)"
 
         # --- ONGLET BOUTONS ---
         with subtab_btn:
@@ -654,52 +659,57 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (INVERSÉ & OPTIMISÉ) ---
+        # --- ONGLET SÉQUENCEUR (VERSION GRILLE FIXE ULTRA-COMPACTE) ---
         with subtab_seq:
-            st.info("🎹 **Séquenceur (Grille 8 temps)**")
+            st.info("🎹 **Séquenceur (Grille Compacte)**")
+            st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
             
-            # CSS pour réduire la largeur du tableau
+            # CSS spécifique pour tasser les checkbox
             st.markdown("""
             <style>
-                div[data-testid="stDataEditor"] div[role="grid"] div[role="row"] div {
-                    padding: 2px 5px !important;
-                    min-width: 30px !important; 
+                /* Réduit drastiquement l'espace entre les checkbox */
+                [data-testid="stCheckbox"] {
+                    margin-bottom: -15px !important;
+                    margin-top: -15px !important;
                 }
-                div[data-testid="stDataEditor"] {
-                    font-size: 12px;
+                /* Centre les checkbox */
+                [data-testid="stCheckbox"] > label {
+                    display: none; /* Cache le label à côté de la checkbox */
                 }
             </style>
             """, unsafe_allow_html=True)
 
-            st.write("Cochez pour composer (Lignes = Temps, Colonnes = Cordes).")
+            # Entête des cordes (Horizontal)
+            cols = st.columns([0.5] + [1]*12) # 1 col pour "T", 12 pour les cordes
+            cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
             
-            # Config pour colonnes étroites
-            config_colonnes = {}
-            for col in st.session_state.df_sequenceur.columns:
-                config_colonnes[col] = st.column_config.CheckboxColumn(
-                    label=col, width="small", default=False
-                )
+            with cols[0]: st.write("**T**")
+            for i, c in enumerate(cordes_list):
+                with cols[i+1]: st.markdown(f"**{c}**")
 
-            edited_df = st.data_editor(
-                st.session_state.df_sequenceur,
-                column_config=config_colonnes,
-                use_container_width=True,
-                height=350,
-                hide_index=False
-            )
-            
-            if not edited_df.equals(st.session_state.df_sequenceur):
-                st.session_state.df_sequenceur = edited_df
+            # Grille de 8 temps
+            for t in range(8):
+                cols = st.columns([0.5] + [1]*12)
+                with cols[0]: st.caption(f"{t+1}") # Numéro du temps
+                
+                for i, c in enumerate(cordes_list):
+                    key = f"T{t}_{c}"
+                    with cols[i+1]:
+                        # Checkbox sans label (géré par CSS)
+                        st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key])
 
             st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
                 if st.button("📥 Insérer la séquence", type="primary", use_container_width=True):
                     texte_genere = ""
-                    df = st.session_state.df_sequenceur
-                    
-                    for index, row in df.iterrows():
-                        notes_activees = df.columns[row].tolist()
+                    # Lecture de la grille
+                    for t in range(8):
+                        notes_activees = []
+                        for c in cordes_list:
+                            if st.session_state.seq_grid[f"T{t}_{c}"]:
+                                notes_activees.append(c)
+                        
                         if not notes_activees:
                             texte_genere += "+ S\n"
                         else:
@@ -707,7 +717,7 @@ with tab1:
                             for note in notes_activees:
                                 prefix = "+ " if premier else "= "
                                 doigt = " P" if note in ['1G','2G','3G','1D','2D','3D'] else " I"
-                                texte_genere += f"{prefix}{note}\n" 
+                                texte_genere += f"{prefix}{note}{doigt}\n" # FORCE L'AFFICHAGE DU DOIGT
                                 premier = False
                     
                     ajouter_texte(texte_genere)
@@ -715,7 +725,8 @@ with tab1:
             
             with col_seq_reset:
                 if st.button("🗑️ Vider"):
-                    st.session_state.df_sequenceur[:] = False
+                    for k in st.session_state.seq_grid:
+                        st.session_state.seq_grid[k] = False
                     st.rerun()
 
         st.markdown("---")
