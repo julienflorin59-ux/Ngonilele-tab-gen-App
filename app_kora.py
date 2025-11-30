@@ -11,7 +11,7 @@ import numpy as np
 import shutil
 from fpdf import FPDF
 import random
-import pandas as pd 
+import pandas as pd # NOUVEAU : Indispensable pour le Séquenceur
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -22,100 +22,6 @@ st.set_page_config(
     page_icon="🪕",
     initial_sidebar_state="expanded"
 )
-
-# --- CSS "BEIGE ABSOLU" ---
-st.markdown("""
-    <style>
-    :root {
-        --beige-fond: #e5c4a3;
-        --beige-clair-input: #f3e5d8;
-        --beige-moyen-inactif: #dcb28b;
-        --beige-chameau-btn: #c49a6c;
-        --marron-fonce-btn: #8b5a2b;
-        --texte-fonce: #1a1a1a;
-        --texte-clair: #f3e5d8;
-    }
-
-    /* 1. FOND GLOBAL & TEXTE */
-    .stApp, section[data-testid="stSidebar"] > div, div[data-testid="stSidebarNav"] {
-        background-color: var(--beige-fond) !important;
-        color: var(--texte-fonce) !important;
-    }
-    
-    h1, h2, h3, h4, h5, h6, p, li, span, label, div, button, input, textarea {
-        color: var(--texte-fonce) !important;
-    }
-
-    /* 2. TOUS LES CHAMPS DE SAISIE */
-    .stTextInput input, .stTextArea textarea, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
-        background-color: var(--beige-clair-input) !important;
-        color: var(--texte-fonce) !important;
-        border: 1px solid var(--beige-chameau-btn) !important;
-        border-radius: 8px !important;
-    }
-    
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: var(--beige-clair-input) !important;
-    }
-    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
-        background-color: var(--beige-chameau-btn) !important;
-    }
-
-    [data-testid="stFileUploader"] section {
-        background-color: var(--beige-clair-input) !important;
-        border-color: var(--beige-chameau-btn) !important;
-    }
-
-    /* 3. BOUTONS */
-    div.stButton > button:not([kind="primary"]) {
-        background-color: var(--beige-chameau-btn) !important; 
-        color: var(--texte-fonce) !important;
-        border: none !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        box-shadow: 0px 2px 0px #a87f55 !important;
-        transition: all 0.1s;
-    }
-    div.stButton > button:not([kind="primary"]):hover {
-        background-color: #bca085 !important;
-        transform: translateY(1px);
-    }
-
-    button[kind="primary"], .sidebar-contrib-btn {
-        background-color: var(--marron-fonce-btn) !important;
-        color: #f3e5d8 !important;
-        border-radius: 12px !important;
-        border: none !important;
-    }
-    button[kind="primary"]:hover {
-        background-color: #6d421b !important;
-    }
-
-    /* 4. ONGLETS (TABS) */
-    [data-baseweb="tab-list"] { gap: 10px; background-color: transparent !important; }
-    [data-baseweb="tab"] {
-        background-color: var(--beige-moyen-inactif) !important;
-        border-radius: 20px !important;
-        padding: 4px 16px !important;
-        border: none !important;
-    }
-    [aria-selected="true"] {
-        background-color: var(--beige-clair-input) !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-    }
-
-    /* 5. DIVERS */
-    div[data-testid="stDataEditor"] div[role="grid"] {
-        background-color: var(--beige-clair-input) !important;
-    }
-    .stExpander {
-        border-color: var(--beige-chameau-btn) !important;
-        background-color: transparent !important;
-    }
-    ::placeholder { color: #8c7b6e !important; opacity: 1 !important; }
-    header[data-testid="stHeader"] { background-color: var(--beige-fond) !important; }
-    </style>
-""", unsafe_allow_html=True)
 
 CHEMIN_POLICE = 'ML.ttf' 
 CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
@@ -151,8 +57,12 @@ if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 
-if 'seq_grid' not in st.session_state:
-    st.session_state.seq_grid = {} 
+# Initialisation de la grille du séquenceur
+if 'df_sequenceur' not in st.session_state:
+    # Création d'une grille vide : Index = Cordes, Colonnes = Temps (8 temps)
+    rows = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
+    cols = [f"T{i+1}" for i in range(8)]
+    st.session_state.df_sequenceur = pd.DataFrame(False, index=rows, columns=cols)
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -564,48 +474,6 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
-    pixels_par_temps, offset_premiere_note_px = metrics
-    
-    with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
-    with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-    
-    clip_img = ImageClip("temp_score.png")
-    w, h = clip_img.size
-    
-    video_h = 600
-    bar_y = 150 
-    start_y = bar_y - offset_premiere_note_px
-    speed_px_sec = pixels_par_temps * (bpm / 60.0)
-    
-    def scroll_func(t):
-        current_y = start_y - (speed_px_sec * t)
-        return ('center', current_y)
-    
-    moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
-    
-    try:
-        bar_height = int(pixels_par_temps)
-        highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
-        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
-    except:
-        video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-        
-    audio_clip = AudioFileClip("temp_audio.mp3").subclip(0, duration_sec)
-    final = video_visual.set_audio(audio_clip)
-    final.fps = fps
-    
-    output_filename = "ngoni_video_sound.mp4"
-    final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
-    
-    try: 
-        audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
-        if os.path.exists("temp_score.png"): os.remove("temp_score.png")
-        if os.path.exists("temp_audio.mp3"): os.remove("temp_audio.mp3")
-    except: pass
-    
-    return output_filename
-
 def generer_pdf_livret(buffers, titre):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     for item in buffers:
@@ -668,14 +536,14 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        bg_color = st.color_picker("Couleur de fond", "#e5c4a3") # DEFAULT BEIGE
+        bg_color = st.color_picker("Couleur de fond", "#e5c4a1")
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
         st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
-    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button class="sidebar-contrib-btn" style="width:100%; padding:10px; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
@@ -699,15 +567,15 @@ with tab1:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur (Grille Compacte)"])
+        subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur"])
 
         # --- LOGIQUE UNIFIÉE ---
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
             if mode == "👍 Force Pouce (P)": return " P", " (Pouce)"
             if mode == "👆 Force Index (I)": return " I", " (Index)"
-            if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
-            return " I", " (Index)"
+            if corde in ['1G','2G','3G','1D','2D','3D']: return "", " (Pouce)"
+            return "", " (Index)"
 
         # --- ONGLET BOUTONS ---
         with subtab_btn:
@@ -785,83 +653,50 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (VERSION GRILLE FIXE ULTRA-COMPACTE) ---
+        # --- ONGLET SÉQUENCEUR ---
         with subtab_seq:
-            st.info("🎹 **Séquenceur (Grille Compacte)**")
+            st.info("🎹 **Séquenceur (Grille 8 temps)**")
+            st.write("Cochez les cases pour composer (Colonnes = Temps, Lignes = Cordes).")
             
-            # Nombre de temps variable
-            nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
-            st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
+            # Affichage de la grille éditable
+            edited_df = st.data_editor(
+                st.session_state.df_sequenceur,
+                column_config={c: st.column_config.CheckboxColumn(width="small") for c in st.session_state.df_sequenceur.columns},
+                use_container_width=True,
+                height=450
+            )
             
-            # CSS spécifique pour tasser les checkbox
-            st.markdown("""
-            <style>
-                /* Réduit drastiquement l'espace entre les checkbox */
-                [data-testid="stCheckbox"] {
-                    margin-bottom: -15px !important;
-                    margin-top: -15px !important;
-                }
-                /* Centre les checkbox */
-                [data-testid="stCheckbox"] > label {
-                    display: none; /* Cache le label à côté de la checkbox */
-                }
-            </style>
-            """, unsafe_allow_html=True)
+            # Mise à jour du state si changement
+            if not edited_df.equals(st.session_state.df_sequenceur):
+                st.session_state.df_sequenceur = edited_df
 
-            # Entête des cordes (Horizontal)
-            cols = st.columns([0.6] + [1]*12) # 1 col pour "T", 12 pour les cordes
-            cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-            
-            with cols[0]: st.write("**T**")
-            for i, c in enumerate(cordes_list):
-                with cols[i+1]: st.markdown(f"**{c}**")
-
-            # Conteneur AVEC SCROLL (height fixe)
-            with st.container(height=400):
-                # Grille de temps
-                for t in range(nb_temps):
-                    cols = st.columns([0.6] + [1]*12)
-                    with cols[0]: st.caption(f"{t+1}") # Numéro du temps
-                    
-                    for i, c in enumerate(cordes_list):
-                        key = f"T{t}_{c}"
-                        # Initialisation si clé manquante (changement nb_temps)
-                        if key not in st.session_state.seq_grid:
-                            st.session_state.seq_grid[key] = False
-                            
-                        with cols[i+1]:
-                            # Utilisation de label_visibility="collapsed" pour masquer le label proprement
-                            st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
-
-            st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
-                if st.button("📥 Insérer la séquence", type="primary", use_container_width=True):
+                if st.button("📥 Insérer la séquence dans la partition", type="primary", use_container_width=True):
+                    # Conversion de la grille en code
                     texte_genere = ""
-                    # Lecture de la grille
-                    for t in range(nb_temps):
-                        notes_activees = []
-                        for c in cordes_list:
-                            if st.session_state.seq_grid[f"T{t}_{c}"]:
-                                notes_activees.append(c)
+                    df = st.session_state.df_sequenceur
+                    
+                    for col_name in df.columns: # Pour chaque temps (T1, T2...)
+                        notes_activees = df.index[df[col_name]].tolist()
                         
                         if not notes_activees:
-                            texte_genere += "+ S\n"
+                            texte_genere += "+ S\n" # Silence si vide
                         else:
                             premier = True
                             for note in notes_activees:
                                 prefix = "+ " if premier else "= "
+                                # Ajout auto du doigté par défaut
                                 doigt = " P" if note in ['1G','2G','3G','1D','2D','3D'] else " I"
-                                texte_genere += f"{prefix}{note}{doigt}\n" # FORCE L'AFFICHAGE DU DOIGT
+                                texte_genere += f"{prefix}{note}\n" # Note simple pour l'instant (ajout P/I possible)
                                 premier = False
                     
                     ajouter_texte(texte_genere)
-                    st.toast("Séquence ajoutée !", icon="🎹")
+                    st.toast("Séquence ajoutée avec succès !", icon="🎹")
             
             with col_seq_reset:
-                if st.button("🗑️ Vider"):
-                    for k in st.session_state.seq_grid:
-                        st.session_state.seq_grid[k] = False
+                if st.button("🗑️ Vider Grille"):
+                    st.session_state.df_sequenceur[:] = False
                     st.rerun()
 
         st.markdown("---")
@@ -953,91 +788,3 @@ with tab1:
             st.markdown("---")
             pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
             st.download_button(label="📕 Télécharger le Livret PDF", data=pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
-
-# --- TAB VIDÉO ---
-with tab3:
-    st.subheader("Générateur de Vidéo Défilante 🎥")
-    st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
-    
-    if not HAS_MOVIEPY: st.error("❌ Le module 'moviepy' n'est pas installé.")
-    elif not HAS_PYDUB: st.error("❌ Le module 'pydub' n'est pas installé.")
-    else:
-        col_v1, col_v2 = st.columns(2)
-        with col_v1:
-            bpm = st.slider("Vitesse (BPM)", 30, 200, 60, key="bpm_video")
-            seq = parser_texte(st.session_state.code_actuel)
-            if seq:
-                nb_temps = seq[-1]['temps'] - seq[0]['temps']
-                duree_estimee = (nb_temps + 4) * (60/bpm)
-                st.write(f"Durée : {int(duree_estimee)}s")
-            else: duree_estimee = 10
-        with col_v2:
-            btn_video = st.button("🎥 Générer Vidéo + Audio", type="primary", use_container_width=True)
-
-        if btn_video:
-            with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
-                st.write("🎹 Mixage Audio...")
-                sequence = parser_texte(st.session_state.code_actuel)
-                audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
-                
-                if audio_buffer:
-                    st.write("🎨 Création des visuels...")
-                    styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                    img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
-                    
-                    if img_buffer:
-                        st.write("🎞️ Montage vidéo (Patientez, c'est lourd !)...")
-                        progress_bar = st.progress(0)
-                        try:
-                            progress_bar.progress(30)
-                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
-                            progress_bar.progress(100)
-                            st.session_state.video_path = video_path 
-                            status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
-                            st.success("Vidéo terminée et synchronisée ! 🥳")
-                        except Exception as e:
-                            st.error(f"Erreur lors du montage : {e}")
-                            status.update(label="❌ Erreur !", state="error")
-
-        if st.session_state.video_path and os.path.exists(st.session_state.video_path):
-            st.video(st.session_state.video_path)
-            with open(st.session_state.video_path, "rb") as file:
-                st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4", type="primary")
-
-# --- TAB AUDIO ---
-with tab4:
-    col_gauche, col_droite = st.columns(2)
-    with col_gauche:
-        st.subheader("🎧 Générateur Audio")
-        if not HAS_PYDUB: st.error("❌ Le module 'pydub' n'est pas installé.")
-        else:
-            bpm_audio = st.slider("Vitesse Morceau (BPM)", 30, 200, 100, key="bpm_audio")
-            if st.button("🎵 Générer MP3 du Morceau", type="primary", use_container_width=True):
-                with st.status("🎵 Mixage en cours...", expanded=True) as status:
-                    sequence = parser_texte(st.session_state.code_actuel)
-                    mp3_buffer = generer_audio_mix(sequence, bpm_audio, acc_config)
-                    if mp3_buffer:
-                        st.session_state.audio_buffer = mp3_buffer
-                        status.update(label="✅ Mixage terminé !", state="complete", expanded=False)
-                        st.success("Terminé !")
-
-            if st.session_state.audio_buffer:
-                st.audio(st.session_state.audio_buffer, format="audio/mp3")
-                st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg", type="primary")
-
-    with col_droite:
-        st.subheader("🥁 Groove Box (Métronome)")
-        st.info("Un outil simple pour s'entraîner en rythme.")
-        col_sig, col_bpm_metro = st.columns([1, 2])
-        with col_sig: signature_metro = st.radio("Signature", ["4/4", "3/4"], horizontal=True)
-        with col_bpm_metro: bpm_metro = st.slider("Vitesse (BPM)", 30, 200, 80, key="bpm_metro")
-        duree_metro = st.slider("Durée (secondes)", 10, 300, 60, step=10)
-        if st.button("▶️ Lancer le Métronome", type="primary", use_container_width=True):
-            with st.status("🥁 Création du beat...", expanded=True) as status:
-                metro_buffer = generer_metronome(bpm_metro, duree_metro, signature_metro)
-                if metro_buffer:
-                    st.session_state.metronome_buffer = metro_buffer
-                    status.update(label="✅ Prêt !", state="complete", expanded=False)
-        
-        if st.session_state.metronome_buffer:
-            st.audio(st.session_state.metronome_buffer, format="audio/mp3")
