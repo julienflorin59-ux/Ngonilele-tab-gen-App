@@ -53,7 +53,7 @@ BANQUE_TABLATURES = {
 +   S
 +   1D
 """,
-    "Exercice Débutant 2 : Montée et descente de gamme en Triolets (Tuilage)": """
+    "Exercice Débutant 2 : Gamme en Triolets (Tuilage)": """
 1   1D
 +   1G
 +   2D
@@ -75,6 +75,7 @@ BANQUE_TABLATURES = {
 +   6D
 +   S
 +   6D
++   6G
 +   6G
 +   S
 +   TXT  DESCENTE
@@ -99,6 +100,7 @@ BANQUE_TABLATURES = {
 +   1G
 +   S
 +   1G
++   1D
 +   1D
 """,
     "Manitoumani -M- & Lamomali": """
