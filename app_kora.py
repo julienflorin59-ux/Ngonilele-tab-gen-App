@@ -56,6 +56,8 @@ if 'video_path' not in st.session_state: st.session_state.video_path = None
 if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
+# ✅ AJOUT : Variable pour stocker le PDF en mémoire
+if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
 
 # --- INITIALISATION SÉQUENCEUR (Dictionnaire) ---
 if 'seq_grid' not in st.session_state:
@@ -142,7 +144,7 @@ BANQUE_TABLATURES = {
 """
 }
 
-# En-tête (Message ajouté ici)
+# En-tête
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
     <strong>👈 Cliquez sur la flèche > en haut à gauche</strong> pour ouvrir le menu et charger un morceau dans la banque, imprimer sur fond blanc, m'envoyer vos tablatures pour les ajouter à la banque !!
@@ -565,12 +567,14 @@ def charger_morceau():
         st.session_state.partition_generated = False
         st.session_state.video_path = None
         st.session_state.audio_buffer = None
+        st.session_state.pdf_buffer = None # Reset PDF
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
     st.session_state.partition_generated = False
     st.session_state.video_path = None
     st.session_state.audio_buffer = None
+    st.session_state.pdf_buffer = None # Reset PDF
 
 def ajouter_texte(txt):
     if 'code_actuel' in st.session_state:
@@ -598,11 +602,11 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        # Paramètres figés (cachés)
+        # ✅ COULEUR PAR DÉFAUT MODIFIÉE pour matcher le thème
         bg_color = "#e5c4a3"
         use_bg_img = True
         bg_alpha = 0.2
-        # Seule option visible
+        st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
@@ -731,7 +735,7 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET COMPLET) ---
+        # --- ONGLET SÉQUENCEUR (CORRIGÉ SANS STYLE EXCESSIF) ---
         with subtab_seq:
             # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
             st.markdown("""
@@ -799,15 +803,6 @@ with tab1:
                     for k in st.session_state.seq_grid:
                         st.session_state.seq_grid[k] = False
                     st.rerun()
-            
-            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE
-            st.markdown("---")
-            st.caption("Structure & Annotations")
-            c_struct_1, c_struct_2 = st.columns(2)
-            with c_struct_1:
-                st.button("📄 Insérer Page", key="seq_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
-            with c_struct_2:
-                st.button("📝 Insérer Texte", key="seq_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
 
         st.markdown("---")
         st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
@@ -869,6 +864,7 @@ with tab1:
                     
                     if not pages_data: st.warning("Aucune note.")
                     else:
+                        st.write("📕 Assemblage du PDF...") # Notification génération PDF
                         for idx, page in enumerate(pages_data):
                             st.write(f"📄 Page {idx+2}...")
                             fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
@@ -880,6 +876,9 @@ with tab1:
                             buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
                             st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
                             if force_white_print: plt.close(fig_dl)
+                        
+                        # Génération PDF immédiate
+                        st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
                     
                     st.session_state.partition_generated = True
                     status.update(label="✅ Terminé !", state="complete", expanded=False)
@@ -894,10 +893,9 @@ with tab1:
                         st.markdown(f"#### Page {item['idx']}")
                         st.pyplot(item['img_ecran'])
 
-        if st.session_state.partition_generated and st.session_state.partition_buffers:
+        if st.session_state.partition_generated and st.session_state.pdf_buffer:
             st.markdown("---")
-            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-            st.download_button(label="📕 Télécharger le Livret PDF", data=pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+            st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
 
 # --- TAB VIDÉO (RÉINTÉGRÉ) ---
 with tab3:
