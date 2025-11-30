@@ -14,8 +14,8 @@ from fpdf import FPDF
 import random
 import pandas as pd 
 import re 
-import gc # GARBAGE COLLECTOR (Pour vider la mémoire)
-import glob # Pour trouver les fichiers temporaires
+import gc 
+import glob 
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -281,7 +281,7 @@ BANQUE_TABLATURES = {
 # En-tête
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
-    <strong>👈 Cliquez sur la flèche > en haut à gauche</strong> pour ouvrir le menu et charger un morceau dans la banque, imprimer sur fond blanc, m'envoyer vos tablatures pour les ajouter à la banque !!
+    <strong>👈 Ouvrez le menu latéral</strong> (flèche en haut à gauche) pour : Charger un morceau, lire le Guide complet, ou 🐞 Signaler un bug !
 </div>
 """, unsafe_allow_html=True)
 
@@ -567,11 +567,11 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-def generer_image_longue_calibree(sequence, config_acc, styles):
+def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI optimisé pour la vidéo
     if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
     y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
-    FIG_WIDTH = 16; FIG_HEIGHT = hauteur_unites * 0.8; DPI = 100
+    FIG_WIDTH = 16; FIG_HEIGHT = hauteur_unites * 0.8; DPI = dpi
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     fig = Figure(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond)
     ax = fig.subplots()
@@ -628,7 +628,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
 # ==============================================================================
 # 🔧 FONCTION MANQUANTE (OPTIMISÉE)
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=10): # FPS reduit pour rapidité (10)
     pixels_par_temps, offset_premiere_note_px = metrics
     temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
     temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
@@ -668,7 +668,6 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         st.error(f"Erreur vidéo : {e}")
         return None
     finally:
-        # Nettoyage fichiers temporaires spécifiques
         if os.path.exists(temp_img_file): os.remove(temp_img_file)
         if os.path.exists(temp_audio_file): os.remove(temp_audio_file)
 
@@ -1148,13 +1147,13 @@ with tab3:
                     
                     if audio_buffer:
                         styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                        img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
+                        img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=72) # DPI video optimisé
                         
                         if img_buffer:
                             progress_bar = st.progress(0)
                             try:
                                 progress_bar.progress(30)
-                                video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                                video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm, fps=10) # FPS optimisé
                                 progress_bar.progress(100)
                                 if video_path:
                                     st.session_state.video_path = video_path 
