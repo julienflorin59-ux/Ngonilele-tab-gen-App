@@ -8,7 +8,9 @@ import io
 import os
 import urllib.parse
 import numpy as np
+import shutil
 from fpdf import FPDF
+import random 
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -34,14 +36,12 @@ DOSSIER_SAMPLES = 'samples'
 # ==============================================================================
 @st.cache_resource
 def load_font_properties():
-    """Charge la police une seule fois pour éviter les ralentissements."""
     if os.path.exists(CHEMIN_POLICE): 
         return fm.FontProperties(fname=CHEMIN_POLICE)
     return fm.FontProperties(family='sans-serif')
 
 @st.cache_resource
 def load_image_asset(path):
-    """Charge une image en mémoire une seule fois."""
     if os.path.exists(path):
         return mpimg.imread(path)
     return None
@@ -176,7 +176,6 @@ NOTES_GAMME = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
 DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
 
 def get_font_cached(size, weight='normal', style='normal'):
-    """Version optimisée de get_font qui utilise la police en cache."""
     prop = load_font_properties().copy()
     prop.set_size(size)
     prop.set_weight(weight)
@@ -232,45 +231,33 @@ def get_note_freq(note_name):
 def generer_audio_mix(sequence, bpm, acc_config):
     if not HAS_PYDUB: return None
     if not sequence: return None
-    
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
-    
     for corde in cordes_utilisees:
         loaded = False
-        # 1. MP3
         if os.path.exists(DOSSIER_SAMPLES):
             chemin = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
-            if os.path.exists(chemin): 
-                samples_loaded[corde] = AudioSegment.from_mp3(chemin)
-                loaded = True
+            if os.path.exists(chemin): samples_loaded[corde] = AudioSegment.from_mp3(chemin); loaded = True
             else:
                 chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
-                if os.path.exists(chemin_min): 
-                    samples_loaded[corde] = AudioSegment.from_mp3(chemin_min)
-                    loaded = True
-        # 2. Synthé
+                if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min); loaded = True
         if not loaded:
             note_name = acc_config.get(corde, {'n':'C'})['n']
             freq = get_note_freq(note_name)
             tone = Sine(freq).to_audio_segment(duration=600).fade_out(400)
             samples_loaded[corde] = tone - 5 
-
     if not samples_loaded: return None
-
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     if duree_totale_ms < 1000: duree_totale_ms = 1000
     mix = AudioSegment.silent(duration=duree_totale_ms)
-    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
             t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
-            
     buffer = io.BytesIO(); mix.export(buffer, format="mp3"); buffer.seek(0)
     return buffer
 
@@ -299,7 +286,6 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
     prop_annotation = get_font_cached(16, 'bold'); prop_legende = get_font_cached(12, 'bold')
     
-    # Chargement images optimisé
     img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE)
     img_index = load_image_asset(CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX)
 
@@ -307,12 +293,10 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     ax.text(0, y_pos - 0.6, "LÉGENDE", ha='center', va='center', fontsize=14, fontweight='bold', color=c_txt, fontproperties=prop_annotation)
     x_icon_center = -5.5; x_text_align = -4.5; y_row1 = y_pos - 1.2; y_row2 = y_pos - 1.8; y_row3 = y_pos - 2.4; y_row4 = y_pos - 3.0
     
-    if img_pouce is not None: 
-        ab = AnnotationBbox(OffsetImage(img_pouce, zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
+    if img_pouce is not None: ab = AnnotationBbox(OffsetImage(img_pouce, zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row1, "= Pouce", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
-    if img_index is not None: 
-        ab = AnnotationBbox(OffsetImage(img_index, zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
+    if img_index is not None: ab = AnnotationBbox(OffsetImage(img_index, zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
     offsets = [-0.7, 0, 0.7]; 
@@ -334,12 +318,9 @@ def generer_page_1_legende(titre, styles, mode_white=False):
     return fig
 
 def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles, mode_white=False):
-    # Libération mémoire préventive
-    plt.close('all')
-    
+    plt.close('all') # Cleanup
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     
-    # Chargement optimisé
     img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE)
     img_index = load_image_asset(CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX)
     
@@ -349,23 +330,19 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     
     fig, ax = plt.subplots(figsize=(16, hauteur_fig), facecolor=c_fond)
     ax.set_facecolor(c_fond)
-    
     y_top = 2.5; y_bot = - (t_max - t_min) - 1.5; y_top_cordes = y_top
     
-    # Polices
     prop_titre = get_font_cached(32, 'bold'); prop_texte = get_font_cached(20, 'bold')
     prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic')
     prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold')
     prop_annotation = get_font_cached(16, 'bold')
     
-    # Fond
     if not mode_white and options_visuelles['use_bg']:
         img_fond = load_image_asset(CHEMIN_IMAGE_FOND)
         if img_fond is not None:
             try:
                 h_px, w_px = img_fond.shape[:2]; ratio = w_px / h_px
-                largeur_finale = 15.0 * 0.7
-                hauteur_finale = (largeur_finale / ratio) * 1.4
+                largeur_finale = 15.0 * 0.7; hauteur_finale = (largeur_finale / ratio) * 1.4
                 y_center = (y_top + y_bot) / 2
                 extent = [-largeur_finale/2, largeur_finale/2, y_center - hauteur_finale/2, y_center + hauteur_finale/2]
                 ax.imshow(img_fond, extent=extent, aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
@@ -390,15 +367,12 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
 
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps'])
     processed_t = set()
-    
     for n in sorted_notes:
         t = n['temps']
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
-        elif t not in processed_t: 
-            map_labels[t] = str(t - last_sep); processed_t.add(t)
+        elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
             
     notes_par_temps_relatif = {}; rayon = 0.30
-    
     for n in notes_page:
         t_absolu = n['temps']; y = -(t_absolu - t_min)
         if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
@@ -418,22 +392,17 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
             if 'doigt' in n:
                 doigt = n['doigt']; current_img = img_index if doigt == 'I' else img_pouce
                 if current_img is not None:
-                    try: 
-                        ab = AnnotationBbox(OffsetImage(current_img, zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8)
-                        ax.add_artist(ab)
+                    try: ab = AnnotationBbox(OffsetImage(current_img, zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
                     except: pass
-                else: 
-                    ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
+                else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
                     
     for y, group in notes_par_temps_relatif.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
-        if len(xs) > 1: 
-            ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
+        if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
             
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-# --- MOTEUR VIDEO SYNCHRONISÉ ---
 def generer_image_longue_calibree(sequence, config_acc, styles):
     if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
@@ -445,16 +414,59 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
     ax.set_ylim(y_min_footer, y_max_header); ax.set_xlim(-7.5, 7.5)
     
-    # ... (Le reste de la logique vidéo reste identique mais avec le nettoyage mémoire) ...
-    # Pour alléger le code ici, je garde l'essentiel mais dans la vraie app, gardez votre logique
-    # L'important est le plt.close('all') au début et plt.close(fig) à la fin
+    # ... [Code simplifié pour la réponse - Logique identique à generer_page_notes mais en une seule bande] ...
+    # Réintégration du code de dessin complet pour la vidéo
+    y_top = 2.0; y_bot = y_min_footer + 1.0 
+    prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic'); prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold'); prop_annotation = get_font_cached(16, 'bold')
     
-    # ... [Code de dessin identique à précédemment] ...
+    img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE)
+    img_index = load_image_asset(CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX)
+
+    ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
+    for code, props in config_acc.items():
+        x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
+        ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
+    for t in range(t_min, t_max + 1):
+        y = -(t - t_min)
+        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+    map_labels = {}; last_sep = t_min - 1; processed_t = set()
+    for n in sequence:
+        t = n['temps']; 
+        if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
+        elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
+    notes_par_temps = {}; rayon = 0.30
+    for n in sequence:
+        if n['corde'] == 'PAGE_BREAK': continue 
+        t_absolu = n['temps']; y = -(t_absolu - t_min)
+        if y not in notes_par_temps: notes_par_temps[y] = []
+        notes_par_temps[y].append(n); code = n['corde']
+        if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
+        elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
+        elif code in config_acc:
+            props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
+            ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
+            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
+            if 'doigt' in n:
+                doigt = n['doigt']; current_img = img_index if doigt == 'I' else img_pouce
+                if current_img is not None:
+                    try: ab = AnnotationBbox(OffsetImage(current_img, zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
+                    except: pass
+                else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
+    for y, group in notes_par_temps.items():
+        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
+        if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
+    ax.axis('off')
+    
+    px_y_t0 = ax.transData.transform((0, 0))[1]
+    px_y_t1 = ax.transData.transform((0, -1))[1]
+    total_h_px = FIG_HEIGHT * DPI
+    pixels_par_temps = px_y_t0 - px_y_t1
+    offset_premiere_note_px = total_h_px - px_y_t0
     
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
     plt.close(fig) # IMPORTANT
     buf.seek(0)
-    return buf, 100, 100 # Valeurs dummy pour l'exemple simplifié, remettre les vraies valeurs
+    return buf, pixels_par_temps, offset_premiere_note_px
 
 def generer_pdf_livret(buffers, titre):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
@@ -551,19 +563,37 @@ with tab1:
         st.subheader("Éditeur")
         subtab_btn, subtab_visu = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)"])
 
+        # --- LOGIQUE UNIFIÉE POUR LES DOIGTS ---
+        def get_suffixe_doigt(corde, mode_key):
+            mode = st.session_state[mode_key]
+            if mode == "👍 Force Pouce (P)": return " P", " (Pouce)"
+            if mode == "👆 Force Index (I)": return " I", " (Index)"
+            # Auto
+            if corde in ['1G','2G','3G','1D','2D','3D']: return "", " (Pouce)"
+            return "", " (Index)"
+
+        # --- ONGLET BOUTONS ---
         with subtab_btn:
             st.info("⌨️ **Mode Rapide (Grille Compacte)**")
+            st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="btn_mode_doigt", horizontal=True)
+            
+            def ajouter_note_boutons(corde):
+                suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
+                ajouter_texte(f"+ {corde}{suffixe}")
+                st.toast(f"✅ Note {corde} ajoutée{nom_doigt}", icon="🎵")
+
             st.markdown("""<style>
             div[data-testid="column"] .stButton button { width: 100%; height: auto !important; min-height: 0px !important; padding: 4px 8px !important; line-height: 1 !important; }
             div[data-testid="column"] .stButton button p { font-size: 13px !important; }
             </style>""", unsafe_allow_html=True)
+            
             bc1, bc2, bc3, bc4 = st.columns(4)
             with bc1: 
                 st.caption("Gauche")
-                for c in ['1G','2G','3G','4G','5G','6G']: st.button(c, key=f"btn_{c}", on_click=ajouter_texte, args=(f"+ {c}",), use_container_width=True)
+                for c in ['1G','2G','3G','4G','5G','6G']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
             with bc2:
                 st.caption("Droite")
-                for c in ['1D','2D','3D','4D','5D','6D']: st.button(c, key=f"btn_{c}", on_click=ajouter_texte, args=(f"+ {c}",), use_container_width=True)
+                for c in ['1D','2D','3D','4D','5D','6D']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
             with bc3:
                 st.caption("Outils")
                 st.button("↩️ Effacer", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
@@ -575,24 +605,21 @@ with tab1:
                 st.button("📄 Page", key="btn_page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
                 st.button("📝 Texte", key="btn_txt", on_click=ajouter_texte, args=("+ TXT Message",), use_container_width=True)
 
+        # --- ONGLET VISUEL ---
         with subtab_visu:
             st.info("🎨 **Mode Visuel (Schéma du Manche)**")
+            st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="visu_mode_doigt", horizontal=True)
+            
             def ajouter_note_visuelle(corde):
-                mode = st.session_state.visu_mode_doigt
-                suffixe = ""; feedback_doigt = ""
-                if mode == "🖐️ Auto (Défaut)":
-                    feedback_doigt = " (Pouce)" if corde in ['1G','2G','3G','1D','2D','3D'] else " (Index)"
-                elif mode == "👍 Force Pouce (P)": suffixe = " P"; feedback_doigt = " (Pouce)"
-                elif mode == "👆 Force Index (I)": suffixe = " I"; feedback_doigt = " (Index)"
+                suffixe, nom_doigt = get_suffixe_doigt(corde, "visu_mode_doigt")
                 ajouter_texte(f"+ {corde}{suffixe}")
-                st.toast(f"✅ Note {corde} ajoutée{feedback_doigt}", icon="🎵")
+                st.toast(f"✅ Note {corde} ajoutée{nom_doigt}", icon="🎵")
 
             def outil_visuel_wrapper(action, txt_code, msg_toast):
                 if action == "ajouter": ajouter_texte(txt_code)
                 elif action == "undo": annuler_derniere_ligne()
                 st.toast(msg_toast, icon="🛠️")
 
-            st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="visu_mode_doigt", horizontal=True)
             COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
             st.write("##### Cordes de Gauche _____________________ Cordes de Droite")
             cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
@@ -661,7 +688,6 @@ with tab1:
                 with st.status("📸 Traitement en cours...", expanded=True) as status:
                     sequence = parser_texte(st.session_state.code_actuel)
                     
-                    # 1. Légende
                     st.write("📖 Légende...")
                     fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
                     st.markdown("#### Page 1 : Légende")
@@ -673,7 +699,6 @@ with tab1:
                     st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
                     if force_white_print: plt.close(fig_leg_dl)
                     
-                    # 2. Pages
                     pages_data = []; current_page = []
                     for n in sequence:
                         if n['corde'] == 'PAGE_BREAK':
@@ -712,5 +737,3 @@ with tab1:
             st.markdown("---")
             pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
             st.download_button(label="📕 Télécharger le Livret PDF", data=pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
-
-# ... (Le reste du code des onglets Vidéo et Audio reste identique) ...
