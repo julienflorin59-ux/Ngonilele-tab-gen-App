@@ -681,8 +681,7 @@ def generer_pdf_livret(buffers, titre):
         pdf.add_page()
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}_{random.randint(0,1000)}.png"
         
-        # Note: Dans cette version, les buffers contiennent déjà l'image PNG encodée 
-        # (contrairement à l'ancienne version qui écrivait depuis le Figure object)
+        # Note: Les buffers contiennent déjà l'image PNG encodée 
         item['buf'].seek(0) # Assurer que la lecture commence au début
         with open(temp_img, "wb") as f:
             f.write(item['buf'].read()) 
@@ -802,8 +801,8 @@ with st.sidebar:
 
         **3. Légende de la Syntaxe**
         * `+` : Nouvelle note (avance d'un temps).
-        * ` = ` : Note simultanée (jouée en même temps que la précédente).
-        * `S` : Silence.
+        * `=` : Note simultanée (jouée en même temps que la précédente).
+        * **`S` : Silence. (**Important** pour simuler une notion de **rythme** et éviter une lecture avec l'effet robotique.)**
         * `PAGE` : Saut de page pour le PDF.
         * `TXT` : Ajouter une annotation.
         * `P` / `I` : Force le doigté (Pouce / Index).
@@ -1101,7 +1100,7 @@ with tab1:
             st.session_state.partition_buffers = [] 
             st.session_state.pdf_buffer = None
             
-            # DPI REDUIT A 150 POUR LE PDF (OPTIMISATION VITESSE)
+            # DPI RÉDUIT À 150 POUR LE PDF (OPTIMISATION VITESSE)
             DPI_PDF_OPTIMISE = 150 
             
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
