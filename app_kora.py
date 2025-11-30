@@ -429,24 +429,39 @@ def generer_audio_mix(sequence, bpm, acc_config):
     buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
     return buffer
 
-def generer_metronome(bpm, duration_sec=30, signature="4/4"):
-    if not HAS_PYDUB: return None
+# 🚀 NOUVELLE FONCTION OPTIMISEE POUR LE METRONOME 🚀
+@st.cache_resource
+def get_base_metronome_sounds():
+    if not HAS_PYDUB: return None, None
+    # On génère les sons de base UNE SEULE FOIS pour toute la durée de vie de l'app
     shaker_acc = WhiteNoise().to_audio_segment(duration=60).fade_out(50)
     click_acc = Sine(1500).to_audio_segment(duration=20).fade_out(20).apply_gain(-10)
     sound_accent = shaker_acc.overlay(click_acc).apply_gain(-2)
     sound_normal = WhiteNoise().to_audio_segment(duration=40).fade_out(35).apply_gain(-8)
+    return sound_accent, sound_normal
+
+def generer_metronome(bpm, duration_sec=30, signature="4/4"):
+    if not HAS_PYDUB: return None
+    
+    # Récupération des sons pré-calculés (ultra rapide)
+    sound_accent, sound_normal = get_base_metronome_sounds()
+    if not sound_accent: return None
+
     ms_per_beat = 60000 / bpm
     silence_acc = max(0, ms_per_beat - len(sound_accent))
     silence_norm = max(0, ms_per_beat - len(sound_normal))
+    
     beat_accent = sound_accent + AudioSegment.silent(duration=silence_acc)
     beat_normal = sound_normal + AudioSegment.silent(duration=silence_norm)
+    
     if signature == "3/4": measure_block = beat_accent + beat_normal + beat_normal
     else: measure_block = beat_accent + beat_normal + beat_normal + beat_normal
+    
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
     metronome_track = (measure_block * nb_mesures)[:int(duration_sec*1000)]
     
-    # OPTIMISATION AUDIO: Export en bitrate réduit
-    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
+    # OPTIMISATION AUDIO: Export en bitrate réduit (32k suffit pour un clic)
+    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3", bitrate="32k"); buffer.seek(0)
     return buffer
 
 # ==============================================================================
@@ -628,7 +643,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI o
 # ==============================================================================
 # 🔧 FONCTION MANQUANTE (OPTIMISÉE)
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité (10)
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=10): # FPS reduit pour rapidité (10)
     pixels_par_temps, offset_premiere_note_px = metrics
     temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
     temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
@@ -712,7 +727,9 @@ def charger_morceau():
         st.session_state.audio_buffer = None
         st.session_state.pdf_buffer = None
         
+        # Réinitialisation forcée des caches pour éviter les fantômes
         st.session_state.seq_grid = {}
+        # st.session_state.stored_blocks = {} # On garde les blocs, c'est utile de les conserver
         
         # 1. Clean Matplotlib
         plt.close('all')
