@@ -23,11 +23,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS "BEIGE ULTIME" & ARRONDI ---
+# --- CSS "BEIGE TOTAL & HARMONIE" ---
 st.markdown("""
     <style>
-    /* --- 1. RÈGLES GLOBALES & COULEURS --- */
-    /* Variables couleurs pour s'y retrouver */
+    /* --- 1. COULEURS & VARIABLES --- */
     :root {
         --beige-fond: #e5c4a3;
         --beige-clair-input: #f3e5d8;
@@ -41,98 +40,89 @@ st.markdown("""
     /* Force la couleur de texte partout */
     * { color: var(--texte-fonce) !important; }
     
-    /* Fond principal */
-    .stApp { background-color: var(--beige-fond) !important; }
-
-    /* Barre latérale et ses composants */
-    section[data-testid="stSidebar"] > div, div[data-testid="stSidebarNav"] {
-        background-color: var(--beige-fond) !important;
+    /* Fond principal & Sidebar */
+    .stApp, section[data-testid="stSidebar"] > div, div[data-testid="stSidebarNav"] { 
+        background-color: var(--beige-fond) !important; 
     }
 
-    /* --- 2. ONGLETS (TABS) ARRONDIS --- */
-    /* Conteneur des onglets : fond transparent, espacement entre les pilules */
-    [data-baseweb="tab-list"] {
-        background-color: transparent !important;
-        border-bottom: none !important;
-        gap: 10px; /* Espace entre les onglets */
-        padding-bottom: 5px;
-    }
-    
-    /* Style d'un onglet INDIVIDUEL (Inactif par défaut) */
-    [data-baseweb="tab"] {
-        background-color: var(--beige-moyen-inactif) !important;
-        color: var(--texte-fonce) !important;
-        border: none !important;
-        border-radius: 20px !important; /* ARRONDI */
-        padding: 8px 20px !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Style de l'onglet ACTIF */
-    [aria-selected="true"] {
-        background-color: var(--beige-clair-input) !important;
-        color: var(--texte-fonce) !important;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1) !important;
-    }
-    
-    /* Cache la petite barre de soulignement par défaut de Streamlit */
-    [data-baseweb="tab-highlight"] { display: none !important; }
-
-    /* --- 3. BOUTONS --- */
-    /* Boutons Standards (ex: touches du clavier, outils) -> Chameau */
-    div.stButton > button:not([kind="primary"]) {
-        background-color: var(--beige-chameau-btn) !important; 
-        color: var(--texte-fonce) !important;
-        border: none !important;
-        border-radius: 8px !important; /* Légèrement arrondi */
-        font-weight: 600 !important;
-    }
-    div.stButton > button:not([kind="primary"]):hover {
-        background-color: var(--beige-moyen-inactif) !important;
-    }
-
-    /* Boutons Primaires (Générer, Insérer, Contribuer) -> Marron Chaud */
-    button[kind="primary"], .sidebar-contrib-btn {
-        background-color: var(--marron-fonce-btn) !important;
-        color: var(--texte-clair) !important;
-        border: none !important;
-        border-radius: 8px !important;
-    }
-    button[kind="primary"]:hover, .sidebar-contrib-btn:hover {
-        background-color: #6d421b !important; /* Marron plus foncé au survol */
-    }
-
-    /* --- 4. CHAMPS DE SAISIE (Inputs, Selectbox, Textarea) --- */
-    /* Force le fond beige clair et enlève les blancs résiduels */
-    .stTextInput > div > div > input,
-    .stTextArea > div > div > textarea,
-    .stNumberInput > div > div > input,
-    .stSelectbox > div > div > div[data-baseweb="select"],
-    /* Cible les conteneurs internes des selectbox qui restent parfois blancs */
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="popover"]
-    {
+    /* --- 2. CHAMPS DE SAISIE (Text Area, Inputs, Selectbox) --- */
+    /* Cible précisément les zones de saisie pour les rendre beige clair */
+    .stTextInput input, 
+    .stTextArea textarea, 
+    .stNumberInput input, 
+    div[data-baseweb="select"] > div {
         background-color: var(--beige-clair-input) !important;
         color: var(--texte-fonce) !important;
         border: 1px solid var(--beige-chameau-btn) !important;
         border-radius: 8px !important;
     }
     
-    /* Couleur des placeholders (textes fantômes) */
+    /* Couleur du placeholder (texte grisé quand vide) */
     ::placeholder { color: #8c7b6e !important; opacity: 1 !important; }
-    
-    /* --- 5. ÉLÉMENTS DIVERS --- */
-    /* Boutons Radio et Checkboxes (les ronds et carrés) */
-    [role="radiogroup"] label div:first-child, 
-    [data-testid="stCheckbox"] label span:first-child {
+
+    /* Le menu déroulant (Pop-up) du sélecteur de morceaux */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: var(--beige-clair-input) !important;
+    }
+    li[role="option"] {
+        color: var(--texte-fonce) !important;
+    }
+    /* Survol dans le menu déroulant */
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+        background-color: var(--beige-chameau-btn) !important;
+    }
+
+    /* --- 3. BOUTONS (Tous les boutons gris/noirs deviennent Camel) --- */
+    div.stButton > button:not([kind="primary"]) {
+        background-color: var(--beige-chameau-btn) !important; 
+        color: var(--texte-fonce) !important;
+        border: 1px solid #b08d66 !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important;
+    }
+    /* Au survol */
+    div.stButton > button:not([kind="primary"]):hover {
+        background-color: var(--beige-moyen-inactif) !important;
+        color: black !important;
         border-color: var(--marron-fonce-btn) !important;
     }
 
-    /* Nettoyage des fonds d'expander et de conteneurs */
-    .stExpander, div[data-testid="stText"], div[data-testid="stCaptionContainer"], .stMarkdown {
+    /* --- 4. BOUTONS PRIMAIRES (Générer, Insérer) --- */
+    button[kind="primary"], .sidebar-contrib-btn {
+        background-color: var(--marron-fonce-btn) !important;
+        color: var(--texte-clair) !important;
+        border: none !important;
+        border-radius: 8px !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #6d421b !important;
+    }
+
+    /* --- 5. ONGLETS (TABS) --- */
+    [data-baseweb="tab-list"] { background-color: transparent !important; gap: 8px; }
+    [data-baseweb="tab"] {
+        background-color: var(--beige-moyen-inactif) !important;
+        border-radius: 15px !important;
+        padding: 5px 15px !important;
+        border: none !important;
+    }
+    [aria-selected="true"] {
+        background-color: var(--beige-clair-input) !important;
+        font-weight: bold !important;
+    }
+
+    /* --- 6. TABLEAUX (Séquenceur) & DIVERS --- */
+    div[data-testid="stDataEditor"] {
         background-color: transparent !important;
-        border-color: var(--beige-chameau-btn) !important;
+    }
+    div[data-testid="stDataEditor"] div[role="grid"] {
+        background-color: var(--beige-clair-input) !important;
+    }
+    
+    /* Correction des labels et titres */
+    label, .stMarkdown p {
+        color: #2b2b2b !important;
     }
     </style>
 """, unsafe_allow_html=True)
