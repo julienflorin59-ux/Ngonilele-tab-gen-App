@@ -1,16 +1,14 @@
 streamlit
-numpy
-pandas
-matplotlib
-# Audio et Vidéo
 pydub
-ffmpeg-python
-# Version spécifique pour compatibilité vidéo
-decorator==4.4.2
-imageio==2.9.0
-imageio-ffmpeg==0.4.2
-moviepy==1.0.3
-# Utilitaires
+matplotlib
 fpdf
 mido
 streamlit-image-coordinates
+pandas
+# IMPORTANT : MoviePy 1.0.3 ne fonctionne pas encore avec Numpy 2.0
+# On force une version 1.x pour éviter le crash vidéo
+numpy<2.0.0
+# On laisse MoviePy gérer ses versions, mais on s'assure d'avoir ffmpeg
+moviepy
+imageio-ffmpeg
+# Le fichier packages.txt s'occupe d'installer ffmpeg système
