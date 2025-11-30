@@ -725,7 +725,7 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET COMPLET) ---
+        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET SANS CSS CASSÉ) ---
         with subtab_seq:
             # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
             st.markdown("""
@@ -738,21 +738,6 @@ with tab1:
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
             
-            # ✅ CSS SÉCURISÉ (Plus de bug d'affichage)
-            st.markdown("""
-            <style>
-                div[data-testid="stCheckbox"] {
-                    margin-bottom: -15px !important;
-                    margin-top: -15px !important;
-                    display: flex;
-                    justify-content: center;
-                }
-                div[data-testid="stCheckbox"] > label {
-                    display: none;
-                }
-            </style>
-            """, unsafe_allow_html=True)
-
             # Entête des cordes (Horizontal)
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
@@ -809,7 +794,7 @@ with tab1:
                         st.session_state.seq_grid[k] = False
                     st.rerun()
             
-            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE (QUI AVAIENT DISPARU)
+            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE
             st.markdown("---")
             st.caption("Structure & Annotations")
             c_struct_1, c_struct_2 = st.columns(2)
