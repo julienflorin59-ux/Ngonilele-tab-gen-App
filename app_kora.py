@@ -19,7 +19,7 @@ import pandas as pd
 st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
-    page_icon="ico_ngonilele.png", # ✅ MODIFICATION FAVICON
+    page_icon="ico_ngonilele.png", 
     initial_sidebar_state="expanded"
 )
 
@@ -143,7 +143,7 @@ BANQUE_TABLATURES = {
 }
 
 # En-tête
-col_logo, col_titre = st.columns([1,  5])
+col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
     else: st.header("🪕")
@@ -637,7 +637,13 @@ with tab1:
 
         # --- ONGLET BOUTONS ---
         with subtab_btn:
-            st.info("⌨️ **Mode Rapide (Grille Compacte)**")
+            # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
+            st.markdown("""
+            <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
+                <strong>⌨️ Mode Rapide (Grille Compacte)</strong>
+            </div>
+            """, unsafe_allow_html=True)
+            
             st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="btn_mode_doigt", horizontal=True)
             
             def ajouter_note_boutons(corde):
@@ -672,7 +678,13 @@ with tab1:
 
         # --- ONGLET VISUEL ---
         with subtab_visu:
-            st.info("🎨 **Mode Visuel (Schéma du Manche)**")
+            # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
+            st.markdown("""
+            <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
+                <strong>🎨 Mode Visuel (Schéma du Manche)</strong>
+            </div>
+            """, unsafe_allow_html=True)
+            
             st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="visu_mode_doigt", horizontal=True)
             
             def ajouter_note_visuelle(corde):
@@ -715,7 +727,12 @@ with tab1:
 
         # --- ONGLET SÉQUENCEUR (VERSION GRILLE FIXE ULTRA-COMPACTE) ---
         with subtab_seq:
-            st.info("🎹 **Séquenceur (Grille Compacte)**")
+            # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
+            st.markdown("""
+            <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
+                <strong>🎹 Séquenceur (Grille Compacte)</strong>
+            </div>
+            """, unsafe_allow_html=True)
             
             # Nombre de temps variable
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
