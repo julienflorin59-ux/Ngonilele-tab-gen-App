@@ -70,6 +70,56 @@ if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {}
 # ==============================================================================
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
+    "Exercice Débutant 1 : Montée et descente de Gamme": """
+1   1D
++   S
++   1G
++   S
++   2D
++   S
++   2G
++   S
++   3D
++   S
++   3G
++   S
++   4D
++   S
++   4G
++   S
++   5D
++   S
++   5G
++   S
++   6D
++   S
++   6G
++   S
++   TXT  DESCENTE
++   6G
++   S
++   6D
++   S
++   5G
++   S
++   5D
++   S
++   4G
++   S
++   4D
++   S
++   3G
++   S
++   3D
++   S
++   2G
++   S
++   2D
++   S
++   1G
++   S
++   1D
+""",
     "Manitoumani -M- & Lamomali": """
 1   4D
 +   4G
