@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.font_manager as fm
 import matplotlib.image as mpimg
-from matplotlib.figure import Figure # OPTIMISATION: Import nécessaire pour la gestion mémoire
+from matplotlib.figure import Figure
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import io
 import os
@@ -51,6 +51,7 @@ def load_image_asset(path):
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE
 # ==============================================================================
+# Initialisation des variables de session pour qu'elles survivent au rechargement
 if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
 if 'video_path' not in st.session_state: st.session_state.video_path = None
@@ -323,11 +324,8 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
 
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font_cached(32, 'bold')
-    
-    # OPTIMISATION: Utilisation de Figure() au lieu de plt.subplots()
     fig = Figure(figsize=(16, 8), facecolor=c_fond)
     ax = fig.subplots()
-    
     ax.set_facecolor(c_fond)
     ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     dessiner_contenu_legende(ax, 0.5, styles, mode_white)
@@ -335,23 +333,16 @@ def generer_page_1_legende(titre, styles, mode_white=False):
     return fig
 
 def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles, mode_white=False):
-    # OPTIMISATION: suppression de plt.close('all') qui casse le multi-thread
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
-    
     img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE)
     img_index = load_image_asset(CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX)
-    
     t_min = notes_page[0]['temps']; t_max = notes_page[-1]['temps']
     lignes_sur_page = t_max - t_min + 1
     hauteur_fig = max(6, (lignes_sur_page * 0.75) + 6)
-    
-    # OPTIMISATION: Utilisation de Figure()
     fig = Figure(figsize=(16, hauteur_fig), facecolor=c_fond)
     ax = fig.subplots()
-    
     ax.set_facecolor(c_fond)
     y_top = 2.5; y_bot = - (t_max - t_min) - 1.5; y_top_cordes = y_top
-    
     prop_titre = get_font_cached(32, 'bold'); prop_texte = get_font_cached(20, 'bold')
     prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic')
     prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold')
@@ -371,7 +362,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     ax.text(-3.5, y_top_cordes + 2.0, "Cordes de Gauche", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
     ax.text(3.5, y_top_cordes + 2.0, "Cordes de Droite", ha='center', va='bottom', fontproperties=prop_texte, color=c_txt)
-    
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
     
     for code, props in config_acc.items():
@@ -397,7 +387,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         t_absolu = n['temps']; y = -(t_absolu - t_min)
         if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
         notes_par_temps_relatif[y].append(n); code = n['corde']
-        
         if code == 'TEXTE': 
             bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2)
             ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
@@ -408,7 +397,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
             ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3))
             ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
-            
             if 'doigt' in n:
                 doigt = n['doigt']; current_img = img_index if doigt == 'I' else img_pouce
                 if current_img is not None:
@@ -429,16 +417,12 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
     FIG_WIDTH = 16; FIG_HEIGHT = hauteur_unites * 0.8; DPI = 100
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
-    
-    # OPTIMISATION: Figure()
     fig = Figure(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond)
     ax = fig.subplots()
     ax.set_facecolor(c_fond)
     ax.set_ylim(y_min_footer, y_max_header); ax.set_xlim(-7.5, 7.5)
-    
     y_top = 2.0; y_bot = y_min_footer + 1.0 
     prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic'); prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold'); prop_annotation = get_font_cached(16, 'bold')
-    
     img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE)
     img_index = load_image_asset(CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX)
 
@@ -476,15 +460,12 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
     ax.axis('off')
-    
     px_y_t0 = ax.transData.transform((0, 0))[1]
     px_y_t1 = ax.transData.transform((0, -1))[1]
     total_h_px = FIG_HEIGHT * DPI
     pixels_par_temps = px_y_t0 - px_y_t1
     offset_premiere_note_px = total_h_px - px_y_t0
-    
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
-    # Plus besoin de plt.close(fig) car 'fig' est local
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
@@ -493,8 +474,6 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
 # ==============================================================================
 def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
     pixels_par_temps, offset_premiere_note_px = metrics
-    
-    # Fichiers temporaires pour moviepy
     temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
     temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
     output_filename = f"ngoni_video_{random.randint(0,10000)}.mp4"
@@ -502,15 +481,10 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     try:
         with open(temp_img_file, "wb") as f: f.write(image_buffer.getbuffer())
         with open(temp_audio_file, "wb") as f: f.write(audio_buffer.getbuffer())
-        
         clip_img = ImageClip(temp_img_file)
         w, h = clip_img.size
-        
-        # OPTIMISATION: Réduire la hauteur vidéo pour éviter crash RAM sur Cloud
         video_h = 480 
-        
-        # Vitesse de défilement
-        bar_y = 100 # ajusté pour video_h plus petit
+        bar_y = 100
         start_y = bar_y - offset_premiere_note_px
         speed_px_sec = pixels_par_temps * (bpm / 60.0)
         
@@ -519,7 +493,6 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
             return ('center', current_y)
         
         moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
-        
         try:
             bar_height = int(pixels_par_temps)
             highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
@@ -531,24 +504,14 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         audio_clip = AudioFileClip(temp_audio_file).subclip(0, duration_sec)
         final = video_visual.set_audio(audio_clip)
         final.fps = fps
-        
-        # OPTIMISATION: Preset ultrafast
         final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast', logger=None)
-        
-        # Cleanup explicite des clips
-        audio_clip.close()
-        video_visual.close()
-        clip_img.close()
-        final.close()
-
+        audio_clip.close(); video_visual.close(); clip_img.close(); final.close()
         return output_filename
 
     except Exception as e:
         st.error(f"Erreur vidéo : {e}")
         return None
-        
     finally:
-        # Nettoyage fichiers temporaires
         if os.path.exists(temp_img_file): os.remove(temp_img_file)
         if os.path.exists(temp_audio_file): os.remove(temp_audio_file)
 
@@ -556,13 +519,11 @@ def generer_pdf_livret(buffers, titre):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     for item in buffers:
         pdf.add_page()
-        # Nom unique pour éviter conflits
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}_{random.randint(0,1000)}.png"
         with open(temp_img, "wb") as f:
             f.write(item['buf'].getbuffer())
         pdf.image(temp_img, x=10, y=10, w=190)
         if os.path.exists(temp_img): os.remove(temp_img)
-    
     buf = io.BytesIO()
     pdf_output = pdf.output(dest='S').encode('latin-1')
     buf.write(pdf_output)
@@ -579,11 +540,9 @@ else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 if st.session_state.code_actuel == "":
     st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
 
-# OPTIMISATION: Chargement par URL ?code=...
 query_params = st.query_params
 if "code" in query_params and st.session_state.code_actuel == BANQUE_TABLATURES[PREMIER_TITRE].strip():
-    try:
-        st.session_state.code_actuel = query_params["code"]
+    try: st.session_state.code_actuel = query_params["code"]
     except: pass
 
 def charger_morceau():
@@ -595,23 +554,21 @@ def charger_morceau():
         st.session_state.partition_generated = False
         st.session_state.video_path = None
         st.session_state.audio_buffer = None
-        st.session_state.pdf_buffer = None # Reset PDF
+        st.session_state.pdf_buffer = None
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
+    # On invalide les générations précédentes si le texte change
     st.session_state.partition_generated = False
     st.session_state.video_path = None
     st.session_state.audio_buffer = None
-    st.session_state.pdf_buffer = None # Reset PDF
+    st.session_state.pdf_buffer = None
 
 def ajouter_texte(txt):
-    if 'code_actuel' in st.session_state:
-        st.session_state.code_actuel += "\n" + txt
-    else:
-        st.session_state.code_actuel = txt
+    if 'code_actuel' in st.session_state: st.session_state.code_actuel += "\n" + txt
+    else: st.session_state.code_actuel = txt
     st.session_state.widget_input = st.session_state.code_actuel
 
-# ✅ NOUVELLE FONCTION POUR CONFIRMATION (TOAST)
 def ajouter_avec_feedback(txt, label_toast):
     ajouter_texte(txt)
     st.toast(f"Ajouté : {label_toast}", icon="✅")
@@ -621,7 +578,7 @@ def annuler_derniere_ligne():
     if len(lines) > 0:
         st.session_state.code_actuel = "\n".join(lines[:-1])
         st.session_state.widget_input = st.session_state.code_actuel
-        st.toast("Dernière note effacée", icon="🗑️") # ✅ TOAST POUR EFFACER
+        st.toast("Dernière note effacée", icon="🗑️")
 
 with st.sidebar:
     st.header("🎚️ Réglages")
@@ -630,7 +587,6 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        # ✅ COULEUR PAR DÉFAUT MODIFIÉE pour matcher le thème
         bg_color = "#e5c4a3"
         use_bg_img = True
         bg_alpha = 0.2
@@ -638,10 +594,7 @@ with st.sidebar:
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
-    # ✅ COULEUR DU BOUTON MODIFIÉE pour matcher le thème
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
-    
-    # Bouton partage URL
     if st.button("🔗 Créer un lien de partage"):
         url_share = f"https://share.streamlit.io/votre_app?code={urllib.parse.quote(st.session_state.code_actuel)}"
         st.code(url_share, language="text")
@@ -670,7 +623,6 @@ with tab1:
         st.subheader("Éditeur")
         subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur (Grille Compacte)"])
 
-        # --- LOGIQUE UNIFIÉE ---
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
             if mode == "👍 Force Pouce (P)": return " P", " (Pouce)"
@@ -678,27 +630,14 @@ with tab1:
             if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
             return " I", " (Index)"
 
-        # --- ONGLET BOUTONS ---
         with subtab_btn:
-            # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
-            st.markdown("""
-            <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
-                <strong>⌨️ Mode Rapide (Grille Compacte)</strong>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>⌨️ Mode Rapide (Grille Compacte)</strong></div>""", unsafe_allow_html=True)
             st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="btn_mode_doigt", horizontal=True)
-            
             def ajouter_note_boutons(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
                 ajouter_texte(f"+ {corde}{suffixe}")
                 st.toast(f"✅ Note {corde} ajoutée{nom_doigt}", icon="🎵")
-
-            st.markdown("""<style>
-            div[data-testid="column"] .stButton button { width: 100%; height: auto !important; min-height: 0px !important; padding: 4px 8px !important; line-height: 1 !important; }
-            div[data-testid="column"] .stButton button p { font-size: 13px !important; }
-            </style>""", unsafe_allow_html=True)
-            
+            st.markdown("""<style>div[data-testid="column"] .stButton button { width: 100%; height: auto !important; min-height: 0px !important; padding: 4px 8px !important; line-height: 1 !important; } div[data-testid="column"] .stButton button p { font-size: 13px !important; }</style>""", unsafe_allow_html=True)
             bc1, bc2, bc3, bc4 = st.columns(4)
             with bc1: 
                 st.caption("Gauche")
@@ -708,38 +647,26 @@ with tab1:
                 for c in ['1D','2D','3D','4D','5D','6D']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
             with bc3:
                 st.caption("Outils")
-                # ✅ BOUTONS MODIFIÉS (NOMS + FEEDBACK TOAST)
-                st.button("↩️ Effacer une note", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
+                st.button("↩️ Effacer", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
                 st.button("🟰 Notes Simultanées", key="btn_simul", on_click=ajouter_avec_feedback, args=("=", "Notes Simultanées"), use_container_width=True)
                 st.button("🔁 Notes Doublées", key="btn_x2", on_click=ajouter_avec_feedback, args=("x2", "Notes Doublées"), use_container_width=True)
                 st.button("🔇 Insérer Silence", key="btn_silence", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True)
             with bc4:
                 st.caption("Structure")
-                # ✅ BOUTONS MODIFIÉS (NOMS + FEEDBACK TOAST)
                 st.button("📄 Insérer Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
                 st.button("📝 Insérer Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
 
-        # --- ONGLET VISUEL ---
         with subtab_visu:
-            # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
-            st.markdown("""
-            <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
-                <strong>🎨 Mode Visuel (Schéma du Manche)</strong>
-            </div>
-            """, unsafe_allow_html=True)
-            
+            st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎨 Mode Visuel (Schéma du Manche)</strong></div>""", unsafe_allow_html=True)
             st.radio("Mode de jeu :", ["🖐️ Auto (Défaut)", "👍 Force Pouce (P)", "👆 Force Index (I)"], key="visu_mode_doigt", horizontal=True)
-            
             def ajouter_note_visuelle(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "visu_mode_doigt")
                 ajouter_texte(f"+ {corde}{suffixe}")
                 st.toast(f"✅ Note {corde} ajoutée{nom_doigt}", icon="🎵")
-
             def outil_visuel_wrapper(action, txt_code, msg_toast):
                 if action == "ajouter": ajouter_texte(txt_code)
                 elif action == "undo": annuler_derniere_ligne()
                 st.toast(msg_toast, icon="🛠️")
-
             COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
             st.write("##### Cordes de Gauche _____________________ Cordes de Droite")
             cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
@@ -768,89 +695,57 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET SANS CSS CASSÉ) ---
         with subtab_seq:
-            # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
-            st.markdown("""
-            <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
-                <strong>🎹 Séquenceur (Grille Compacte)</strong>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Nombre de temps variable
+            st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎹 Séquenceur (Grille Compacte)</strong></div>""", unsafe_allow_html=True)
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
-            
-            # Entête des cordes (Horizontal)
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-            
             with cols[0]: st.write("**T**")
             for i, c in enumerate(cordes_list):
                 with cols[i+1]: st.markdown(f"**{c}**")
-
-            # Conteneur AVEC SCROLL (height fixe)
             with st.container(height=400):
-                # Grille de temps
                 for t in range(nb_temps):
                     cols = st.columns([0.8] + [1]*12)
                     with cols[0]: 
-                        st.write("") 
-                        st.caption(f"**{t+1}**")
-                    
+                        st.write(""); st.caption(f"**{t+1}**")
                     for i, c in enumerate(cordes_list):
                         key = f"T{t}_{c}"
-                        if key not in st.session_state.seq_grid:
-                            st.session_state.seq_grid[key] = False
-                            
-                        with cols[i+1]:
-                            st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
-
+                        if key not in st.session_state.seq_grid: st.session_state.seq_grid[key] = False
+                        with cols[i+1]: st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
             st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
                 if st.button("📥 Insérer la séquence", type="primary", use_container_width=True):
                     texte_genere = ""
-                    # Lecture de la grille
                     for t in range(nb_temps):
                         notes_activees = []
                         for c in cordes_list:
-                            if st.session_state.seq_grid[f"T{t}_{c}"]:
-                                notes_activees.append(c)
-                        
-                        if not notes_activees:
-                            texte_genere += "+ S\n"
+                            if st.session_state.seq_grid[f"T{t}_{c}"]: notes_activees.append(c)
+                        if not notes_activees: texte_genere += "+ S\n"
                         else:
                             premier = True
                             for note in notes_activees:
                                 prefix = "+ " if premier else "= "
                                 doigt = " P" if note in ['1G','2G','3G','1D','2D','3D'] else " I"
-                                texte_genere += f"{prefix}{note}{doigt}\n" # FORCE L'AFFICHAGE DU DOIGT
+                                texte_genere += f"{prefix}{note}{doigt}\n"
                                 premier = False
-                    
                     ajouter_texte(texte_genere)
                     st.toast("Séquence ajoutée !", icon="🎹")
-            
             with col_seq_reset:
                 if st.button("🗑️ Vider"):
-                    for k in st.session_state.seq_grid:
-                        st.session_state.seq_grid[k] = False
+                    for k in st.session_state.seq_grid: st.session_state.seq_grid[k] = False
                     st.rerun()
-            
-            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE
             st.markdown("---")
             st.caption("Structure & Annotations")
             c_struct_1, c_struct_2 = st.columns(2)
-            with c_struct_1:
-                st.button("📄 Insérer Page", key="seq_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
-            with c_struct_2:
-                st.button("📝 Insérer Texte", key="seq_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
+            with c_struct_1: st.button("📄 Insérer Page", key="seq_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
+            with c_struct_2: st.button("📝 Insérer Texte", key="seq_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
 
         st.markdown("---")
         st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
         st.text_area("Zone de Code (Modifiable manuellement) :", height=200, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
         st.caption("💡 Astuce : Vous pouvez agrandir la zone de texte en tirant le coin inférieur droit.")
-        
         st.markdown("---")
         col_play_btn, col_play_bpm = st.columns([1, 1])
         with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100)
@@ -874,58 +769,46 @@ with tab1:
         st.subheader("Aperçu Partition")
         view_container = st.container()
         
+        # BOUTON DE GENERATION (MET A JOUR L'ETAT SEULEMENT)
         if st.button("🔄 Générer la partition", type="primary", use_container_width=True):
             st.session_state.partition_buffers = [] 
-            st.session_state.partition_generated = False
             
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
             
-            with view_container:
-                with st.status("📸 Traitement en cours...", expanded=True) as status:
-                    sequence = parser_texte(st.session_state.code_actuel)
+            with st.status("📸 Traitement en cours...", expanded=True) as status:
+                sequence = parser_texte(st.session_state.code_actuel)
+                
+                fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
+                if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
+                else: fig_leg_dl = fig_leg_ecran
+                buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
+                st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
+                
+                pages_data = []; current_page = []
+                for n in sequence:
+                    if n['corde'] == 'PAGE_BREAK':
+                        if current_page: pages_data.append(current_page); current_page = []
+                    else: current_page.append(n)
+                if current_page: pages_data.append(current_page)
+                
+                if not pages_data: st.warning("Aucune note.")
+                else:
+                    for idx, page in enumerate(pages_data):
+                        fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
+                        if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
+                        else: fig_dl = fig_ecran
+                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
+                        st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
                     
-                    st.write("📖 Légende...")
-                    fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
-                    st.markdown("#### Page 1 : Légende")
-                    st.pyplot(fig_leg_ecran)
-                    
-                    if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
-                    else: fig_leg_dl = fig_leg_ecran
-                    buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
-                    st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
-                    # if force_white_print: plt.close(fig_leg_dl)
-                    
-                    pages_data = []; current_page = []
-                    for n in sequence:
-                        if n['corde'] == 'PAGE_BREAK':
-                            if current_page: pages_data.append(current_page); current_page = []
-                        else: current_page.append(n)
-                    if current_page: pages_data.append(current_page)
-                    
-                    if not pages_data: st.warning("Aucune note.")
-                    else:
-                        st.write("📕 Assemblage du PDF...") # Notification génération PDF
-                        for idx, page in enumerate(pages_data):
-                            st.write(f"📄 Page {idx+2}...")
-                            fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
-                            st.markdown(f"#### Page {idx+2}")
-                            st.pyplot(fig_ecran)
-                            
-                            if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
-                            else: fig_dl = fig_ecran
-                            buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
-                            st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
-                            # if force_white_print: plt.close(fig_dl)
-                        
-                        # Génération PDF immédiate
-                        st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-                    
-                    st.session_state.partition_generated = True
-                    status.update(label="✅ Terminé !", state="complete", expanded=False)
+                    st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+                
+                st.session_state.partition_generated = True
+                status.update(label="✅ Terminé !", state="complete", expanded=False)
 
-        elif st.session_state.partition_generated and st.session_state.partition_buffers:
+        # AFFICHAGE PERSISTANT (HORS DU IF DU BOUTON)
+        if st.session_state.partition_generated and st.session_state.partition_buffers:
              with view_container:
                 for item in st.session_state.partition_buffers:
                     if item['type'] == 'legende':
@@ -937,9 +820,10 @@ with tab1:
 
         if st.session_state.partition_generated and st.session_state.pdf_buffer:
             st.markdown("---")
+            # Le clic ici recharge la page, mais 'partition_generated' reste True dans le session_state, donc l'affichage au-dessus persiste !
             st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
 
-# --- TAB VIDÉO (RÉINTÉGRÉ) ---
+# --- TAB VIDÉO ---
 with tab3:
     st.subheader("Générateur de Vidéo Défilante 🎥")
     st.warning("⚠️ Sur la version gratuite, évitez les morceaux trop longs.")
@@ -957,42 +841,38 @@ with tab3:
                 st.write(f"Durée : {int(duree_estimee)}s")
             else: duree_estimee = 10
         with col_v2:
-            btn_video = st.button("🎥 Générer Vidéo + Audio", type="primary", use_container_width=True)
-
-        if btn_video:
-            with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
-                st.write("🎹 Mixage Audio...")
-                sequence = parser_texte(st.session_state.code_actuel)
-                audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
-                
-                if audio_buffer:
-                    st.write("🎨 Création des visuels...")
-                    styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                    img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
+            # BOUTON GENERER VIDEO (MISE A JOUR ETAT)
+            if st.button("🎥 Générer Vidéo + Audio", type="primary", use_container_width=True):
+                with st.status("🎬 Création de la vidéo en cours...", expanded=True) as status:
+                    sequence = parser_texte(st.session_state.code_actuel)
+                    audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
                     
-                    if img_buffer:
-                        st.write("🎞️ Montage vidéo (Patientez, c'est lourd !)...")
-                        progress_bar = st.progress(0)
-                        try:
-                            progress_bar.progress(30)
-                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
-                            progress_bar.progress(100)
-                            if video_path:
-                                st.session_state.video_path = video_path 
-                                status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
-                                st.success("Vidéo terminée et synchronisée ! 🥳")
-                            else:
-                                status.update(label="❌ Echec Vidéo", state="error")
-                        except Exception as e:
-                            st.error(f"Erreur lors du montage : {e}")
-                            status.update(label="❌ Erreur !", state="error")
+                    if audio_buffer:
+                        styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
+                        img_buffer, px_par_temps, offset_px = generer_image_longue_calibree(sequence, acc_config, styles_video)
+                        
+                        if img_buffer:
+                            progress_bar = st.progress(0)
+                            try:
+                                progress_bar.progress(30)
+                                video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
+                                progress_bar.progress(100)
+                                if video_path:
+                                    st.session_state.video_path = video_path 
+                                    status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
+                                else:
+                                    status.update(label="❌ Echec Vidéo", state="error")
+                            except Exception as e:
+                                st.error(f"Erreur lors du montage : {e}")
+                                status.update(label="❌ Erreur !", state="error")
 
+        # AFFICHAGE PERSISTANT VIDEO
         if st.session_state.video_path and os.path.exists(st.session_state.video_path):
             st.video(st.session_state.video_path)
             with open(st.session_state.video_path, "rb") as file:
                 st.download_button(label="⬇️ Télécharger la Vidéo", data=file, file_name="ngoni_video_synchro.mp4", mime="video/mp4", type="primary")
 
-# --- TAB AUDIO (RÉINTÉGRÉ) ---
+# --- TAB AUDIO ---
 with tab4:
     col_gauche, col_droite = st.columns(2)
     with col_gauche:
@@ -1000,6 +880,8 @@ with tab4:
         if not HAS_PYDUB: st.error("❌ Le module 'pydub' n'est pas installé.")
         else:
             bpm_audio = st.slider("Vitesse Morceau (BPM)", 30, 200, 100, key="bpm_audio")
+            
+            # BOUTON GENERER AUDIO (MISE A JOUR ETAT)
             if st.button("🎵 Générer MP3 du Morceau", type="primary", use_container_width=True):
                 with st.status("🎵 Mixage en cours...", expanded=True) as status:
                     sequence = parser_texte(st.session_state.code_actuel)
@@ -1007,25 +889,21 @@ with tab4:
                     if mp3_buffer:
                         st.session_state.audio_buffer = mp3_buffer
                         status.update(label="✅ Mixage terminé !", state="complete", expanded=False)
-                        st.success("Terminé !")
 
+            # AFFICHAGE PERSISTANT AUDIO
             if st.session_state.audio_buffer:
                 st.audio(st.session_state.audio_buffer, format="audio/mp3")
                 st.download_button(label="⬇️ Télécharger le MP3", data=st.session_state.audio_buffer, file_name=f"{titre_partition.replace(' ', '_')}.mp3", mime="audio/mpeg", type="primary")
 
     with col_droite:
         st.subheader("🥁 Groove Box (Métronome)")
-        # ✅ REMPLACEMENT ICI : BLOC HTML STYLISÉ POUR LE MÉTRONOME
-        st.markdown("""
-        <div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
-            Un outil simple pour s'entraîner en rythme.
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">Un outil simple pour s'entraîner en rythme.</div>""", unsafe_allow_html=True)
         col_sig, col_bpm_metro = st.columns([1, 2])
         with col_sig: signature_metro = st.radio("Signature", ["4/4", "3/4"], horizontal=True)
         with col_bpm_metro: bpm_metro = st.slider("Vitesse (BPM)", 30, 200, 80, key="bpm_metro")
         duree_metro = st.slider("Durée (secondes)", 10, 300, 60, step=10)
+        
+        # BOUTON METRONOME (MISE A JOUR ETAT)
         if st.button("▶️ Lancer le Métronome", type="primary", use_container_width=True):
             with st.status("🥁 Création du beat...", expanded=True) as status:
                 metro_buffer = generer_metronome(bpm_metro, duree_metro, signature_metro)
@@ -1033,5 +911,6 @@ with tab4:
                     st.session_state.metronome_buffer = metro_buffer
                     status.update(label="✅ Prêt !", state="complete", expanded=False)
         
+        # AFFICHAGE PERSISTANT METRONOME
         if st.session_state.metronome_buffer:
             st.audio(st.session_state.metronome_buffer, format="audio/mp3")
