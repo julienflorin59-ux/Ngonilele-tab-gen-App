@@ -387,7 +387,7 @@ def compiler_arrangement(structure_str, blocks_dict):
     return full_text
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO
+# 🎹 MOTEUR AUDIO (OPTIMISÉ)
 # ==============================================================================
 def get_note_freq(note_name):
     base_freqs = {'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23, 'G': 392.00, 'A': 440.00, 'B': 493.88}
@@ -429,6 +429,8 @@ def generer_audio_mix(sequence, bpm, acc_config):
     buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
     return buffer
 
+# --- OPTIMISATION DU METRONOME (CACHE + BITRATE REDUIT) ---
+@st.cache_data(show_spinner=False)
 def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     if not HAS_PYDUB: return None
     shaker_acc = WhiteNoise().to_audio_segment(duration=60).fade_out(50)
@@ -445,8 +447,10 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
     metronome_track = (measure_block * nb_mesures)[:int(duration_sec*1000)]
     
-    # OPTIMISATION AUDIO: Export en bitrate réduit
-    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
+    # OPTIMISATION AUDIO: Export en 32k pour vitesse maximale (qualité suffisante pour un clic)
+    buffer = io.BytesIO()
+    metronome_track.export(buffer, format="mp3", bitrate="32k", parameters=["-preset", "ultrafast"])
+    buffer.seek(0)
     return buffer
 
 # ==============================================================================
