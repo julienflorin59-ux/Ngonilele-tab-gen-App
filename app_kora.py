@@ -725,7 +725,7 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (VERSION GRILLE FIXE ULTRA-COMPACTE) ---
+        # --- ONGLET SÉQUENCEUR (CORRIGÉ) ---
         with subtab_seq:
             # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
             st.markdown("""
@@ -738,23 +738,35 @@ with tab1:
             nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
             
-            # CSS spécifique pour tasser les checkbox
+            # CSS CORRIGÉ : Plus doux sur les marges et force le centrage
             st.markdown("""
             <style>
-                /* Réduit drastiquement l'espace entre les checkbox */
-                [data-testid="stCheckbox"] {
-                    margin-bottom: -15px !important;
-                    margin-top: -15px !important;
+                /* Force le centrage du contenu dans les colonnes */
+                div[data-testid="column"] {
+                    text-align: center !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
                 }
-                /* Centre les checkbox */
-                [data-testid="stCheckbox"] > label {
-                    display: none; /* Cache le label à côté de la checkbox */
+                /* Ajuste la checkbox pour qu'elle soit visible mais compacte */
+                div[data-testid="stCheckbox"] {
+                    min-height: 25px !important; /* Hauteur minimale de sécurité */
+                    margin-bottom: -10px !important; /* Remonte légèrement */
+                    display: flex !important;
+                    justify-content: center !important;
+                }
+                /* S'assure que le label caché ne perturbe pas l'affichage */
+                div[data-testid="stCheckbox"] > label {
+                    min-height: 0px !important;
+                    margin: 0px !important;
+                    padding: 0px !important;
                 }
             </style>
             """, unsafe_allow_html=True)
 
             # Entête des cordes (Horizontal)
-            cols = st.columns([0.6] + [1]*12) # 1 col pour "T", 12 pour les cordes
+            # On utilise un ratio légèrement différent pour bien aligner
+            cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
             
             with cols[0]: st.write("**T**")
@@ -765,8 +777,10 @@ with tab1:
             with st.container(height=400):
                 # Grille de temps
                 for t in range(nb_temps):
-                    cols = st.columns([0.6] + [1]*12)
-                    with cols[0]: st.caption(f"{t+1}") # Numéro du temps
+                    cols = st.columns([0.8] + [1]*12)
+                    with cols[0]: 
+                        st.write("") # Petit espace pour aligner verticalement avec les checkbox
+                        st.caption(f"**{t+1}**") # Numéro du temps en gras
                     
                     for i, c in enumerate(cordes_list):
                         key = f"T{t}_{c}"
@@ -775,7 +789,7 @@ with tab1:
                             st.session_state.seq_grid[key] = False
                             
                         with cols[i+1]:
-                            # Utilisation de label_visibility="collapsed" pour masquer le label proprement
+                            # On utilise label_visibility="collapsed" qui est la méthode officielle pour cacher le label
                             st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
 
             st.write("")
