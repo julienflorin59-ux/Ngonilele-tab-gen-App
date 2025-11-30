@@ -471,6 +471,57 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
+# ==============================================================================
+# 🔧 FONCTION MANQUANTE (AJOUTÉE)
+# ==============================================================================
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
+    pixels_par_temps, offset_premiere_note_px = metrics
+    
+    # Fichiers temporaires pour moviepy
+    with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
+    with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
+    
+    clip_img = ImageClip("temp_score.png")
+    w, h = clip_img.size
+    
+    # Configuration fenêtre vidéo
+    video_h = 600
+    
+    # Vitesse de défilement
+    bar_y = 150 
+    start_y = bar_y - offset_premiere_note_px
+    speed_px_sec = pixels_par_temps * (bpm / 60.0)
+    
+    def scroll_func(t):
+        current_y = start_y - (speed_px_sec * t)
+        return ('center', current_y)
+    
+    moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
+    
+    # Barre de lecture jaune
+    try:
+        bar_height = int(pixels_par_temps)
+        highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
+        video_visual = CompositeVideoClip([moving_clip, highlight_bar], size=(w, video_h))
+    except:
+        video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
+        
+    audio_clip = AudioFileClip("temp_audio.mp3").subclip(0, duration_sec)
+    final = video_visual.set_audio(audio_clip)
+    final.fps = fps
+    
+    output_filename = "ngoni_video_sound.mp4"
+    final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
+    
+    # Cleanup
+    try: 
+        audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
+        if os.path.exists("temp_score.png"): os.remove("temp_score.png")
+        if os.path.exists("temp_audio.mp3"): os.remove("temp_audio.mp3")
+    except: pass
+    
+    return output_filename
+
 def generer_pdf_livret(buffers, titre):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     for item in buffers:
@@ -566,7 +617,7 @@ with tab1:
         st.subheader("Éditeur")
         subtab_btn, subtab_visu, subtab_seq = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "🎹 Séquenceur (Grille Compacte)"])
 
-        # --- LOGIQUE UNIFIÉE (FORCER L'AFFICHAGE DU DOIGT) ---
+        # --- LOGIQUE UNIFIÉE ---
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
             if mode == "👍 Force Pouce (P)": return " P", " (Pouce)"
@@ -647,161 +698,4 @@ with tab1:
             with c_tools[1]: st.button("🟰", key="v_simul", help="Notes Simultanées (Jouer en même temps)", on_click=outil_visuel_wrapper, args=("ajouter", "=", "Mode Simultané"), use_container_width=True)
             with c_tools[2]: st.button("🔁", key="v_x2", help="Doubler la note (x2)", on_click=outil_visuel_wrapper, args=("ajouter", "x2", "Doublé (x2)"), use_container_width=True)
             with c_tools[3]: st.button("🔇", key="v_sil", help="Insérer un silence", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True)
-            with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
-            with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
-
-        # --- ONGLET SÉQUENCEUR (VERSION GRILLE FIXE ULTRA-COMPACTE) ---
-        with subtab_seq:
-            st.info("🎹 **Séquenceur (Grille Compacte)**")
-            
-            # Nombre de temps variable
-            nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
-            st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
-            
-            # Mise à jour de la grille si la taille change
-            cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-            for t in range(nb_temps):
-                for c in cordes_list:
-                    k = f"T{t}_{c}"
-                    if k not in st.session_state.seq_grid:
-                        st.session_state.seq_grid[k] = False
-
-            # Conteneur avec scroll
-            with st.container(height=400):
-                # Entête des cordes
-                cols = st.columns([0.6] + [1]*12) # 1 col pour "T", 12 pour les cordes
-                with cols[0]: st.write("**T**")
-                for i, c in enumerate(cordes_list):
-                    with cols[i+1]: st.markdown(f"**{c}**")
-
-                # Grille
-                for t in range(nb_temps):
-                    cols = st.columns([0.6] + [1]*12)
-                    with cols[0]: st.caption(f"{t+1}") # Numéro du temps
-                    
-                    for i, c in enumerate(cordes_list):
-                        key = f"T{t}_{c}"
-                        with cols[i+1]:
-                            # Utilisation de label_visibility="collapsed" pour masquer le label proprement
-                            st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
-
-            st.write("")
-            col_seq_btn, col_seq_reset = st.columns([3, 1])
-            with col_seq_btn:
-                if st.button("📥 Insérer la séquence", type="primary", use_container_width=True):
-                    texte_genere = ""
-                    # Lecture de la grille
-                    for t in range(nb_temps):
-                        notes_activees = []
-                        for c in cordes_list:
-                            if st.session_state.seq_grid[f"T{t}_{c}"]:
-                                notes_activees.append(c)
-                        
-                        if not notes_activees:
-                            texte_genere += "+ S\n"
-                        else:
-                            premier = True
-                            for note in notes_activees:
-                                prefix = "+ " if premier else "= "
-                                doigt = " P" if note in ['1G','2G','3G','1D','2D','3D'] else " I"
-                                texte_genere += f"{prefix}{note}{doigt}\n" # FORCE L'AFFICHAGE DU DOIGT
-                                premier = False
-                    
-                    ajouter_texte(texte_genere)
-                    st.toast("Séquence ajoutée !", icon="🎹")
-            
-            with col_seq_reset:
-                if st.button("🗑️ Vider"):
-                    for k in st.session_state.seq_grid:
-                        st.session_state.seq_grid[k] = False
-                    st.rerun()
-
-        st.markdown("---")
-        st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
-        st.text_area("Zone de Code (Modifiable manuellement) :", height=200, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
-        st.caption("💡 Astuce : Vous pouvez agrandir la zone de texte en tirant le coin inférieur droit.")
-        
-        st.markdown("---")
-        col_play_btn, col_play_bpm = st.columns([1, 1])
-        with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100)
-        with col_play_btn:
-            st.write(""); st.write("")
-            if st.button("🎧 Écouter l'extrait"):
-                with st.status("🎵 Génération...", expanded=True) as status:
-                    seq_prev = parser_texte(st.session_state.code_actuel)
-                    audio_prev = generer_audio_mix(seq_prev, bpm_preview, acc_config)
-                    status.update(label="✅ Prêt !", state="complete", expanded=False)
-                if audio_prev: st.audio(audio_prev, format="audio/mp3")
-
-        with st.expander("Gérer le fichier"):
-            st.download_button(label="💾 Sauvegarder", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain")
-            uploaded_file = st.file_uploader("📂 Charger", type="txt")
-            if uploaded_file:
-                st.session_state.code_actuel = io.StringIO(uploaded_file.getvalue().decode("utf-8")).read()
-                st.rerun()
-        
-    with col_view:
-        st.subheader("Aperçu Partition")
-        view_container = st.container()
-        
-        if st.button("🔄 Générer la partition", type="primary", use_container_width=True):
-            st.session_state.partition_buffers = [] 
-            st.session_state.partition_generated = False
-            
-            styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-            styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
-            options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
-            
-            with view_container:
-                with st.status("📸 Traitement en cours...", expanded=True) as status:
-                    sequence = parser_texte(st.session_state.code_actuel)
-                    
-                    st.write("📖 Légende...")
-                    fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
-                    st.markdown("#### Page 1 : Légende")
-                    st.pyplot(fig_leg_ecran)
-                    
-                    if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
-                    else: fig_leg_dl = fig_leg_ecran
-                    buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
-                    st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
-                    if force_white_print: plt.close(fig_leg_dl)
-                    
-                    pages_data = []; current_page = []
-                    for n in sequence:
-                        if n['corde'] == 'PAGE_BREAK':
-                            if current_page: pages_data.append(current_page); current_page = []
-                        else: current_page.append(n)
-                    if current_page: pages_data.append(current_page)
-                    
-                    if not pages_data: st.warning("Aucune note.")
-                    else:
-                        for idx, page in enumerate(pages_data):
-                            st.write(f"📄 Page {idx+2}...")
-                            fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
-                            st.markdown(f"#### Page {idx+2}")
-                            st.pyplot(fig_ecran)
-                            
-                            if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
-                            else: fig_dl = fig_ecran
-                            buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
-                            st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
-                            if force_white_print: plt.close(fig_dl)
-                    
-                    st.session_state.partition_generated = True
-                    status.update(label="✅ Terminé !", state="complete", expanded=False)
-
-        elif st.session_state.partition_generated and st.session_state.partition_buffers:
-             with view_container:
-                for item in st.session_state.partition_buffers:
-                    if item['type'] == 'legende':
-                        st.markdown("#### Page 1 : Légende")
-                        st.pyplot(item['img_ecran'])
-                    elif item['type'] == 'page':
-                        st.markdown(f"#### Page {item['idx']}")
-                        st.pyplot(item['img_ecran'])
-
-        if st.session_state.partition_generated and st.session_state.partition_buffers:
-            st.markdown("---")
-            pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-            st.download_button(label="📕 Télécharger le Livret PDF", data=pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+            with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper,
