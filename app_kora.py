@@ -57,16 +57,9 @@ if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 
-# --- INITIALISATION SÉQUENCEUR (Nouvelle structure dictionnaire pour st.checkbox) ---
-# On utilise un dictionnaire simple plutôt qu'un DataFrame pour la grille manuelle
+# --- INITIALISATION SÉQUENCEUR (Dictionnaire) ---
 if 'seq_grid' not in st.session_state:
     st.session_state.seq_grid = {} 
-    # Clés = "T{temps}_{corde}" (ex: "T0_1G")
-    # On initialise tout à False
-    cordes = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-    for t in range(8):
-        for c in cordes:
-            st.session_state.seq_grid[f"T{t}_{c}"] = False
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -576,10 +569,8 @@ with tab1:
         # --- LOGIQUE UNIFIÉE (FORCER L'AFFICHAGE DU DOIGT) ---
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
-            # On force TOUJOURS l'écriture (plus de vide)
             if mode == "👍 Force Pouce (P)": return " P", " (Pouce)"
             if mode == "👆 Force Index (I)": return " I", " (Index)"
-            # Auto : On regarde si c'est une corde de pouce ou d'index par défaut
             if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
             return " I", " (Index)"
 
@@ -662,41 +653,37 @@ with tab1:
         # --- ONGLET SÉQUENCEUR (VERSION GRILLE FIXE ULTRA-COMPACTE) ---
         with subtab_seq:
             st.info("🎹 **Séquenceur (Grille Compacte)**")
+            
+            # Nombre de temps variable
+            nb_temps = st.number_input("Nombre de temps (Lignes)", min_value=4, max_value=64, value=8, step=4)
             st.write("Cochez les cases (Lignes = Temps, Colonnes = Cordes).")
             
-            # CSS spécifique pour tasser les checkbox
-            st.markdown("""
-            <style>
-                /* Réduit drastiquement l'espace entre les checkbox */
-                [data-testid="stCheckbox"] {
-                    margin-bottom: -15px !important;
-                    margin-top: -15px !important;
-                }
-                /* Centre les checkbox */
-                [data-testid="stCheckbox"] > label {
-                    display: none; /* Cache le label à côté de la checkbox */
-                }
-            </style>
-            """, unsafe_allow_html=True)
-
-            # Entête des cordes (Horizontal)
-            cols = st.columns([0.5] + [1]*12) # 1 col pour "T", 12 pour les cordes
+            # Mise à jour de la grille si la taille change
             cordes_list = ['1G', '2G', '3G', '4G', '5G', '6G', '1D', '2D', '3D', '4D', '5D', '6D']
-            
-            with cols[0]: st.write("**T**")
-            for i, c in enumerate(cordes_list):
-                with cols[i+1]: st.markdown(f"**{c}**")
+            for t in range(nb_temps):
+                for c in cordes_list:
+                    k = f"T{t}_{c}"
+                    if k not in st.session_state.seq_grid:
+                        st.session_state.seq_grid[k] = False
 
-            # Grille de 8 temps
-            for t in range(8):
-                cols = st.columns([0.5] + [1]*12)
-                with cols[0]: st.caption(f"{t+1}") # Numéro du temps
-                
+            # Conteneur avec scroll
+            with st.container(height=400):
+                # Entête des cordes
+                cols = st.columns([0.6] + [1]*12) # 1 col pour "T", 12 pour les cordes
+                with cols[0]: st.write("**T**")
                 for i, c in enumerate(cordes_list):
-                    key = f"T{t}_{c}"
-                    with cols[i+1]:
-                        # Checkbox sans label (géré par CSS)
-                        st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key])
+                    with cols[i+1]: st.markdown(f"**{c}**")
+
+                # Grille
+                for t in range(nb_temps):
+                    cols = st.columns([0.6] + [1]*12)
+                    with cols[0]: st.caption(f"{t+1}") # Numéro du temps
+                    
+                    for i, c in enumerate(cordes_list):
+                        key = f"T{t}_{c}"
+                        with cols[i+1]:
+                            # Utilisation de label_visibility="collapsed" pour masquer le label proprement
+                            st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
 
             st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
@@ -704,7 +691,7 @@ with tab1:
                 if st.button("📥 Insérer la séquence", type="primary", use_container_width=True):
                     texte_genere = ""
                     # Lecture de la grille
-                    for t in range(8):
+                    for t in range(nb_temps):
                         notes_activees = []
                         for c in cordes_list:
                             if st.session_state.seq_grid[f"T{t}_{c}"]:
