@@ -1,2 +1,2 @@
 ffmpeg
-freefont
+fonts-freefont-ttf
