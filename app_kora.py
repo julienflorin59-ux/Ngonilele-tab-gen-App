@@ -394,54 +394,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
     notes_par_temps = {}; rayon = 0.30
-    for n in notes_page:
-        t_absolu = n['temps']; y = -(t_absolu - t_min)
-        if y not in notes_par_temps: notes_par_temps[y] = []
-        notes_par_temps[y].append(n); code = n['corde']
-        if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
-        elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
-        elif code in config_acc:
-            props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
-            ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
-            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
-            if 'doigt' in n:
-                doigt = n['doigt']; img_path = path_index if doigt == 'I' else path_pouce; succes_img = False
-                if os.path.exists(img_path):
-                    try: ab = AnnotationBbox(OffsetImage(mpimg.imread(img_path), zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab); succes_img = True
-                    except: pass
-                if not succes_img: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
-    for y, group in notes_par_temps_relatif.items():
-        xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
-        if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
-    return fig
-
-# --- MOTEUR VIDEO SYNCHRONISÉ ---
-def generer_image_longue_calibree(sequence, config_acc, styles):
-    if not sequence: return None, 0, 0
-    t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
-    y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
-    FIG_WIDTH = 16; FIG_HEIGHT = hauteur_unites * 0.8; DPI = 100
-    c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
-    path_pouce = CHEMIN_ICON_POUCE_BLANC if c_fond == 'white' else CHEMIN_ICON_POUCE
-    path_index = CHEMIN_ICON_INDEX_BLANC if c_fond == 'white' else CHEMIN_ICON_INDEX
-    fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
-    ax.set_ylim(y_min_footer, y_max_header); ax.set_xlim(-7.5, 7.5)
-    y_top = 2.0; y_bot = y_min_footer + 1.0 
-    prop_note_us = get_font(24, 'bold'); prop_note_eu = get_font(18, 'normal', 'italic'); prop_numero = get_font(14, 'bold'); prop_standard = get_font(14, 'bold'); prop_annotation = get_font(16, 'bold')
-    ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
-    for code, props in config_acc.items():
-        x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
-    for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
-        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    map_labels = {}; last_sep = t_min - 1; processed_t = set()
-    for n in sequence:
-        t = n['temps']; 
-        if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
-        elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-    notes_par_temps = {}; rayon = 0.30
     for n in sequence:
         if n['corde'] == 'PAGE_BREAK': continue 
         t_absolu = n['temps']; y = -(t_absolu - t_min)
@@ -727,6 +679,8 @@ with tab1:
         st.markdown("---")
         st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
         st.text_area("Zone de Code (Modifiable manuellement) :", height=200, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
+        # Ajout du message d'aide pour redimensionner
+        st.caption("💡 Astuce : Vous pouvez agrandir la zone de texte en tirant le coin inférieur droit.")
         
         # --- LECTEUR AUDIO RAPIDE ---
         st.markdown("---")
