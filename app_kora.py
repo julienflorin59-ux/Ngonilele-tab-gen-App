@@ -809,7 +809,7 @@ with tab1:
                         st.session_state.seq_grid[k] = False
                     st.rerun()
             
-            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE
+            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE (QUI AVAIENT DISPARU)
             st.markdown("---")
             st.caption("Structure & Annotations")
             c_struct_1, c_struct_2 = st.columns(2)
