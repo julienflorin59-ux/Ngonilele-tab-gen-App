@@ -712,9 +712,7 @@ def charger_morceau():
         st.session_state.audio_buffer = None
         st.session_state.pdf_buffer = None
         
-        # Réinitialisation forcée des caches pour éviter les fantômes
         st.session_state.seq_grid = {}
-        # st.session_state.stored_blocks = {} # On garde les blocs, c'est utile de les conserver
         
         # 1. Clean Matplotlib
         plt.close('all')
@@ -1081,8 +1079,11 @@ with tab1:
                 fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
                 if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
                 else: fig_leg_dl = fig_leg_ecran
-                buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
+                buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=100, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
                 st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
+                st.session_state.partition_generated = True
+                st.session_state.pdf_buffer = None # Reset PDF pour le forcer à se re-générer
+                st.rerun()
                 
                 pages_data = []; current_page = []
                 for n in sequence:
@@ -1097,13 +1098,11 @@ with tab1:
                         fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
                         if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
                         else: fig_dl = fig_ecran
-                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
+                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=100, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
                         st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
                     
-                    st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-                
-                st.session_state.partition_generated = True
-                status.update(label="✅ Terminé !", state="complete", expanded=False)
+                    st.session_state.partition_generated = True
+                    st.rerun()
 
         # AFFICHAGE PERSISTANT (HORS DU IF DU BOUTON)
         if st.session_state.partition_generated and st.session_state.partition_buffers:
@@ -1115,6 +1114,12 @@ with tab1:
                     elif item['type'] == 'page':
                         st.markdown(f"#### Page {item['idx']}")
                         st.pyplot(item['img_ecran'])
+
+        # GENERATION AUTOMATIQUE DU PDF SI NON EXISTANT
+        if st.session_state.partition_generated and st.session_state.pdf_buffer is None:
+            with st.spinner("📄 Préparation du fichier PDF..."):
+                st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+                st.rerun()
 
         if st.session_state.partition_generated and st.session_state.pdf_buffer:
             st.markdown("---")
