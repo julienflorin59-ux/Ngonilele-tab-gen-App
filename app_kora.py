@@ -429,39 +429,24 @@ def generer_audio_mix(sequence, bpm, acc_config):
     buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
     return buffer
 
-# 🚀 NOUVELLE FONCTION OPTIMISEE POUR LE METRONOME 🚀
-@st.cache_resource
-def get_base_metronome_sounds():
-    if not HAS_PYDUB: return None, None
-    # On génère les sons de base UNE SEULE FOIS pour toute la durée de vie de l'app
+def generer_metronome(bpm, duration_sec=30, signature="4/4"):
+    if not HAS_PYDUB: return None
     shaker_acc = WhiteNoise().to_audio_segment(duration=60).fade_out(50)
     click_acc = Sine(1500).to_audio_segment(duration=20).fade_out(20).apply_gain(-10)
     sound_accent = shaker_acc.overlay(click_acc).apply_gain(-2)
     sound_normal = WhiteNoise().to_audio_segment(duration=40).fade_out(35).apply_gain(-8)
-    return sound_accent, sound_normal
-
-def generer_metronome(bpm, duration_sec=30, signature="4/4"):
-    if not HAS_PYDUB: return None
-    
-    # Récupération des sons pré-calculés (ultra rapide)
-    sound_accent, sound_normal = get_base_metronome_sounds()
-    if not sound_accent: return None
-
     ms_per_beat = 60000 / bpm
     silence_acc = max(0, ms_per_beat - len(sound_accent))
     silence_norm = max(0, ms_per_beat - len(sound_normal))
-    
     beat_accent = sound_accent + AudioSegment.silent(duration=silence_acc)
     beat_normal = sound_normal + AudioSegment.silent(duration=silence_norm)
-    
     if signature == "3/4": measure_block = beat_accent + beat_normal + beat_normal
     else: measure_block = beat_accent + beat_normal + beat_normal + beat_normal
-    
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
     metronome_track = (measure_block * nb_mesures)[:int(duration_sec*1000)]
     
-    # OPTIMISATION AUDIO: Export en bitrate réduit (32k suffit pour un clic)
-    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3", bitrate="32k"); buffer.seek(0)
+    # OPTIMISATION AUDIO: Export en bitrate réduit
+    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
     return buffer
 
 # ==============================================================================
@@ -643,7 +628,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI o
 # ==============================================================================
 # 🔧 FONCTION MANQUANTE (OPTIMISÉE)
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=10): # FPS reduit pour rapidité (10)
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité (10)
     pixels_par_temps, offset_premiere_note_px = metrics
     temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
     temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
@@ -1081,27 +1066,48 @@ with tab1:
     with col_view:
         st.subheader("Aperçu Partition")
         view_container = st.container()
-        
-        # BOUTON DE GENERATION (MET A JOUR L'ETAT SEULEMENT)
+
+        # Variable pour savoir si on vient de cliquer sur générer pour ne pas afficher en double
+        visuals_rendered_this_run = False 
+
+        # Fonction utilitaire pour afficher les buffers existants
+        def afficher_visuels(container):
+            with container:
+                for item in st.session_state.partition_buffers:
+                    if item['type'] == 'legende':
+                        st.markdown("#### Page 1 : Légende")
+                        st.pyplot(item['img_ecran'])
+                    elif item['type'] == 'page':
+                        st.markdown(f"#### Page {item['idx']}")
+                        st.pyplot(item['img_ecran'])
+
+        def afficher_bouton_pdf(container):
+            with container:
+                 if st.session_state.pdf_buffer:
+                    st.markdown("---")
+                    st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+
+        # BOUTON DE GENERATION
         if st.button("🔄 Générer la partition", type="primary", use_container_width=True):
             st.session_state.partition_buffers = [] 
+            st.session_state.pdf_buffer = None
             
             styles_ecran = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
             
-            with st.status("📸 Traitement en cours...", expanded=True) as status:
+            # --- ETAPE 1 : GENERATION VISUELLE ---
+            with st.status("📸 Génération des visuels...", expanded=True) as status:
                 sequence = parser_texte(st.session_state.code_actuel)
                 
+                # Génération Légende
                 fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
                 if force_white_print: fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
                 else: fig_leg_dl = fig_leg_ecran
-                buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=100, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
+                buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
                 st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
-                st.session_state.partition_generated = True
-                st.session_state.pdf_buffer = None # Reset PDF pour le forcer à se re-générer
-                st.rerun()
                 
+                # Génération Pages
                 pages_data = []; current_page = []
                 for n in sequence:
                     if n['corde'] == 'PAGE_BREAK':
@@ -1115,33 +1121,32 @@ with tab1:
                         fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
                         if force_white_print: fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
                         else: fig_dl = fig_ecran
-                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=100, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
+                        buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
                         st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
-                    
-                    st.session_state.partition_generated = True
-                    st.rerun()
+                
+                st.session_state.partition_generated = True
+                status.write("✅ Visuels prêts !")
+                
+                # --- AFFICHAGE IMMEDIAT DES IMAGES AVANT LE PDF ---
+                afficher_visuels(view_container)
+                visuals_rendered_this_run = True
+
+                # --- ETAPE 2 : GENERATION PDF ---
+                status.write("📄 Assemblage du PDF en cours...")
+                st.toast("Visuels affichés ! Génération du PDF en cours...", icon="⏳")
+                
+                st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+                
+                # --- AFFICHAGE IMMEDIAT DU BOUTON DOWNLOAD ---
+                afficher_bouton_pdf(view_container)
+                
+                status.update(label="✅ Terminé !", state="complete", expanded=False)
 
         # AFFICHAGE PERSISTANT (HORS DU IF DU BOUTON)
-        if st.session_state.partition_generated and st.session_state.partition_buffers:
-             with view_container:
-                for item in st.session_state.partition_buffers:
-                    if item['type'] == 'legende':
-                        st.markdown("#### Page 1 : Légende")
-                        st.pyplot(item['img_ecran'])
-                    elif item['type'] == 'page':
-                        st.markdown(f"#### Page {item['idx']}")
-                        st.pyplot(item['img_ecran'])
-
-        # GENERATION AUTOMATIQUE DU PDF SI NON EXISTANT
-        if st.session_state.partition_generated and st.session_state.pdf_buffer is None:
-            with st.spinner("📄 Préparation du fichier PDF..."):
-                st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
-                st.rerun()
-
-        if st.session_state.partition_generated and st.session_state.pdf_buffer:
-            st.markdown("---")
-            # Le clic ici recharge la page, mais 'partition_generated' reste True dans le session_state, donc l'affichage au-dessus persiste !
-            st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+        # S'affiche seulement si on n'a pas déjà affiché les résultats dans le bloc du bouton ci-dessus
+        if st.session_state.partition_generated and not visuals_rendered_this_run:
+            afficher_visuels(view_container)
+            afficher_bouton_pdf(view_container)
 
 # --- TAB VIDÉO ---
 with tab3:
