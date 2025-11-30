@@ -19,7 +19,7 @@ import pandas as pd
 st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
     layout="wide", 
-    page_icon="ico_ngonilele.png", 
+    page_icon="ico_ngonilele.png", # ✅ MODIFICATION FAVICON
     initial_sidebar_state="expanded"
 )
 
@@ -143,7 +143,7 @@ BANQUE_TABLATURES = {
 }
 
 # En-tête
-col_logo, col_titre = st.columns([1, 5])
+col_logo, col_titre = st.columns([1,  5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
     else: st.header("🪕")
@@ -573,7 +573,7 @@ def ajouter_texte(txt):
         st.session_state.code_actuel = txt
     st.session_state.widget_input = st.session_state.code_actuel
 
-# ✅ NOUVELLE FONCTION POUR CONFIRMATION
+# ✅ NOUVELLE FONCTION POUR CONFIRMATION (TOAST)
 def ajouter_avec_feedback(txt, label_toast):
     ajouter_texte(txt)
     st.toast(f"Ajouté : {label_toast}", icon="✅")
@@ -583,7 +583,7 @@ def annuler_derniere_ligne():
     if len(lines) > 0:
         st.session_state.code_actuel = "\n".join(lines[:-1])
         st.session_state.widget_input = st.session_state.code_actuel
-        st.toast("Dernière note effacée", icon="🗑️") # ✅ TOAST EFFACER
+        st.toast("Dernière note effacée", icon="🗑️") # ✅ TOAST POUR EFFACER
 
 with st.sidebar:
     st.header("🎚️ Réglages")
@@ -592,7 +592,7 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        # ✅ COULEUR PAR DÉFAUT MODIFIÉE pour matcher le thème (ligne 448)
+        # ✅ COULEUR PAR DÉFAUT MODIFIÉE pour matcher le thème
         bg_color = st.color_picker("Couleur de fond", "#e5c4a3") 
         use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
         bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
@@ -600,7 +600,8 @@ with st.sidebar:
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
-    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button style="width:100%; background-color:#FF4B4B; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+    # ✅ COULEUR DU BOUTON MODIFIÉE pour matcher le thème
+    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
@@ -658,14 +659,14 @@ with tab1:
                 for c in ['1D','2D','3D','4D','5D','6D']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
             with bc3:
                 st.caption("Outils")
-                # ✅ BOUTONS MODIFIÉS AVEC FEEDBACK
+                # ✅ BOUTONS MODIFIÉS (NOMS + FEEDBACK TOAST)
                 st.button("↩️ Effacer une note", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
                 st.button("🟰 Notes Simultanées", key="btn_simul", on_click=ajouter_avec_feedback, args=("=", "Notes Simultanées"), use_container_width=True)
                 st.button("🔁 Notes Doublées", key="btn_x2", on_click=ajouter_avec_feedback, args=("x2", "Notes Doublées"), use_container_width=True)
                 st.button("🔇 Insérer Silence", key="btn_silence", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True)
             with bc4:
                 st.caption("Structure")
-                # ✅ BOUTONS MODIFIÉS AVEC FEEDBACK
+                # ✅ BOUTONS MODIFIÉS (NOMS + FEEDBACK TOAST)
                 st.button("📄 Insérer Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Saut de Page"), use_container_width=True)
                 st.button("📝 Insérer Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Message", "Texte"), use_container_width=True)
 
