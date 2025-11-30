@@ -628,7 +628,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI o
 # ==============================================================================
 # 🔧 FONCTION MANQUANTE (OPTIMISÉE)
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=10): # FPS reduit pour rapidité (10)
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité (10)
     pixels_par_temps, offset_premiere_note_px = metrics
     temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
     temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
