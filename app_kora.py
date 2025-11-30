@@ -478,55 +478,23 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
-# ✅ NOUVELLE FONCTION : Générer uniquement l'en-tête pour la vidéo
-def generer_entete_seul(config_acc, styles):
-    FIG_WIDTH = 16
-    FIG_HEIGHT = 3.0 # Hauteur suffisante pour les notes
-    DPI = 100
-    c_fond = styles['FOND']; c_txt = styles['TEXTE']
-    
-    plt.close('all')
-    fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(0, 3.5); ax.axis('off')
-
-    prop_note_us = get_font_cached(24, 'bold')
-    prop_note_eu = get_font_cached(18, 'normal', 'italic')
-    prop_numero = get_font_cached(14, 'bold')
-
-    y_base = 1.5
-    ax.vlines(0, 0, y_base + 1.8, color=c_txt, lw=5, zorder=2)
-
-    for code, props in config_acc.items():
-        x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        ax.text(x, y_base + 1.3, code, ha='center', color='gray', fontproperties=prop_numero)
-        ax.text(x, y_base + 0.7, note, ha='center', color=c, fontproperties=prop_note_us)
-        ax.text(x, y_base + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu)
-        ax.vlines(x, 0, y_base, colors=c, lw=3, zorder=1)
-
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
-    plt.close(fig)
-    buf.seek(0)
-    return buf
-
 # ==============================================================================
-# 🔧 FONCTION VIDÉO MODIFIÉE (HEADER FIXE)
+# 🔧 FONCTION MANQUANTE (AJOUTÉE)
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, config_acc, styles, fps=24):
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
     pixels_par_temps, offset_premiere_note_px = metrics
     
-    # Fichiers temporaires
+    # Fichiers temporaires pour moviepy
     with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
     with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
     
-    # ✅ GÉNÉRATION HEADER FIXE
-    header_buf = generer_entete_seul(config_acc, styles)
-    with open("temp_header.png", "wb") as f: f.write(header_buf.getbuffer())
-
     clip_img = ImageClip("temp_score.png")
     w, h = clip_img.size
     
+    # Configuration fenêtre vidéo
     video_h = 600
+    
+    # Vitesse de défilement
     bar_y = 150 
     start_y = bar_y - offset_premiere_note_px
     speed_px_sec = pixels_par_temps * (bpm / 60.0)
@@ -535,21 +503,15 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         current_y = start_y - (speed_px_sec * t)
         return ('center', current_y)
     
-    # Clip défilant (Partition complète)
     moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
     
-    # ✅ CLIP HEADER FIXE (Positionné en haut)
-    header_clip = ImageClip("temp_header.png").set_position(('center', 0)).set_duration(duration_sec)
-
-    # Barre de lecture (Jaune)
+    # Barre de lecture jaune
     try:
         bar_height = int(pixels_par_temps)
         highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
-        # Fond
+        # ✅ COULEUR DE FOND VIDÉO = BEIGE DU SITE (RGB de #e5c4a3 = 229, 196, 163)
         bg_clip = ColorClip(size=(w, video_h), color=(229, 196, 163)).set_duration(duration_sec) 
-        
-        # ✅ COMPOSITION : Fond + Partition Défilante + Barre + Header Fixe (au-dessus)
-        video_visual = CompositeVideoClip([bg_clip, moving_clip, highlight_bar, header_clip], size=(w, video_h))
+        video_visual = CompositeVideoClip([bg_clip, moving_clip, highlight_bar], size=(w, video_h))
     except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
         
@@ -562,9 +524,8 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     
     # Cleanup
     try: 
-        audio_clip.close(); final.close(); video_visual.close(); clip_img.close(); header_clip.close()
+        audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
         if os.path.exists("temp_score.png"): os.remove("temp_score.png")
-        if os.path.exists("temp_header.png"): os.remove("temp_header.png")
         if os.path.exists("temp_audio.mp3"): os.remove("temp_audio.mp3")
     except: pass
     
@@ -773,7 +734,7 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET COMPLET) ---
+        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET SANS CSS CASSÉ) ---
         with subtab_seq:
             # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
             st.markdown("""
@@ -842,7 +803,7 @@ with tab1:
                         st.session_state.seq_grid[k] = False
                     st.rerun()
             
-            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE (QUI AVAIENT DISPARU)
+            # ✅ RE-AJOUT DES BOUTONS DE STRUCTURE
             st.markdown("---")
             st.caption("Structure & Annotations")
             c_struct_1, c_struct_2 = st.columns(2)
@@ -980,8 +941,7 @@ with tab3:
                         progress_bar = st.progress(0)
                         try:
                             progress_bar.progress(30)
-                            # ✅ APPEL DE LA FONCTION MODIFIÉE AVEC HEADER FIXE
-                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm, acc_config, styles_video)
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
                             progress_bar.progress(100)
                             st.session_state.video_path = video_path 
                             status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
