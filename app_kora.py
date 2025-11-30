@@ -142,7 +142,13 @@ BANQUE_TABLATURES = {
 """
 }
 
-# En-tête
+# En-tête (Message ajouté ici)
+st.markdown("""
+<div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
+    <strong>👈 Cliquez sur la flèche > en haut à gauche</strong> pour ouvrir le menu et charger un morceau dans la banque, imprimer sur fond blanc, m'envoyer vos tablatures pour les ajouter à la banque !!
+</div>
+""", unsafe_allow_html=True)
+
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
@@ -592,11 +598,11 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        # ✅ COULEUR PAR DÉFAUT MODIFIÉE pour matcher le thème
-        bg_color = st.color_picker("Couleur de fond", "#e5c4a3") 
-        use_bg_img = st.checkbox("Texture Ngonilélé (si image présente)", True)
-        bg_alpha = st.slider("Transparence Texture", 0.0, 1.0, 0.2)
-        st.markdown("---")
+        # Paramètres figés (cachés)
+        bg_color = "#e5c4a3"
+        use_bg_img = True
+        bg_alpha = 0.2
+        # Seule option visible
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
@@ -725,7 +731,7 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET SANS CSS CASSÉ) ---
+        # --- ONGLET SÉQUENCEUR (CORRIGÉ ET COMPLET) ---
         with subtab_seq:
             # ✅ REMPLACEMENT DE ST.INFO PAR UN BLOC HTML STYLISÉ
             st.markdown("""
