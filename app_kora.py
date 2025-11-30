@@ -960,7 +960,7 @@ with tab1:
         if st.session_state.partition_generated and st.session_state.pdf_buffer:
             st.markdown("---")
             # Le clic ici recharge la page, mais 'partition_generated' reste True dans le session_state, donc l'affichage au-dessus persiste !
-            st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition.pdf", mime="application/pdf", type="primary", use_container_width=True)
+            st.download_button(label="📕 Télécharger le Livret PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
 
 # --- TAB VIDÉO ---
 with tab3:
