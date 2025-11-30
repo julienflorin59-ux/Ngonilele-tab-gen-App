@@ -709,6 +709,13 @@ def charger_morceau():
         st.session_state.video_path = None
         st.session_state.audio_buffer = None
         st.session_state.pdf_buffer = None
+        
+        # Réinitialisation forcée des caches pour éviter les fantômes
+        st.session_state.seq_grid = {}
+        st.session_state.stored_blocks = {}
+        
+        # Force le rafraîchissement immédiat de l'UI
+        st.rerun()
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
