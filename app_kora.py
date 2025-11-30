@@ -393,11 +393,11 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         t = n['temps']; 
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-    notes_par_temps = {}; rayon = 0.30
+    notes_par_temps_relatif = {}; rayon = 0.30
     for n in notes_page:
         t_absolu = n['temps']; y = -(t_absolu - t_min)
-        if y not in notes_par_temps: notes_par_temps[y] = []
-        notes_par_temps[y].append(n); code = n['corde']
+        if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
+        notes_par_temps_relatif[y].append(n); code = n['corde']
         if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
         elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
@@ -612,8 +612,7 @@ with tab1:
         st.subheader("Éditeur")
         
         # ONGLETS DE SAISIE
-        # Note: Plus de "subtab_txt" car le texte est sorti des onglets
-        subtab_btn, subtab_visu = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)"])
+        subtab_btn, subtab_visu, subtab_txt = st.tabs(["🔘 Boutons (Défaut)", "🎨 Visuel (Nouveau)", "📝 Texte"])
 
         # ========================================================
         # 1. SAISIE BOUTONS (Grille Compacte)
@@ -621,7 +620,7 @@ with tab1:
         with subtab_btn:
             st.info("⌨️ **Mode Rapide (Grille Compacte)**")
 
-            # --- CSS MODIFIE (V3: AGRESSIF SUR LE TEXTE INTERNE) ---
+            # --- CSS POUR BOUTONS COMPACTS ---
             st.markdown("""
             <style>
             /* Cibler le conteneur du bouton dans les colonnes */
@@ -681,8 +680,6 @@ with tab1:
                 '1D': '#32CD32', '2D': '#00008B', '3D': '#FFA500', '4D': '#00BFFF', '5D': '#9400D3', '6D': '#FFD700'
             }
 
-            st.write("##### Cordes de Gauche _____________________ Cordes de Droite")
-
             # On crée 13 colonnes : 6Gauche + 1Separateur + 6Droite
             cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
             
@@ -712,21 +709,21 @@ with tab1:
 
             st.write("") # Espace
             
-            # -- BARRE D'OUTILS EN DESSOUS (UPDATED TOOLTIPS) --
+            # -- BARRE D'OUTILS EN DESSOUS (Similaire à avant mais alignée) --
             c_tools = st.columns(6)
-            with c_tools[0]: st.button("↩️", key="v_undo", help="Annuler la dernière action", on_click=annuler_derniere_ligne, use_container_width=True)
-            with c_tools[1]: st.button("🟰", key="v_simul", help="Notes Simultanées (Jouer en même temps)", on_click=ajouter_texte, args=("=",), use_container_width=True)
-            with c_tools[2]: st.button("🔁", key="v_x2", help="Doubler la note (x2)", on_click=ajouter_texte, args=("x2",), use_container_width=True)
-            with c_tools[3]: st.button("🔇", key="v_sil", help="Insérer un silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
-            with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
-            with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=ajouter_texte, args=("+ TXT Msg",), use_container_width=True)
+            with c_tools[0]: st.button("↩️", key="v_undo", help="Effacer ligne", on_click=annuler_derniere_ligne, use_container_width=True)
+            with c_tools[1]: st.button("🟰", key="v_simul", help="Simultané", on_click=ajouter_texte, args=("=",), use_container_width=True)
+            with c_tools[2]: st.button("🔁", key="v_x2", help="Doubler (x2)", on_click=ajouter_texte, args=("x2",), use_container_width=True)
+            with c_tools[3]: st.button("🔇", key="v_sil", help="Silence", on_click=ajouter_texte, args=("+ S",), use_container_width=True)
+            with c_tools[4]: st.button("📄", key="v_page", help="Nouvelle Page", on_click=ajouter_texte, args=("+ PAGE",), use_container_width=True)
+            with c_tools[5]: st.button("📝", key="v_txt", help="Ajouter Texte", on_click=ajouter_texte, args=("+ TXT Msg",), use_container_width=True)
 
         # ========================================================
-        # 3. SAISIE TEXTE (PERMANENTE / HORS ONGLETS)
+        # 3. SAISIE TEXTE (ANCIENNE)
         # ========================================================
-        st.markdown("---")
-        st.caption("📝 **Éditeur Texte (Résultat en temps réel)**")
-        st.text_area("Zone de Code (Modifiable manuellement) :", height=200, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
+        with subtab_txt:
+            st.warning("📝 **Éditeur Texte (Ancienne méthode / Corrections)**")
+            st.text_area("Code :", height=400, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
         
         # --- LECTEUR AUDIO RAPIDE ---
         st.markdown("---")
