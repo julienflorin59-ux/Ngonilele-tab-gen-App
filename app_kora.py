@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib.font_manager as fm
 import matplotlib.image as mpimg
+from matplotlib.figure import Figure # OPTIMISATION: Import nécessaire pour la gestion mémoire
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 import io
 import os
@@ -292,7 +293,7 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE OPTIMISÉ
+# 🎨 MOTEUR AFFICHAGE OPTIMISÉ (AVEC FIGURE)
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -322,7 +323,11 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
 
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font_cached(32, 'bold')
-    fig, ax = plt.subplots(figsize=(16, 8), facecolor=c_fond)
+    
+    # OPTIMISATION: Utilisation de Figure() au lieu de plt.subplots()
+    fig = Figure(figsize=(16, 8), facecolor=c_fond)
+    ax = fig.subplots()
+    
     ax.set_facecolor(c_fond)
     ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     dessiner_contenu_legende(ax, 0.5, styles, mode_white)
@@ -330,7 +335,7 @@ def generer_page_1_legende(titre, styles, mode_white=False):
     return fig
 
 def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visuelles, mode_white=False):
-    plt.close('all') # Cleanup
+    # OPTIMISATION: suppression de plt.close('all') qui casse le multi-thread
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     
     img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE)
@@ -340,7 +345,10 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     lignes_sur_page = t_max - t_min + 1
     hauteur_fig = max(6, (lignes_sur_page * 0.75) + 6)
     
-    fig, ax = plt.subplots(figsize=(16, hauteur_fig), facecolor=c_fond)
+    # OPTIMISATION: Utilisation de Figure()
+    fig = Figure(figsize=(16, hauteur_fig), facecolor=c_fond)
+    ax = fig.subplots()
+    
     ax.set_facecolor(c_fond)
     y_top = 2.5; y_bot = - (t_max - t_min) - 1.5; y_top_cordes = y_top
     
@@ -422,8 +430,10 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     FIG_WIDTH = 16; FIG_HEIGHT = hauteur_unites * 0.8; DPI = 100
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     
-    plt.close('all') # Cleanup
-    fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
+    # OPTIMISATION: Figure()
+    fig = Figure(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond)
+    ax = fig.subplots()
+    ax.set_facecolor(c_fond)
     ax.set_ylim(y_min_footer, y_max_header); ax.set_xlim(-7.5, 7.5)
     
     y_top = 2.0; y_bot = y_min_footer + 1.0 
@@ -474,68 +484,80 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
     offset_premiere_note_px = total_h_px - px_y_t0
     
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
-    plt.close(fig) # IMPORTANT
+    # Plus besoin de plt.close(fig) car 'fig' est local
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
 # ==============================================================================
-# 🔧 FONCTION MANQUANTE (AJOUTÉE)
+# 🔧 FONCTION MANQUANTE (OPTIMISÉE)
 # ==============================================================================
 def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=24):
     pixels_par_temps, offset_premiere_note_px = metrics
     
     # Fichiers temporaires pour moviepy
-    with open("temp_score.png", "wb") as f: f.write(image_buffer.getbuffer())
-    with open("temp_audio.mp3", "wb") as f: f.write(audio_buffer.getbuffer())
-    
-    clip_img = ImageClip("temp_score.png")
-    w, h = clip_img.size
-    
-    # Configuration fenêtre vidéo
-    video_h = 600
-    
-    # Vitesse de défilement
-    bar_y = 150 
-    start_y = bar_y - offset_premiere_note_px
-    speed_px_sec = pixels_par_temps * (bpm / 60.0)
-    
-    def scroll_func(t):
-        current_y = start_y - (speed_px_sec * t)
-        return ('center', current_y)
-    
-    moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
-    
-    # Barre de lecture jaune
+    temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
+    temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
+    output_filename = f"ngoni_video_{random.randint(0,10000)}.mp4"
+
     try:
-        bar_height = int(pixels_par_temps)
-        highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
-        # ✅ COULEUR DE FOND VIDÉO = BEIGE DU SITE (RGB de #e5c4a3 = 229, 196, 163)
-        bg_clip = ColorClip(size=(w, video_h), color=(229, 196, 163)).set_duration(duration_sec) 
-        video_visual = CompositeVideoClip([bg_clip, moving_clip, highlight_bar], size=(w, video_h))
-    except:
-        video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
+        with open(temp_img_file, "wb") as f: f.write(image_buffer.getbuffer())
+        with open(temp_audio_file, "wb") as f: f.write(audio_buffer.getbuffer())
         
-    audio_clip = AudioFileClip("temp_audio.mp3").subclip(0, duration_sec)
-    final = video_visual.set_audio(audio_clip)
-    final.fps = fps
-    
-    output_filename = "ngoni_video_sound.mp4"
-    final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast')
-    
-    # Cleanup
-    try: 
-        audio_clip.close(); final.close(); video_visual.close(); clip_img.close()
-        if os.path.exists("temp_score.png"): os.remove("temp_score.png")
-        if os.path.exists("temp_audio.mp3"): os.remove("temp_audio.mp3")
-    except: pass
-    
-    return output_filename
+        clip_img = ImageClip(temp_img_file)
+        w, h = clip_img.size
+        
+        # OPTIMISATION: Réduire la hauteur vidéo pour éviter crash RAM sur Cloud
+        video_h = 480 
+        
+        # Vitesse de défilement
+        bar_y = 100 # ajusté pour video_h plus petit
+        start_y = bar_y - offset_premiere_note_px
+        speed_px_sec = pixels_par_temps * (bpm / 60.0)
+        
+        def scroll_func(t):
+            current_y = start_y - (speed_px_sec * t)
+            return ('center', current_y)
+        
+        moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
+        
+        try:
+            bar_height = int(pixels_par_temps)
+            highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
+            bg_clip = ColorClip(size=(w, video_h), color=(229, 196, 163)).set_duration(duration_sec) 
+            video_visual = CompositeVideoClip([bg_clip, moving_clip, highlight_bar], size=(w, video_h))
+        except:
+            video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
+            
+        audio_clip = AudioFileClip(temp_audio_file).subclip(0, duration_sec)
+        final = video_visual.set_audio(audio_clip)
+        final.fps = fps
+        
+        # OPTIMISATION: Preset ultrafast
+        final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast', logger=None)
+        
+        # Cleanup explicite des clips
+        audio_clip.close()
+        video_visual.close()
+        clip_img.close()
+        final.close()
+
+        return output_filename
+
+    except Exception as e:
+        st.error(f"Erreur vidéo : {e}")
+        return None
+        
+    finally:
+        # Nettoyage fichiers temporaires
+        if os.path.exists(temp_img_file): os.remove(temp_img_file)
+        if os.path.exists(temp_audio_file): os.remove(temp_audio_file)
 
 def generer_pdf_livret(buffers, titre):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     for item in buffers:
         pdf.add_page()
-        temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}.png"
+        # Nom unique pour éviter conflits
+        temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}_{random.randint(0,1000)}.png"
         with open(temp_img, "wb") as f:
             f.write(item['buf'].getbuffer())
         pdf.image(temp_img, x=10, y=10, w=190)
@@ -556,6 +578,13 @@ else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
 if st.session_state.code_actuel == "":
     st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
+
+# OPTIMISATION: Chargement par URL ?code=...
+query_params = st.query_params
+if "code" in query_params and st.session_state.code_actuel == BANQUE_TABLATURES[PREMIER_TITRE].strip():
+    try:
+        st.session_state.code_actuel = query_params["code"]
+    except: pass
 
 def charger_morceau():
     choix = st.session_state.selection_banque
@@ -611,6 +640,11 @@ with st.sidebar:
     st.markdown("### 🤝 Contribuer")
     # ✅ COULEUR DU BOUTON MODIFIÉE pour matcher le thème
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+    
+    # Bouton partage URL
+    if st.button("🔗 Créer un lien de partage"):
+        url_share = f"https://share.streamlit.io/votre_app?code={urllib.parse.quote(st.session_state.code_actuel)}"
+        st.code(url_share, language="text")
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
@@ -861,7 +895,7 @@ with tab1:
                     else: fig_leg_dl = fig_leg_ecran
                     buf_leg = io.BytesIO(); fig_leg_dl.savefig(buf_leg, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf_leg.seek(0)
                     st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
-                    if force_white_print: plt.close(fig_leg_dl)
+                    # if force_white_print: plt.close(fig_leg_dl)
                     
                     pages_data = []; current_page = []
                     for n in sequence:
@@ -883,7 +917,7 @@ with tab1:
                             else: fig_dl = fig_ecran
                             buf = io.BytesIO(); fig_dl.savefig(buf, format="png", dpi=200, facecolor=styles_print['FOND'] if force_white_print else bg_color, bbox_inches='tight'); buf.seek(0)
                             st.session_state.partition_buffers.append({'type':'page', 'idx': idx+2, 'buf': buf, 'img_ecran': fig_ecran})
-                            if force_white_print: plt.close(fig_dl)
+                            # if force_white_print: plt.close(fig_dl)
                         
                         # Génération PDF immédiate
                         st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
@@ -943,9 +977,12 @@ with tab3:
                             progress_bar.progress(30)
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px_par_temps, offset_px), bpm)
                             progress_bar.progress(100)
-                            st.session_state.video_path = video_path 
-                            status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
-                            st.success("Vidéo terminée et synchronisée ! 🥳")
+                            if video_path:
+                                st.session_state.video_path = video_path 
+                                status.update(label="✅ Vidéo terminée !", state="complete", expanded=False)
+                                st.success("Vidéo terminée et synchronisée ! 🥳")
+                            else:
+                                status.update(label="❌ Echec Vidéo", state="error")
                         except Exception as e:
                             st.error(f"Erreur lors du montage : {e}")
                             status.update(label="❌ Erreur !", state="error")
