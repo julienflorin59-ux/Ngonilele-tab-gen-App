@@ -23,22 +23,71 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- CSS POUR FORCER LE FOND BEIGE ET TEXTE NOIR ---
+# --- CSS "TOUT BEIGE" (STYLE TOTAL) ---
 st.markdown("""
     <style>
-    /* Force la couleur de fond de l'application entière */
-    .stApp {
-        background-color: #e5c4a3;
-        color: black;
+    /* 1. FOND PRINCIPAL & SIDEBAR */
+    .stApp, section[data-testid="stSidebar"] {
+        background-color: #e5c4a3 !important; /* Le beige demandé */
+        color: #2b2b2b !important; /* Texte gris foncé presque noir */
     }
-    /* Force la couleur des textes par défaut pour la lisibilité */
-    p, h1, h2, h3, h4, h5, h6, li, span, label, .stMarkdown {
-        color: #2b2b2b !important;
+    
+    /* 2. TEXTES (Titres, Paragraphes, Labels) */
+    p, h1, h2, h3, h4, h5, h6, li, span, label, .stMarkdown, div[data-testid="stCaptionContainer"] {
+        color: #1a1a1a !important;
     }
-    /* Ajustement des inputs pour qu'ils ressortent bien */
-    .stTextInput input, .stTextArea textarea, .stNumberInput input {
-        background-color: #f0e6dc !important;
+
+    /* 3. CHAMPS DE SAISIE (Texte, Nombres, Selectbox) */
+    /* On les met en beige très clair pour qu'ils ressortent sans être blancs */
+    .stTextInput input, .stTextArea textarea, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
+        background-color: #f3e5d8 !important; 
         color: black !important;
+        border: 1px solid #c49a6c !important; /* Bordure beige foncé */
+    }
+    
+    /* 4. BOUTONS CLASSIQUES (Beige Foncé / Camel) */
+    .stButton > button {
+        background-color: #c49a6c !important; 
+        color: black !important;
+        border: none !important;
+        font-weight: bold !important;
+    }
+    .stButton > button:hover {
+        background-color: #a87f55 !important; /* Encore plus foncé au survol */
+        color: white !important;
+    }
+
+    /* 5. BOUTONS PRIMAIRES (Générer/Insérer) -> Remplacer le Rouge par Marron Chaud */
+    button[kind="primary"] {
+        background-color: #8b5a2b !important; /* Marron chaud */
+        color: white !important;
+        border: none !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #6d421b !important;
+    }
+
+    /* 6. ONGLETS (TABS) */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: transparent !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #dcb28b !important; /* Onglet inactif */
+        color: #4a4a4a !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #f3e5d8 !important; /* Onglet actif */
+        color: black !important;
+    }
+
+    /* 7. CHECKBOX & SEQUENCEUR */
+    /* Forcer le fond des cases du séquenceur */
+    div[data-testid="stDataEditor"] {
+        background-color: #f3e5d8 !important;
+    }
+    /* Enlever le fond sombre des checkbox si présent */
+    [data-testid="stCheckbox"] label span {
+        background-color: transparent !important;
     }
     </style>
 """, unsafe_allow_html=True)
