@@ -654,31 +654,52 @@ with tab1:
             with c_tools[4]: st.button("📄", key="v_page", help="Insérer une page (Saut de page)", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Nouvelle Page"), use_container_width=True)
             with c_tools[5]: st.button("📝", key="v_txt", help="Insérer texte (Annotation)", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Msg", "Texte"), use_container_width=True)
 
-        # --- ONGLET SÉQUENCEUR (INVERSÉ) ---
+        # --- ONGLET SÉQUENCEUR (INVERSÉ & OPTIMISÉ) ---
         with subtab_seq:
             st.info("🎹 **Séquenceur (Grille 8 temps)**")
-            st.write("Cochez les cases pour composer (Lignes = Temps, Colonnes = Cordes).")
             
+            # CSS pour réduire la largeur du tableau
+            st.markdown("""
+            <style>
+                div[data-testid="stDataEditor"] div[role="grid"] div[role="row"] div {
+                    padding: 2px 5px !important;
+                    min-width: 30px !important; 
+                }
+                div[data-testid="stDataEditor"] {
+                    font-size: 12px;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+
+            st.write("Cochez pour composer (Lignes = Temps, Colonnes = Cordes).")
+            
+            # Config pour colonnes étroites
+            config_colonnes = {}
+            for col in st.session_state.df_sequenceur.columns:
+                config_colonnes[col] = st.column_config.CheckboxColumn(
+                    label=col, width="small", default=False
+                )
+
             edited_df = st.data_editor(
                 st.session_state.df_sequenceur,
-                column_config={c: st.column_config.CheckboxColumn(width="small") for c in st.session_state.df_sequenceur.columns},
+                column_config=config_colonnes,
                 use_container_width=True,
-                height=450
+                height=350,
+                hide_index=False
             )
             
             if not edited_df.equals(st.session_state.df_sequenceur):
                 st.session_state.df_sequenceur = edited_df
 
+            st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
                 if st.button("📥 Insérer la séquence", type="primary", use_container_width=True):
                     texte_genere = ""
                     df = st.session_state.df_sequenceur
                     
-                    # On itère sur les LIGNES (Temps)
                     for index, row in df.iterrows():
                         notes_activees = df.columns[row].tolist()
-                        
                         if not notes_activees:
                             texte_genere += "+ S\n"
                         else:
