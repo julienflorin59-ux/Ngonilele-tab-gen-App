@@ -481,14 +481,14 @@ def generer_image_longue_calibree(sequence, config_acc, styles):
 # ✅ NOUVELLE FONCTION : Générer uniquement l'en-tête pour la vidéo (CORRIGÉE)
 def generer_entete_seul(config_acc, styles):
     FIG_WIDTH = 16
-    FIG_HEIGHT = 1.5 # Hauteur réduite pour ne pas masquer la lecture
+    FIG_HEIGHT = 2.0 # Légèrement augmenté pour tout voir
     DPI = 100
     c_fond = styles['FOND']; c_txt = styles['TEXTE']
     
     plt.close('all')
     fig, ax = plt.subplots(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond); ax.set_facecolor(c_fond)
-    # On zoome sur la partie basse de l'en-tête (où sont les notes)
-    ax.set_xlim(-7.5, 7.5); ax.set_ylim(1.0, 3.5); ax.axis('off')
+    # Zoom sur la zone utile
+    ax.set_xlim(-7.5, 7.5); ax.set_ylim(0.0, 4.0); ax.axis('off')
 
     prop_note_us = get_font_cached(24, 'bold')
     prop_note_eu = get_font_cached(18, 'normal', 'italic')
@@ -499,9 +499,10 @@ def generer_entete_seul(config_acc, styles):
 
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
+        # Positionnement plus espacé
         ax.text(x, y_base + 1.3, code, ha='center', color='gray', fontproperties=prop_numero)
-        ax.text(x, y_base + 0.7, note, ha='center', color=c, fontproperties=prop_note_us)
-        ax.text(x, y_base + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu)
+        ax.text(x, y_base + 0.8, note, ha='center', color=c, fontproperties=prop_note_us) # US Note (Remonté)
+        ax.text(x, y_base + 0.0, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu) # EU Note
         ax.vlines(x, 0, y_base, colors=c, lw=3, zorder=1)
 
     buf = io.BytesIO()
@@ -528,9 +529,9 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
     w, h = clip_img.size
     
     video_h = 600
-    # ✅ AJUSTEMENT POSITION BARRE (plus bas pour laisser la place au header)
-    bar_y = 160 
-    start_y = bar_y - offset_premiere_note_px # La synchro se recalcule automatiquement ici
+    # ✅ AJUSTEMENT POSITION BARRE ET SYNC
+    bar_y = 160 # Position visuelle de la barre
+    start_y = bar_y - offset_premiere_note_px # Sync
     speed_px_sec = pixels_par_temps * (bpm / 60.0)
     
     def scroll_func(t):
@@ -550,8 +551,9 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         # Fond
         bg_clip = ColorClip(size=(w, video_h), color=(229, 196, 163)).set_duration(duration_sec) 
         
-        # ✅ COMPOSITION : Fond + Partition + Barre + Header (en dernier pour être au-dessus)
-        video_visual = CompositeVideoClip([bg_clip, moving_clip, highlight_bar, header_clip], size=(w, video_h))
+        # ✅ COMPOSITION : Fond + Partition + Header (FIXE) + Barre (PAR DESSUS TOUT)
+        # L'ordre est crucial : la barre est en dernier pour être toujours visible, même sur le header.
+        video_visual = CompositeVideoClip([bg_clip, moving_clip, header_clip, highlight_bar], size=(w, video_h))
     except:
         video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
         
