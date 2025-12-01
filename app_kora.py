@@ -679,7 +679,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI o
 # ==============================================================================
 # 🎬 MODIFICATION MAJEURE ICI : UTILISATION DE TEMPFILE
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité (10)
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS mis à 15 (anciennement 10)
     pixels_par_temps, offset_premiere_note_px = metrics
     
     # Création de fichiers temporaires sécurisés
@@ -729,7 +729,9 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         audio_clip = AudioFileClip(temp_audio_path).subclip(0, duration_sec)
         final = video_visual.set_audio(audio_clip)
         final.fps = fps
-        final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast', logger=None)
+        
+        # --- MODIF: Ajout de yuv420p pour lecture immédiate ---
+        final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast', ffmpeg_params=['-pix_fmt', 'yuv420p'], logger=None)
         
         # Fermeture des clips
         audio_clip.close(); video_visual.close(); clip_img.close(); final.close()
@@ -1204,7 +1206,8 @@ with tab3:
                         styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
                         img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=72)
                         if img_buffer:
-                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=10)
+                            # MODIFICATION ICI : FPS à 15 (anciennement 10)
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=15)
                             if video_path:
                                 st.session_state.video_path = video_path 
                                 status.update(label="✅ Fini !", state="complete", expanded=False)
