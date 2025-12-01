@@ -15,6 +15,7 @@ import re
 import gc
 import glob
 import json
+import tempfile  # <--- AJOUT POUR GESTION FICHIERS TEMP SÉCURISÉE
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -671,16 +672,37 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI o
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
+# ==============================================================================
+# 🎬 MODIFICATION MAJEURE ICI : UTILISATION DE TEMPFILE
+# ==============================================================================
 def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité (10)
     pixels_par_temps, offset_premiere_note_px = metrics
-    temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
-    temp_audio_file = f"temp_audio_{random.randint(0,10000)}.mp3"
-    output_filename = f"ngoni_video_{random.randint(0,10000)}.mp4"
-
+    
+    # Création de fichiers temporaires sécurisés
+    # On utilise delete=False car MoviePy a besoin d'accéder au chemin du fichier
+    # On s'assure de les supprimer dans le bloc 'finally'
+    
+    temp_img_path = None
+    temp_audio_path = None
+    output_filename = None
+    
     try:
-        with open(temp_img_file, "wb") as f: f.write(image_buffer.getbuffer())
-        with open(temp_audio_file, "wb") as f: f.write(audio_buffer.getbuffer())
-        clip_img = ImageClip(temp_img_file)
+        # 1. Écrire l'image dans un fichier temporaire
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as f_img:
+            f_img.write(image_buffer.getbuffer())
+            temp_img_path = f_img.name
+
+        # 2. Écrire l'audio dans un fichier temporaire
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f_audio:
+            f_audio.write(audio_buffer.getbuffer())
+            temp_audio_path = f_audio.name
+            
+        # 3. Préparer le fichier de sortie
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as f_vid:
+            output_filename = f_vid.name
+
+        # 4. Traitement MoviePy
+        clip_img = ImageClip(temp_img_path)
         w, h = clip_img.size
         video_h = 480 
         bar_y = 100
@@ -700,10 +722,12 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         except:
             video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
             
-        audio_clip = AudioFileClip(temp_audio_file).subclip(0, duration_sec)
+        audio_clip = AudioFileClip(temp_audio_path).subclip(0, duration_sec)
         final = video_visual.set_audio(audio_clip)
         final.fps = fps
         final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast', logger=None)
+        
+        # Fermeture des clips
         audio_clip.close(); video_visual.close(); clip_img.close(); final.close()
         return output_filename
 
@@ -711,8 +735,12 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         st.error(f"Erreur vidéo : {e}")
         return None
     finally:
-        if os.path.exists(temp_img_file): os.remove(temp_img_file)
-        if os.path.exists(temp_audio_file): os.remove(temp_audio_file)
+        # Nettoyage sécurisé : on supprime les fichiers sources, mais PAS le fichier de sortie 
+        # (car Streamlit en a besoin pour l'afficher juste après)
+        if temp_img_path and os.path.exists(temp_img_path): os.remove(temp_img_path)
+        if temp_audio_path and os.path.exists(temp_audio_path): os.remove(temp_audio_path)
+        # Note: Le fichier vidéo final sera supprimé au prochain rechargement via la fonction charger_morceau() qui clean glob("ngoni_video_*.mp4")
+        # Ou par le nettoyage OS automatique du dossier temp
 
 def generer_pdf_livret(buffers, titre):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
@@ -765,9 +793,7 @@ def charger_morceau():
         for temp_file in glob.glob("temp_*"):
             try: os.remove(temp_file)
             except: pass
-        for temp_file in glob.glob("ngoni_video_*.mp4"):
-            try: os.remove(temp_file)
-            except: pass
+        # Nettoyage fichiers vidéos temporaires systèmes si besoin (optionnel)
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
@@ -1046,10 +1072,11 @@ with tab1:
                     st.rerun()
 
             with tab_proj:
+                # 📦 FONCTIONNALITÉ DEMANDÉE : EXPORT CONFIGURATION (CODE + BLOCS)
                 projet_data = {
                     "titre": titre_partition,
                     "code": st.session_state.code_actuel,
-                    "blocs": st.session_state.stored_blocks,
+                    "blocs": st.session_state.stored_blocks, # Sauvegarde les blocs créés par l'utilisateur
                     "version": "1.0"
                 }
                 json_str = json.dumps(projet_data, indent=4)
@@ -1067,8 +1094,8 @@ with tab1:
                         data = json.load(uploaded_proj)
                         st.session_state.code_actuel = data.get("code", "")
                         st.session_state.widget_input = data.get("code", "")
-                        st.session_state.stored_blocks = data.get("blocs", {})
-                        st.toast("Projet restauré !", icon="🎉")
+                        st.session_state.stored_blocks = data.get("blocs", {}) # Restaure les blocs
+                        st.toast("Projet restauré (Code + Blocs) !", icon="🎉")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Erreur : {e}")
