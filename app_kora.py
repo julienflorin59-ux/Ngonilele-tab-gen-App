@@ -15,7 +15,7 @@ import re
 import gc
 import glob
 import json
-import tempfile  # <--- AJOUT POUR GESTION FICHIERS TEMP SÉCURISÉE
+import tempfile
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -329,6 +329,10 @@ BANQUE_TABLATURES = {
 }
 
 # En-tête de l'application
+# --- AJOUT AVERTISSEMENT ---
+st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les grands écrans. L'utilisation sur téléphone mobile est déconseillée pour une expérience optimale.", icon="⚠️")
+# ---------------------------
+
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
     <strong>👈 Ouvrez le menu latéral</strong> (flèche en haut à gauche) pour : Charger un morceau, lire le Guide complet, ou 🐞 Signaler un bug !
