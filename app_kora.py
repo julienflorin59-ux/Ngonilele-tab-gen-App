@@ -19,7 +19,7 @@ import glob
 import json
 
 # ==============================================================================
-# ⚙️ CONFIGURATION & CSS CIBLÉ (MOBILE)
+# ⚙️ CONFIGURATION & CSS ULTRA-COMPACT (MOBILE)
 # ==============================================================================
 st.set_page_config(
     page_title="Générateur Tablature Ngonilélé", 
@@ -30,36 +30,49 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* CSS CIBLÉ MOBILE : On ne touche PAS aux onglets ni aux titres globaux */
-    
+    /* OPTIMISATION MOBILE AGRESSIVE */
     @media (max-width: 640px) {
-        /* 1. FORCE les colonnes à rester côte à côte (50% chacune) */
-        /* C'est ça qui empêche les boutons d'être "très larges" */
+        /* 1. Réduire les marges de la page entière */
+        .block-container {
+            padding-top: 1rem !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+
+        /* 2. Boutons : Plus petits, moins de hauteur, texte plus petit */
+        .stButton button {
+            padding: 0px 4px !important;
+            font-size: 0.85rem !important;
+            line-height: 1.2 !important;
+            min-height: 38px !important; /* Hauteur réduite */
+            height: auto !important;
+            margin-bottom: 4px !important;
+        }
+        
+        /* 3. Colonnes : Forcer 50% de largeur stricte et réduire l'espacement entre elles */
         div[data-testid="column"] {
             width: 50% !important;
             flex: 1 1 50% !important;
             min-width: 50% !important;
+            padding: 0 3px !important; /* Espace entre colonnes réduit */
         }
 
-        /* 2. Réduit un peu le padding INTERNE des boutons pour qu'ils soient moins hauts */
-        /* Mais on garde la taille de police normale pour la lisibilité */
-        .stButton button {
-            padding-top: 4px !important;
-            padding-bottom: 4px !important;
-            min-height: 0px !important; 
-        }
-
-        /* 3. Permet le scroll horizontal pour les éditeurs trop larges (Visuel/Séquenceur) */
-        /* Cela évite qu'ils soient écrasés */
+        /* 4. Séquenceur & Visuel : Scroll horizontal fluide */
         div[data-testid="stHorizontalBlock"] {
             overflow-x: auto !important;
             flex-wrap: nowrap !important;
+            padding-bottom: 5px !important;
         }
         
-        /* 4. Petite marge de sécurité sur les côtés */
-        .block-container {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
+        /* 5. Réduire la taille des titres */
+        h1 { font-size: 1.6rem !important; }
+        h2 { font-size: 1.3rem !important; }
+        h3 { font-size: 1.1rem !important; }
+        
+        /* 6. Checkbox du séquenceur plus compacte */
+        div[data-testid="stCheckbox"] {
+            min-height: 0px !important;
+            margin-bottom: 0px !important;
         }
     }
 </style>
@@ -87,23 +100,13 @@ def load_image_asset(path):
     if os.path.exists(path): return mpimg.imread(path)
     return None
 
-if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
-if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
-if 'video_path' not in st.session_state: st.session_state.video_path = None
-if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
-if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
-if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
-if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
-if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {} 
-if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {} 
-
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
-    "Exercice Débutant": "1 1D\n+ S\n+ 1G\n+ S\n+ 2D\n+ S\n+ 2G\n+ S\n+ 3D\n+ S\n+ 3G\n+ S\n+ 4D\n+ S\n+ 4G\n+ S\n+ 5D\n+ S\n+ 5G\n+ S\n+ 6D\n+ S\n+ 6G\n+ S\n+ TXT DESCENTE\n+ 6G\n+ S\n+ 6D\n+ S\n+ 5G\n+ S\n+ 5D\n+ S\n+ 4G\n+ S\n+ 4D\n+ S\n+ 3G\n+ S\n+ 3D\n+ S\n+ 2G\n+ S\n+ 2D\n+ S\n+ 1G\n+ S\n+ 1D",
-    "Manitoumani": "1 4D\n+ 4G\n+ 5D\n+ 5G\n+ 4G\n= 2D\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ TXT REPETER 2x\n+ PAGE\n+ 4D\n+ 4G\n+ 5D\n+ 5G\n+ 4G\n= 1D\n+ 2G\n+ 6D x2\n+ 2G\n= 4G\n+ 1D\n+ 2G\n+ 6D x2\n+ 2G\n= 4G"
+    "Exercice Débutant": "1 1D\n+ S\n+ 1G\n+ S\n+ 2D\n+ S\n+ 2G\n+ S\n+ 3D\n+ S\n+ 3G\n+ S\n+ 4D\n+ S\n+ 4G\n+ S\n+ 5D\n+ S\n+ 5G\n+ S\n+ 6D\n+ S\n+ 6G\n+ S",
+    "Manitoumani": "1 4D\n+ 4G\n+ 5D\n+ 5G\n+ 4G\n= 2D\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G"
 }
 
-# En-tête
+# En-tête simplifié
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=80)
@@ -301,9 +304,11 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
     px_y0 = ax.transData.transform((0, 0))[1]; px_y1 = ax.transData.transform((0, -1))[1]
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=dpi, facecolor=styles['FOND'], bbox_inches=None); buf.seek(0)
     return buf, px_y0 - px_y1, (fig.get_figheight() * dpi) - px_y0
-
+# ==============================================================================
+# 🔧 SUITE LOGIQUE (VIDÉO & ÉTATS)
+# ==============================================================================
 def creer_video(img_buf, aud_buf, dur, metrics, bpm, fps=10):
-    px_par_temps, offset = metrics; tmp_img = f"t_i_{random.randint(0,999)}.png"; tmp_aud = f"t_a_{random.randint(0,999)}.mp3"; out = f"vid_{random.randint(0,999)}.mp4"
+    px_par_temps, offset = metrics; tmp_img = f"t_i_{random.randint(0,99)}.png"; tmp_aud = f"t_a_{random.randint(0,99)}.mp3"; out = f"vid_{random.randint(0,99)}.mp4"
     try:
         with open(tmp_img, "wb") as f: f.write(img_buf.getbuffer())
         with open(tmp_aud, "wb") as f: f.write(aud_buf.getbuffer())
@@ -322,8 +327,18 @@ def creer_video(img_buf, aud_buf, dur, metrics, bpm, fps=10):
         if os.path.exists(tmp_aud): os.remove(tmp_aud)
 
 # ==============================================================================
-# 🎛️ LOGIQUE INTERFACE
+# 🎛️ ÉTATS & INTERFACE
 # ==============================================================================
+if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
+if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
+if 'video_path' not in st.session_state: st.session_state.video_path = None
+if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
+if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
+if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
+if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
+if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {} 
+if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {} 
+
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 if st.session_state.code_actuel == "": st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
@@ -373,12 +388,13 @@ with tab1:
     with c_in:
         t_btn, t_vis, t_seq, t_blk = st.tabs(["🔘", "🎨", "🎹", "📦"])
         
-        with t_btn: 
+        with t_btn: # BOUTONS COMPACTS
             mode = st.radio("Doigté", ["Auto", "Pouce", "Index"], horizontal=True)
             def add_btn(c): 
                 s = " P" if mode=="Pouce" else " I" if mode=="Index" else " P" if c in ['1G','2G','3G','1D','2D','3D'] else " I"
                 ajout(f"+ {c}{s}"); st.toast(f"{c} ajouté")
             
+            # Ici on garde 2 colonnes même sur mobile pour que les boutons soient assez larges
             c_notes = st.columns(2) 
             with c_notes[0]: 
                 st.caption("Gauche")
@@ -395,8 +411,7 @@ with tab1:
                 st.button("🔇", on_click=ajout, args=("+ S",), use_container_width=True)
                 st.button("📄", on_click=ajout, args=("+ PAGE",), use_container_width=True)
 
-        with t_vis: 
-            # Scroll horizontal activé par CSS
+        with t_vis: # VISUEL (SCROLL HORIZONTAL ACTIVÉ)
             cols = st.columns([1]*6 + [0.2] + [1]*6)
             for i, c in enumerate(['6G','5G','4G','3G','2G','1G']): 
                 with cols[i]: st.button(c, key=f"v{c}", on_click=add_btn, args=(c,))
@@ -404,8 +419,7 @@ with tab1:
             for i, c in enumerate(['1D','2D','3D','4D','5D','6D']): 
                 with cols[i+7]: st.button(c, key=f"v{c}", on_click=add_btn, args=(c,))
 
-        with t_seq: 
-            # Scroll horizontal activé par CSS
+        with t_seq: # SEQUENCEUR (SCROLL HORIZONTAL ACTIVÉ)
             nb_t = st.number_input("Temps", 4, 32, 8, step=4)
             cols = st.columns([0.8] + [1]*12)
             clist = ['6G','5G','4G','3G','2G','1G','1D','2D','3D','4D','5D','6D']
@@ -430,7 +444,7 @@ with tab1:
                         for idx, n in enumerate(notes): res += ("+ " if idx==0 else "= ") + n + (" P" if n in ['1G','2G','3G','1D','2D','3D'] else " I") + "\n"
                 ajout(res)
 
-        with t_blk: 
+        with t_blk: # BLOCS
             bn = st.text_input("Nom Bloc"); bc = st.text_area("Contenu")
             if st.button("Sauver Bloc") and bn: st.session_state.stored_blocks[bn] = bc; st.success("OK")
             st.write(list(st.session_state.stored_blocks.keys()))
