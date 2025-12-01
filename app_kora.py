@@ -9,22 +9,20 @@ import io
 import os
 import urllib.parse
 import numpy as np
-import shutil
 from fpdf import FPDF
 import random
-import pandas as pd 
-import re 
-import gc 
-import glob 
-import json 
+import re
+import gc
+import glob
+import json
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
 # ==============================================================================
 st.set_page_config(
-    page_title="Générateur Tablature Ngonilélé", 
-    layout="wide", 
-    page_icon="ico_ngonilele.png", 
+    page_title="Générateur Tablature Ngonilélé",
+    layout="wide",
+    page_icon="ico_ngonilele.png",
     initial_sidebar_state="expanded"
 )
 
@@ -59,7 +57,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-CHEMIN_POLICE = 'ML.ttf' 
+# --- CONSTANTES & RESOURCES ---
+CHEMIN_POLICE = 'ML.ttf'
 CHEMIN_IMAGE_FOND = 'texture_ngonilele.png'
 CHEMIN_ICON_POUCE = 'icon_pouce.png'
 CHEMIN_ICON_INDEX = 'icon_index.png'
@@ -68,12 +67,23 @@ CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
 CHEMIN_LOGO_APP = 'ico_ngonilele.png'
 DOSSIER_SAMPLES = 'samples'
 
+# --- COULEURS & CONSTANTES LOGIQUES ---
+POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D': 1, '2D': 2, '3D': 3, '4D': 4, '5D': 5, '6D': 6}
+COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
+# Couleurs pour l'interface visuelle (Boutons)
+COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
+
+TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
+AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
+NOTES_GAMME = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
+
 # ==============================================================================
-# 🚀 OPTIMISATION (CACHING)
+# 🚀 FONCTIONS UTILES (CACHE & SYSTEME)
 # ==============================================================================
 @st.cache_resource
 def load_font_properties():
-    if os.path.exists(CHEMIN_POLICE): 
+    if os.path.exists(CHEMIN_POLICE):
         return fm.FontProperties(fname=CHEMIN_POLICE)
     return fm.FontProperties(family='sans-serif')
 
@@ -82,6 +92,14 @@ def load_image_asset(path):
     if os.path.exists(path):
         return mpimg.imread(path)
     return None
+
+def afficher_header_style(titre):
+    """Fonction utilitaire pour afficher les titres stylisés"""
+    st.markdown(f"""
+    <div style="background-color: #d4b08c; padding: 5px 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
+        <strong>{titre}</strong>
+    </div>
+    """, unsafe_allow_html=True)
 
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE
@@ -93,9 +111,8 @@ if 'audio_buffer' not in st.session_state: st.session_state.audio_buffer = None
 if 'metronome_buffer' not in st.session_state: st.session_state.metronome_buffer = None
 if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
-
-if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {} 
-if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {} 
+if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {}
+if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {}
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
@@ -310,7 +327,7 @@ BANQUE_TABLATURES = {
 """
 }
 
-# En-tête
+# En-tête de l'application
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
     <strong>👈 Ouvrez le menu latéral</strong> (flèche en haut à gauche) pour : Charger un morceau, lire le Guide complet, ou 🐞 Signaler un bug !
@@ -346,13 +363,6 @@ try:
     from pydub.generators import Sine, WhiteNoise
     HAS_PYDUB = True
 except: pass
-
-POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D': 1, '2D': 2, '3D': 3, '4D': 4, '5D': 5, '6D': 6}
-COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
-TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
-AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
-NOTES_GAMME = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
-DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
 
 def get_font_cached(size, weight='normal', style='normal'):
     prop = load_font_properties().copy()
@@ -479,7 +489,7 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
     metronome_track = (measure_block * nb_mesures)[:int(duration_sec*1000)]
     
-    # OPTIMISATION AUDIO: Export en 32k pour vitesse maximale (qualité suffisante pour un clic)
+    # OPTIMISATION AUDIO: Export en 32k pour vitesse maximale
     buffer = io.BytesIO()
     metronome_track.export(buffer, format="mp3", bitrate="32k", parameters=["-preset", "ultrafast"])
     buffer.seek(0)
@@ -660,9 +670,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI o
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
-# ==============================================================================
-# 🔧 FONCTION MANQUANTE (SUITE LOGIQUE)
-# ==============================================================================
+
 def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS reduit pour rapidité (10)
     pixels_par_temps, offset_premiere_note_px = metrics
     temp_img_file = f"temp_score_{random.randint(0,10000)}.png"
@@ -854,7 +862,7 @@ with tab1:
             return " I", " (Index)"
 
         with subtab_btn:
-            st.markdown("""<div style="background-color: #d4b08c; padding: 5px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px; font-size: 0.9em;"><strong>⌨️ Mode Rapide</strong></div>""", unsafe_allow_html=True)
+            afficher_header_style("⌨️ Mode Rapide")
             st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="btn_mode_doigt", horizontal=True)
             
             def ajouter_note_boutons(corde):
@@ -864,8 +872,6 @@ with tab1:
             
             st.markdown("""<style>div[data-testid="column"] .stButton button { width: 100%; margin: 0; }</style>""", unsafe_allow_html=True)
             
-            # --- MODIFICATION MOBILE MAJEURE ICI ---
-            # On sépare en 2 blocs distincts pour forcer l'affichage sur mobile
             c_notes = st.columns(2)
             with c_notes[0]: 
                 st.caption("Gauche")
@@ -898,7 +904,7 @@ with tab1:
 
         with subtab_visu:
             # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
-            st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎨 Mode Visuel</strong></div>""", unsafe_allow_html=True)
+            afficher_header_style("🎨 Mode Visuel")
             st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True)
             def ajouter_note_visuelle(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "visu_mode_doigt")
@@ -908,7 +914,7 @@ with tab1:
                 if action == "ajouter": ajouter_texte(txt_code)
                 elif action == "undo": annuler_derniere_ligne()
                 st.toast(msg_toast, icon="🛠️")
-            COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
+            
             st.write("G ________________________________ D")
             cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
             cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
@@ -939,7 +945,7 @@ with tab1:
 
         with subtab_seq:
             # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
-            st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>🎹 Séquenceur</strong></div>""", unsafe_allow_html=True)
+            afficher_header_style("🎹 Séquenceur")
             nb_temps = st.number_input("Nombre de temps", min_value=4, max_value=64, value=8, step=4)
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
@@ -980,7 +986,7 @@ with tab1:
                     st.rerun()
 
         with subtab_blocs:
-            st.markdown("""<div style="background-color: #d4b08c; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>📦 Blocs</strong></div>""", unsafe_allow_html=True)
+            afficher_header_style("📦 Blocs")
             
             c_bloc_1, c_bloc_2 = st.columns(2)
             with c_bloc_1:
