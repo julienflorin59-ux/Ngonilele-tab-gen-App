@@ -16,6 +16,7 @@ import pandas as pd
 import re 
 import gc 
 import glob 
+import json # <--- AJOUT POUR LA SAUVEGARDE DE PROJET
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -1064,12 +1065,56 @@ with tab1:
                     status.update(label="✅ Prêt !", state="complete", expanded=False)
                 if audio_prev: st.audio(audio_prev, format="audio/mp3")
 
-        with st.expander("Gérer le fichier"):
-            st.download_button(label="💾 Sauvegarder", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain")
-            uploaded_file = st.file_uploader("📂 Charger", type="txt")
-            if uploaded_file:
-                st.session_state.code_actuel = io.StringIO(uploaded_file.getvalue().decode("utf-8")).read()
-                st.rerun()
+        # --- NOUVEAU CODE (PROJET COMPLET) ---
+        with st.expander("Gérer le fichier (Sauvegarde & Projet)"):
+            tab_txt, tab_proj = st.tabs(["📄 Texte Simple", "📦 Projet Complet (Avec Blocs)"])
+            
+            # 1. Option Texte Simple (Compatible anciennes versions)
+            with tab_txt:
+                st.caption("Sauvegarde uniquement le texte de la tablature.")
+                st.download_button(label="💾 Sauvegarder (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain")
+                
+                uploaded_txt = st.file_uploader("📂 Charger une tablature (.txt)", type="txt", key="load_txt")
+                if uploaded_txt:
+                    content = io.StringIO(uploaded_txt.getvalue().decode("utf-8")).read()
+                    st.session_state.code_actuel = content
+                    st.session_state.widget_input = content # Important pour synchroniser l'éditeur
+                    st.toast("Fichier texte chargé !", icon="✅")
+                    st.rerun()
+
+            # 2. Option Projet JSON (Sauvegarde le code + les blocs créés)
+            with tab_proj:
+                st.caption("Sauvegarde la tablature ET vos blocs personnalisés (Refrain, etc.).")
+                
+                # Préparation des données à exporter
+                projet_data = {
+                    "titre": titre_partition,
+                    "code": st.session_state.code_actuel,
+                    "blocs": st.session_state.stored_blocks, # On sauvegarde le dictionnaire des blocs
+                    "version": "1.0"
+                }
+                json_str = json.dumps(projet_data, indent=4)
+                
+                st.download_button(
+                    label="💾 Sauvegarder le Projet (.ngoni)", 
+                    data=json_str, 
+                    file_name=f"{titre_partition}.ngoni", # On invente une extension .ngoni (c'est du JSON)
+                    mime="application/json"
+                )
+                
+                uploaded_proj = st.file_uploader("📂 Charger un Projet (.ngoni)", type=["ngoni", "json"], key="load_proj")
+                if uploaded_proj:
+                    try:
+                        data = json.load(uploaded_proj)
+                        # Restauration des données
+                        st.session_state.code_actuel = data.get("code", "")
+                        st.session_state.widget_input = data.get("code", "")
+                        st.session_state.stored_blocks = data.get("blocs", {})
+                        
+                        st.toast("Projet complet restauré (Code + Blocs) !", icon="🎉")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erreur lors du chargement du projet : {e}")
         
     with col_view:
         st.subheader("Aperçu Partition")
