@@ -585,7 +585,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps'])
     processed_t = set()
     for n in sorted_notes:
-        t = n['temps']
+        t = n['temps'];
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
             
@@ -679,7 +679,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI p
 # ==============================================================================
 # 🎬 MODIFICATION MAJEURE ICI : UTILISATION DE TEMPFILE
 # ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS mis à 15 (anciennement 10)
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS modifiable
     pixels_par_temps, offset_premiere_note_px = metrics
     
     # Création de fichiers temporaires sécurisés
@@ -1188,6 +1188,11 @@ with tab1:
                 st.session_state.partition_generated = True
                 visuals_rendered_this_run = True
                 
+                # --- MODIFICATION IMPORTANTE : ON AFFICHE LES VISUELS MAINTENANT ---
+                # Avant de lancer la génération du PDF
+                afficher_visuels(view_container)
+                # -------------------------------------------------------------------
+                
                 # PDF Final
                 prog_bar.progress(95, text="Assemblage du livret PDF...")
                 st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
@@ -1195,7 +1200,7 @@ with tab1:
                 prog_bar.progress(100, text="Terminé !")
                 status.update(label="✅ Génération terminée !", state="complete", expanded=False)
                 
-                afficher_visuels(view_container)
+                # On affiche le bouton PDF (les visuels sont déjà affichés)
                 afficher_bouton_pdf(view_container)
 
         if st.session_state.partition_generated and not visuals_rendered_this_run:
@@ -1231,14 +1236,14 @@ with tab3:
                         v_bar.progress(30, text="Génération de la partition déroulante (HD)...")
                         styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
                         
-                        # --- DPI 90 pour la netteté des icones ---
+                        # --- DPI 90 pour la netteté des icones sans trop ralentir ---
                         img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=90)
                         
                         if img_buffer:
                             # Etape 3 : Encodage Vidéo
                             v_bar.progress(50, text="Encodage vidéo en cours (Cela peut prendre quelques secondes)...")
                             
-                            # --- FPS 12 ---
+                            # --- FPS 12 pour fluidité correcte et rapidité ---
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=12)
                             
                             if video_path:
