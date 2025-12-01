@@ -1206,8 +1206,8 @@ with tab3:
                         styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
                         img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=85)
                         if img_buffer:
-                            # MODIFICATION ICI : FPS à 15 (anciennement 10)
-                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=15)
+                            # MODIFICATION ICI : FPS à 12 (anciennement 10)
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=12)
                             if video_path:
                                 st.session_state.video_path = video_path 
                                 status.update(label="✅ Fini !", state="complete", expanded=False)
