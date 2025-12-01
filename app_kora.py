@@ -19,48 +19,41 @@ import glob
 import json
 
 # ==============================================================================
-# ⚙️ CONFIGURATION & CSS CIBLÉ (MOBILE)
+# ⚙️ CONFIGURATION & CSS MOBILE COMPACT
 # ==============================================================================
-st.set_page_config(
-    page_title="Générateur Tablature Ngonilélé", 
-    layout="wide", 
-    page_icon="ico_ngonilele.png", 
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Générateur Tablature Ngonilélé", layout="wide", page_icon="ico_ngonilele.png", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
-    /* CSS CIBLÉ MOBILE : On ne touche PAS aux onglets ni aux titres globaux */
-    
+    /* OPTIMISATION MOBILE AGRESSIVE */
     @media (max-width: 640px) {
-        /* 1. FORCE les colonnes à rester côte à côte (50% chacune) */
-        /* C'est ça qui empêche les boutons d'être "très larges" */
+        /* 1. Boutons plus petits et compacts */
+        .stButton button {
+            padding: 4px 1px !important;
+            font-size: 13px !important;
+            line-height: 1.1 !important;
+            min-height: 32px !important;
+            height: auto !important;
+            margin-bottom: 2px !important;
+        }
+        /* 2. Colonnes côte à côte (50%) sans marge excessive */
         div[data-testid="column"] {
             width: 50% !important;
             flex: 1 1 50% !important;
             min-width: 50% !important;
+            padding: 0 2px !important;
         }
-
-        /* 2. Réduit un peu le padding INTERNE des boutons pour qu'ils soient moins hauts */
-        /* Mais on garde la taille de police normale pour la lisibilité */
-        .stButton button {
-            padding-top: 4px !important;
-            padding-bottom: 4px !important;
-            min-height: 0px !important; 
-        }
-
-        /* 3. Permet le scroll horizontal pour les éditeurs trop larges (Visuel/Séquenceur) */
-        /* Cela évite qu'ils soient écrasés */
-        div[data-testid="stHorizontalBlock"] {
-            overflow-x: auto !important;
-            flex-wrap: nowrap !important;
-        }
+        /* 3. Réduire l'espace entre les éléments */
+        .element-container { margin-bottom: 0.2rem !important; }
+        .block-container { padding-top: 1rem !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
         
-        /* 4. Petite marge de sécurité sur les côtés */
-        .block-container {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-        }
+        /* 4. Scroll horizontal pour Séquenceur/Visuel */
+        div[data-testid="stHorizontalBlock"] { overflow-x: auto !important; flex-wrap: nowrap !important; }
+        
+        /* 5. Titres plus petits */
+        h1 { font-size: 1.5rem !important; }
+        h2 { font-size: 1.2rem !important; }
+        h3 { font-size: 1.1rem !important; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -75,7 +68,7 @@ CHEMIN_LOGO_APP = 'ico_ngonilele.png'
 DOSSIER_SAMPLES = 'samples'
 
 # ==============================================================================
-# 🚀 FONCTIONS LOGIQUES
+# 🚀 FONCTIONS UTILES & CACHE
 # ==============================================================================
 @st.cache_resource
 def load_font_properties():
@@ -99,11 +92,11 @@ if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {}
 
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
-    "Exercice Débutant": "1 1D\n+ S\n+ 1G\n+ S\n+ 2D\n+ S\n+ 2G\n+ S\n+ 3D\n+ S\n+ 3G\n+ S\n+ 4D\n+ S\n+ 4G\n+ S\n+ 5D\n+ S\n+ 5G\n+ S\n+ 6D\n+ S\n+ 6G\n+ S\n+ TXT DESCENTE\n+ 6G\n+ S\n+ 6D\n+ S\n+ 5G\n+ S\n+ 5D\n+ S\n+ 4G\n+ S\n+ 4D\n+ S\n+ 3G\n+ S\n+ 3D\n+ S\n+ 2G\n+ S\n+ 2D\n+ S\n+ 1G\n+ S\n+ 1D",
-    "Manitoumani": "1 4D\n+ 4G\n+ 5D\n+ 5G\n+ 4G\n= 2D\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ TXT REPETER 2x\n+ PAGE\n+ 4D\n+ 4G\n+ 5D\n+ 5G\n+ 4G\n= 1D\n+ 2G\n+ 6D x2\n+ 2G\n= 4G\n+ 1D\n+ 2G\n+ 6D x2\n+ 2G\n= 4G"
+    "Exercice Débutant 1 : Montée et descente de Gamme": "1 1D\n+ S\n+ 1G\n+ S\n+ 2D\n+ S\n+ 2G\n+ S\n+ 3D\n+ S\n+ 3G\n+ S\n+ 4D\n+ S\n+ 4G\n+ S\n+ 5D\n+ S\n+ 5G\n+ S\n+ 6D\n+ S\n+ 6G\n+ S\n+ TXT DESCENTE\n+ 6G\n+ S\n+ 6D\n+ S\n+ 5G\n+ S\n+ 5D\n+ S\n+ 4G\n+ S\n+ 4D\n+ S\n+ 3G\n+ S\n+ 3D\n+ S\n+ 2G\n+ S\n+ 2D\n+ S\n+ 1G\n+ S\n+ 1D",
+    "Manitoumani": "1 4D\n+ 4G\n+ 5D\n+ 5G\n+ 4G\n= 2D\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G\n+ 3G\n+ 6D x2\n+ 2G\n= 5G"
 }
 
-# En-tête
+# En-tête simplifié
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=80)
@@ -240,23 +233,29 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     t_min = notes_page[0]['temps']; t_max = notes_page[-1]['temps']
     fig = Figure(figsize=(16, max(6, (t_max - t_min + 1) * 0.75 + 6)), facecolor=c_fond); ax = fig.subplots(); ax.set_facecolor(c_fond)
     y_top = 2.5; y_bot = - (t_max - t_min) - 1.5
+    
     if not mode_white and options_visuelles['use_bg']:
         img = load_image_asset(CHEMIN_IMAGE_FOND)
         if img is not None: 
             ratio = img.shape[1]/img.shape[0]; h_final = (10.5/ratio)*1.4
             ax.imshow(img, extent=[-5.25, 5.25, (y_top+y_bot)/2 - h_final/2, (y_top+y_bot)/2 + h_final/2], aspect='auto', zorder=-1, alpha=options_visuelles['alpha'])
+
     ax.text(0, y_top + 3.0, f"{titre} (Page {idx})", ha='center', va='bottom', fontproperties=get_font_cached(32, 'bold'), color=c_txt)
     ax.text(-3.5, y_top + 2.0, "Cordes de Gauche", ha='center', color=c_txt, fontproperties=get_font_cached(20, 'bold'))
     ax.text(3.5, y_top + 2.0, "Cordes de Droite", ha='center', color=c_txt, fontproperties=get_font_cached(20, 'bold'))
     ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
+    
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=get_font_cached(14, 'bold'))
         ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=get_font_cached(24, 'bold'))
         ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
+    
     for t in range(t_min, t_max + 1): ax.axhline(y=-(t - t_min), color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+
     img_P = load_image_asset(CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE)
     img_I = load_image_asset(CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX)
+    
     notes_by_y = {}
     for n in notes_page:
         y = -(n['temps'] - t_min); notes_by_y.setdefault(y, []).append(n)
@@ -270,9 +269,11 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
             if 'doigt' in n:
                 cur_img = img_I if n['doigt'] == 'I' else img_P
                 if cur_img is not None: ax.add_artist(AnnotationBbox(OffsetImage(cur_img, zoom=0.045), (x-0.7, y+0.1), frameon=False, zorder=8))
+    
     for y, group in notes_by_y.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
+            
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
@@ -286,6 +287,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
     for code, props in config_acc.items():
         x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
         ax.vlines(x, y_min+1, 2.0, colors=c, lw=3, zorder=1)
+    
     notes_by_y = {}
     for n in sequence:
         if n['corde'] == 'PAGE_BREAK': continue
@@ -294,16 +296,18 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
             props = config_acc[n['corde']]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
             ax.add_patch(plt.Circle((x, y), 0.30, color=styles['PERLE_FOND'], zorder=3))
             ax.add_patch(plt.Circle((x, y), 0.30, fill=False, edgecolor=c, lw=3, zorder=4))
+    
     for y, group in notes_by_y.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=styles['TEXTE'], lw=2, zorder=2)
+    
     ax.axis('off')
     px_y0 = ax.transData.transform((0, 0))[1]; px_y1 = ax.transData.transform((0, -1))[1]
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=dpi, facecolor=styles['FOND'], bbox_inches=None); buf.seek(0)
     return buf, px_y0 - px_y1, (fig.get_figheight() * dpi) - px_y0
 
 def creer_video(img_buf, aud_buf, dur, metrics, bpm, fps=10):
-    px_par_temps, offset = metrics; tmp_img = f"t_i_{random.randint(0,999)}.png"; tmp_aud = f"t_a_{random.randint(0,999)}.mp3"; out = f"vid_{random.randint(0,999)}.mp4"
+    px_par_temps, offset = metrics; tmp_img = f"t_i_{random.randint(0,99)}.png"; tmp_aud = f"t_a_{random.randint(0,99)}.mp3"; out = f"vid_{random.randint(0,99)}.mp4"
     try:
         with open(tmp_img, "wb") as f: f.write(img_buf.getbuffer())
         with open(tmp_aud, "wb") as f: f.write(aud_buf.getbuffer())
@@ -373,13 +377,13 @@ with tab1:
     with c_in:
         t_btn, t_vis, t_seq, t_blk = st.tabs(["🔘", "🎨", "🎹", "📦"])
         
-        with t_btn: 
+        with t_btn: # BOUTONS COMPACTS
             mode = st.radio("Doigté", ["Auto", "Pouce", "Index"], horizontal=True)
             def add_btn(c): 
                 s = " P" if mode=="Pouce" else " I" if mode=="Index" else " P" if c in ['1G','2G','3G','1D','2D','3D'] else " I"
                 ajout(f"+ {c}{s}"); st.toast(f"{c} ajouté")
             
-            c_notes = st.columns(2) 
+            c_notes = st.columns(2) # 2 colonnes forcées par CSS
             with c_notes[0]: 
                 st.caption("Gauche")
                 for c in ['1G','2G','3G','4G','5G','6G']: st.button(c, key=f"b{c}", on_click=add_btn, args=(c,), use_container_width=True)
@@ -395,8 +399,8 @@ with tab1:
                 st.button("🔇", on_click=ajout, args=("+ S",), use_container_width=True)
                 st.button("📄", on_click=ajout, args=("+ PAGE",), use_container_width=True)
 
-        with t_vis: 
-            # Scroll horizontal activé par CSS
+        with t_vis: # VISUEL
+             # CSS scroll horizontal auto activé
             cols = st.columns([1]*6 + [0.2] + [1]*6)
             for i, c in enumerate(['6G','5G','4G','3G','2G','1G']): 
                 with cols[i]: st.button(c, key=f"v{c}", on_click=add_btn, args=(c,))
@@ -404,8 +408,7 @@ with tab1:
             for i, c in enumerate(['1D','2D','3D','4D','5D','6D']): 
                 with cols[i+7]: st.button(c, key=f"v{c}", on_click=add_btn, args=(c,))
 
-        with t_seq: 
-            # Scroll horizontal activé par CSS
+        with t_seq: # SEQUENCEUR
             nb_t = st.number_input("Temps", 4, 32, 8, step=4)
             cols = st.columns([0.8] + [1]*12)
             clist = ['6G','5G','4G','3G','2G','1G','1D','2D','3D','4D','5D','6D']
@@ -430,7 +433,7 @@ with tab1:
                         for idx, n in enumerate(notes): res += ("+ " if idx==0 else "= ") + n + (" P" if n in ['1G','2G','3G','1D','2D','3D'] else " I") + "\n"
                 ajout(res)
 
-        with t_blk: 
+        with t_blk: # BLOCS
             bn = st.text_input("Nom Bloc"); bc = st.text_area("Contenu")
             if st.button("Sauver Bloc") and bn: st.session_state.stored_blocks[bn] = bc; st.success("OK")
             st.write(list(st.session_state.stored_blocks.keys()))
