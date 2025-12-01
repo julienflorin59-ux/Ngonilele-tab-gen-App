@@ -618,7 +618,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI optimisé pour la vidéo
+def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI par défaut, sera écrasé par l'appel de fonction
     if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
     y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
@@ -1136,10 +1136,15 @@ with tab1:
             styles_print = {'FOND': 'white', 'TEXTE': 'black', 'PERLE_FOND': 'white', 'LEGENDE_FOND': 'white'}
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
             
-            with st.status("📸 Génération...", expanded=True) as status:
+            with st.status("📸 Traitement en cours...", expanded=True) as status:
+                # --- AJOUT BARRE ---
+                prog_bar = st.progress(0, text="Analyse du texte...")
+                # -------------------
+
                 sequence = parser_texte(st.session_state.code_actuel)
                 
                 # Légende
+                status.write("📘 Génération de la Légende...")
                 fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
                 if force_white_print:
                     fig_leg_dl = generer_page_1_legende(titre_partition, styles_print, mode_white=True)
@@ -1159,9 +1164,17 @@ with tab1:
                     else: current_page.append(n)
                 if current_page: pages_data.append(current_page)
                 
-                if not pages_data: st.warning("Vide.")
+                if not pages_data: 
+                    st.warning("Vide.")
+                    prog_bar.progress(100, text="Terminé (Vide).")
                 else:
+                    total_steps = len(pages_data)
                     for idx, page in enumerate(pages_data):
+                        # --- Mise à jour de la barre ---
+                        p_cent = int(((idx) / total_steps) * 90) # On garde 10% pour le PDF final
+                        prog_bar.progress(p_cent + 10, text=f"Dessin de la page {idx+1}/{total_steps}...")
+                        # -------------------------------
+                        
                         fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
                         if force_white_print:
                             fig_dl = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_print, options_visuelles, mode_white=True)
@@ -1173,14 +1186,17 @@ with tab1:
                         plt.close(fig_ecran)
                 
                 st.session_state.partition_generated = True
-                status.write("✅ Visuels !")
-                afficher_visuels(view_container)
                 visuals_rendered_this_run = True
                 
-                status.write("📄 PDF...")
+                # PDF Final
+                prog_bar.progress(95, text="Assemblage du livret PDF...")
                 st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
+                
+                prog_bar.progress(100, text="Terminé !")
+                status.update(label="✅ Génération terminée !", state="complete", expanded=False)
+                
+                afficher_visuels(view_container)
                 afficher_bouton_pdf(view_container)
-                status.update(label="Terminé !", state="complete", expanded=False)
 
         if st.session_state.partition_generated and not visuals_rendered_this_run:
             afficher_visuels(view_container)
@@ -1199,19 +1215,40 @@ with tab3:
             st.write(f"Durée : {int(duree_estimee)}s")
         with col_v2:
             if st.button("🎥 Créer Vidéo", type="primary", use_container_width=True):
-                with st.status("🎬 Montage...", expanded=True) as status:
+                with st.status("🎬 Studio de montage...", expanded=True) as status:
+                    # --- AJOUT BARRE ---
+                    v_bar = st.progress(0, text="Initialisation...")
+                    # -------------------
+
                     sequence = parser_texte(st.session_state.code_actuel)
+                    
+                    # Etape 1 : Audio
+                    v_bar.progress(10, text="Mixage de l'audio...")
                     audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
+                    
                     if audio_buffer:
+                        # Etape 2 : Image Longue
+                        v_bar.progress(30, text="Génération de la partition déroulante (HD)...")
                         styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                        img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=85)
+                        
+                        # --- DPI 90 pour la netteté des icones ---
+                        img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=90)
+                        
                         if img_buffer:
-                            # MODIFICATION ICI : FPS à 12 (anciennement 10)
+                            # Etape 3 : Encodage Vidéo
+                            v_bar.progress(50, text="Encodage vidéo en cours (Cela peut prendre quelques secondes)...")
+                            
+                            # --- FPS 12 ---
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=12)
+                            
                             if video_path:
                                 st.session_state.video_path = video_path 
-                                status.update(label="✅ Fini !", state="complete", expanded=False)
-                            else: status.update(label="❌ Erreur", state="error")
+                                v_bar.progress(100, text="Terminé !")
+                                status.update(label="✅ Vidéo prête !", state="complete", expanded=False)
+                            else: 
+                                v_bar.progress(0, text="Erreur.")
+                                status.update(label="❌ Erreur encodage", state="error")
+        
         if st.session_state.video_path and os.path.exists(st.session_state.video_path):
             st.video(st.session_state.video_path)
             with open(st.session_state.video_path, "rb") as file:
