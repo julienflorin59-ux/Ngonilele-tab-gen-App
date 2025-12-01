@@ -28,15 +28,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Ajout du message d'avertissement demandé
-st.warning("⚠️ **Note importante :** Il est vivement conseillé d'utiliser un **grand écran** ou un **ordinateur**. Cette application n'est pas optimisée pour les écrans de téléphone.")
-
 st.markdown("""
 <style>
-    /* CSS CIBLÉ MOBILE : Optimisation légère pour que ce soit utilisable si besoin */
+    /* CSS CIBLÉ MOBILE : On ne touche PAS aux onglets ni aux titres globaux */
     
     @media (max-width: 640px) {
         /* 1. FORCE les colonnes à rester côte à côte (50% chacune) */
+        /* C'est ça qui empêche les boutons d'être "très larges" */
         div[data-testid="column"] {
             width: 50% !important;
             flex: 1 1 50% !important;
@@ -44,6 +42,7 @@ st.markdown("""
         }
 
         /* 2. Réduit un peu le padding INTERNE des boutons pour qu'ils soient moins hauts */
+        /* Mais on garde la taille de police normale pour la lisibilité */
         .stButton button {
             padding-top: 4px !important;
             padding-bottom: 4px !important;
@@ -51,6 +50,7 @@ st.markdown("""
         }
 
         /* 3. Permet le scroll horizontal pour les éditeurs trop larges (Visuel/Séquenceur) */
+        /* Cela évite qu'ils soient écrasés */
         div[data-testid="stHorizontalBlock"] {
             overflow-x: auto !important;
             flex-wrap: nowrap !important;
