@@ -66,6 +66,9 @@ CHEMIN_ICON_INDEX = 'icon_index.png'
 CHEMIN_ICON_POUCE_BLANC = 'icon_pouce_blanc.png'
 CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
 CHEMIN_LOGO_APP = 'ico_ngonilele.png'
+# --- NOUVELLE CONSTANTE POUR L'IMAGE DU HEADER ---
+CHEMIN_HEADER_IMG = 'texture_ngonilele_2.png'
+# -------------------------------------------------
 DOSSIER_SAMPLES = 'samples'
 
 # --- COULEURS & CONSTANTES LOGIQUES ---
@@ -341,8 +344,11 @@ st.markdown("""
 
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
-    if os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
+    # --- MODIFICATION : Utilisation de la nouvelle image de texture ---
+    if os.path.exists(CHEMIN_HEADER_IMG): st.image(CHEMIN_HEADER_IMG, width=100)
+    elif os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100) # Fallback
     else: st.header("🪕")
+    # ------------------------------------------------------------------
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
     st.markdown("Composez, Écoutez et Exportez.")
