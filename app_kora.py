@@ -28,7 +28,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION MOBILE (CSS HACK)
+# 📱 OPTIMISATION MOBILE (CSS HACK) & STYLE GLOBAL
 # ==============================================================================
 st.markdown("""
 <style>
@@ -49,6 +49,32 @@ st.markdown("""
             overflow-x: auto !important;
             flex-wrap: nowrap !important;
         }
+    }
+
+    /* --- STYLE DES ONGLETS (TABS) ENC ADRÉS --- */
+    /* Encadrement des boutons d'onglets pour les mettre en valeur */
+    button[data-testid="stTab"] {
+        border: 1px solid #A67C52; /* Bordure marron */
+        border-radius: 5px; /* Coins arrondis */
+        margin-right: 5px; /* Espace entre les onglets */
+        background-color: #fcfcfc; /* Fond clair par défaut */
+        padding: 10px 15px;
+        transition: all 0.2s ease;
+    }
+    
+    /* Style de l'onglet actif (sélectionné) */
+    button[data-testid="stTab"][aria-selected="true"] {
+        background-color: #e5c4a3; /* Fond beige actif */
+        border: 2px solid #A67C52; /* Bordure plus épaisse */
+        color: black;
+        font-weight: bold;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    /* Effet au survol */
+    button[data-testid="stTab"]:hover {
+        border-color: #8c6642;
+        background-color: #f0e0d0;
     }
 </style>
 """, unsafe_allow_html=True)
