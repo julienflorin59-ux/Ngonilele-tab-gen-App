@@ -57,24 +57,28 @@ st.markdown("""
         border: 1px solid #A67C52; /* Bordure marron */
         border-radius: 5px; /* Coins arrondis */
         margin-right: 5px; /* Espace entre les onglets */
-        background-color: #fcfcfc; /* Fond clair par défaut */
+        background-color: #e5c4a3; /* MODIFIÉ : Fond beige par défaut (au lieu de blanc) */
+        color: black; /* Texte noir */
         padding: 10px 15px;
         transition: all 0.2s ease;
+        opacity: 0.9; /* Légère transparence pour les inactifs */
     }
     
     /* Style de l'onglet actif (sélectionné) */
     button[data-testid="stTab"][aria-selected="true"] {
-        background-color: #e5c4a3; /* Fond beige actif */
+        background-color: #d4b08c; /* Fond beige légèrement plus foncé/saturé */
         border: 2px solid #A67C52; /* Bordure plus épaisse */
         color: black;
         font-weight: bold;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+        opacity: 1; /* Pleine opacité pour l'actif */
     }
     
     /* Effet au survol */
     button[data-testid="stTab"]:hover {
         border-color: #8c6642;
-        background-color: #f0e0d0;
+        background-color: #d4b08c; /* Le survol devient comme l'actif */
+        opacity: 1;
     }
 </style>
 """, unsafe_allow_html=True)
