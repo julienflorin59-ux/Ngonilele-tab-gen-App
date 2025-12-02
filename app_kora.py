@@ -122,7 +122,7 @@ def afficher_header_style(titre):
 
 def parse_gamme_string(gamme_str):
     """
-    Découpe une chaine (ex: 'F3G#4A') en liste de notes.
+    Découpe une chaine (ex: 'F3G#A') en liste de notes.
     Accepte : Lettre + (optionnel #/b) + (optionnel chiffre d'octave)
     """
     return re.findall(r"[A-G][#b]?[0-9]*", gamme_str)
@@ -285,16 +285,16 @@ def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
             if os.path.exists(chemin): 
                 # FADE IN 5ms + GAIN -2dB
                 sound = AudioSegment.from_mp3(chemin).fade_in(5).apply_gain(-2)
-                # OPTIMISATION PREVIEW : On coupe le son pour qu'il soit léger et rapide
+                # COMPROMIS QUALITÉ/VITESSE PREVIEW : 1.5s
                 if preview_mode:
-                    sound = sound[:800].fade_out(100)
+                    sound = sound[:1500].fade_out(200)
                 samples_loaded[corde] = sound
                 loaded = True
             else:
                 chemin_def = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
                 if os.path.exists(chemin_def):
                     sound = AudioSegment.from_mp3(chemin_def).fade_in(5).apply_gain(-2)
-                    if preview_mode: sound = sound[:800].fade_out(100)
+                    if preview_mode: sound = sound[:1500].fade_out(200)
                     samples_loaded[corde] = sound
                     loaded = True
 
@@ -319,7 +319,8 @@ def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
     
-    buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="32k"); buffer.seek(0)
+    # 128k pour une qualité décente
+    buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="128k"); buffer.seek(0)
     return buffer
 
 @st.cache_data(show_spinner=False)
