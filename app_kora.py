@@ -285,16 +285,16 @@ def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
             if os.path.exists(chemin): 
                 # FADE IN 5ms + GAIN -2dB
                 sound = AudioSegment.from_mp3(chemin).fade_in(5).apply_gain(-2)
-                # COMPROMIS QUALITÉ/VITESSE PREVIEW : 1.5s
+                # COMPROMIS QUALITÉ/VITESSE PREVIEW : 2.5s
                 if preview_mode:
-                    sound = sound[:1500].fade_out(200)
+                    sound = sound[:2500].fade_out(200)
                 samples_loaded[corde] = sound
                 loaded = True
             else:
                 chemin_def = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
                 if os.path.exists(chemin_def):
                     sound = AudioSegment.from_mp3(chemin_def).fade_in(5).apply_gain(-2)
-                    if preview_mode: sound = sound[:1500].fade_out(200)
+                    if preview_mode: sound = sound[:2500].fade_out(200)
                     samples_loaded[corde] = sound
                     loaded = True
 
@@ -319,7 +319,7 @@ def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
     
-    # 128k pour une qualité décente
+    # 128k pour une qualité décente, même en preview
     buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="128k"); buffer.seek(0)
     return buffer
 
@@ -460,7 +460,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
                     try: ab = AnnotationBbox(OffsetImage(current_img, zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
                     except: pass
                 else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
-                    
+                     
     for y, group in notes_par_temps_relatif.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
@@ -468,7 +468,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI par défaut
+def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
     if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
     y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
@@ -657,6 +657,15 @@ def annuler_derniere_ligne():
         st.session_state.widget_input = st.session_state.code_actuel
         st.toast("Dernière note effacée", icon="🗑️")
 
+def afficher_section_sauvegarde_bloc(suffix):
+    st.markdown("---")
+    with st.expander("Sauvegarder ce motif en bloc pour pouvoir l'utiliser dans 'Structure'"):
+        b_name_btn = st.text_input("Nom du bloc", key=f"name_blk_{suffix}")
+        if st.button("Sauvegarder", key=f"btn_save_{suffix}", help="Sauvegarde le texte actuel comme un 'Bloc' réutilisable."):
+            if b_name_btn and st.session_state.code_actuel:
+                st.session_state.stored_blocks[b_name_btn] = st.session_state.code_actuel
+                st.toast(f"Bloc '{b_name_btn}' créé !", icon="📦")
+
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
@@ -695,9 +704,15 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com?subject=Rapport de Bug - Ngonilélé App" target="_blank"><button style="width:100%; background-color:#800020; color:white; padding:8px; border:none; border-radius:5px; cursor:pointer;">🐞 Reporter un bug</button></a>', unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
+# -------------------------------------------------------------------------
+# REORGANISATION DES ONGLETS (Accordage en 1er)
+# -------------------------------------------------------------------------
+tab_acc, tab_edit, tab_video, tab_audio = st.tabs(["⚙️ Accordage", "📝 Éditeur & Partition", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
-with tab2:
+# -----------------------
+# TAB ACCORDAGE (Ex-Tab 2)
+# -----------------------
+with tab_acc:
     st.subheader("Gamme & Accordage")
     st.markdown("##### 1. Choisir une Gamme Préfinie")
     selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=2)
@@ -789,7 +804,10 @@ with tab2:
             
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
-with tab1:
+# -----------------------
+# TAB EDITEUR (Ex-Tab 1)
+# -----------------------
+with tab_edit:
     titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
@@ -838,13 +856,8 @@ with tab1:
                 st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True, help="Insère un saut de page pour le PDF.")
                 st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True, help="Ajoute un commentaire ou une instruction visible sur la partition.")
             
-            st.markdown("---")
-            with st.expander("📦 Sauvegarder ce motif en Bloc"):
-                b_name_btn = st.text_input("Nom", key="name_blk_btn")
-                if st.button("Sauvegarder", key="btn_save_btn", help="Sauvegarde le texte actuel comme un 'Bloc' réutilisable."):
-                    if b_name_btn and st.session_state.code_actuel:
-                        st.session_state.stored_blocks[b_name_btn] = st.session_state.code_actuel
-                        st.toast(f"Bloc '{b_name_btn}' créé !", icon="📦")
+            # --- SAUVEGARDE BLOC (BOUTONS) ---
+            afficher_section_sauvegarde_bloc("btn")
 
         with subtab_visu:
             # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
@@ -886,6 +899,9 @@ with tab1:
             with c_tools[3]: st.button("🔇", key="v_sil", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True, help="Ajouter un silence")
             with c_tools[4]: st.button("📄", key="v_page", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Page"), use_container_width=True, help="Saut de page")
             with c_tools[5]: st.button("📝", key="v_txt", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Message", "Texte"), use_container_width=True, help="Ajouter du texte")
+            
+            # --- SAUVEGARDE BLOC (VISUEL) ---
+            afficher_section_sauvegarde_bloc("visu")
 
         with subtab_seq:
             # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
@@ -929,6 +945,9 @@ with tab1:
                     for k in st.session_state.seq_grid: st.session_state.seq_grid[k] = False
                     st.rerun()
 
+            # --- SAUVEGARDE BLOC (SEQUENCEUR) ---
+            afficher_section_sauvegarde_bloc("seq")
+
         with subtab_blocs:
             afficher_header_style("📦 Blocs")
             
@@ -962,6 +981,8 @@ with tab1:
                     st.rerun()
 
         st.markdown("---")
+        # --- AJOUT INDICATION AGRANDISSEMENT ---
+        st.caption("💡 Astuce : Vous pouvez agrandir la zone de texte en tirant le coin inférieur droit.")
         st.text_area("Code", height=150, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
         
         col_play_btn, col_play_bpm = st.columns([1, 1])
@@ -999,14 +1020,16 @@ with tab1:
                 }
                 json_str = json.dumps(projet_data, indent=4)
                 
+                # --- MODIFICATION BOUTONS ---
                 st.download_button(
-                    label="💾 Sauvegarder Projet (.ngoni)", 
+                    label="💾 Sauvegarder votre projet", 
                     data=json_str, 
                     file_name=f"{titre_partition}.ngoni",
-                    mime="application/json"
+                    mime="application/json",
+                    type="primary" # Bouton mis en valeur
                 )
                 
-                uploaded_proj = st.file_uploader("📂 Charger Projet (.ngoni)", type=["ngoni", "json"], key="load_proj")
+                uploaded_proj = st.file_uploader("📂 Charger votre projet sauvegardé", type=["ngoni", "json"], key="load_proj")
                 if uploaded_proj:
                     try:
                         data = json.load(uploaded_proj)
@@ -1119,7 +1142,7 @@ with tab1:
             afficher_visuels(view_container)
             afficher_bouton_pdf(view_container)
 
-with tab3:
+with tab_video:
     st.subheader("Vidéo 🎥")
     st.warning("⚠️ Version Bêta.")
     if not HAS_MOVIEPY or not HAS_PYDUB: st.error("Modules manquants.")
@@ -1171,7 +1194,7 @@ with tab3:
             with open(st.session_state.video_path, "rb") as file:
                 st.download_button("⬇️ Télécharger MP4", data=file, file_name="ngoni_video.mp4", mime="video/mp4", type="primary")
 
-with tab4:
+with tab_audio:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("🎧 Audio")
