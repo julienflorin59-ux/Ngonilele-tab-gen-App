@@ -690,8 +690,8 @@ def annuler_derniere_ligne():
 def afficher_section_sauvegarde_bloc(suffix):
     st.markdown("---")
     with st.expander("Sauvegarder ce motif en bloc pour pouvoir l'utiliser dans 'Structure'"):
-        b_name_btn = st.text_input("Nom du bloc", key=f"name_blk_{suffix}")
-        if st.button("Sauvegarder", key=f"btn_save_{suffix}", help="Sauvegarde le texte actuel comme un 'Bloc' réutilisable."):
+        b_name_btn = st.text_input("Nom du bloc", key=f"name_blk_{suffix}", help="Donnez un nom unique à ce bloc (ex: 'Refrain', 'Pont').")
+        if st.button("Sauvegarder", key=f"btn_save_{suffix}", help="Sauvegarde le texte actuel de l'éditeur comme un 'Bloc' réutilisable."):
             if b_name_btn and st.session_state.code_actuel:
                 st.session_state.stored_blocks[b_name_btn] = st.session_state.code_actuel
                 st.toast(f"Bloc '{b_name_btn}' créé !", icon="📦")
@@ -699,7 +699,7 @@ def afficher_section_sauvegarde_bloc(suffix):
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
-    st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau)
+    st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau, help="Charge une tablature d'exemple depuis la bibliothèque.")
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
@@ -707,11 +707,11 @@ with st.sidebar:
         use_bg_img = True
         bg_alpha = 0.2
         st.markdown("---")
-        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True)
+        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Optimise le rendu pour économiser de l'encre à l'impression (fond blanc pur).")
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
-    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
-    if st.button("🔗 Créer un lien de partage"):
+    st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button title="Envoyez vos créations par email au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+    if st.button("🔗 Créer un lien de partage", help="Génère une URL unique pour partager votre composition actuelle avec d'autres."):
         url_share = f"https://share.streamlit.io/votre_app?code={urllib.parse.quote(st.session_state.code_actuel)}"
         st.code(url_share, language="text")
     
@@ -732,7 +732,7 @@ with st.sidebar:
         """)
     
     st.markdown("---")
-    st.markdown(f'<a href="mailto:julienflorin59@gmail.com?subject=Rapport de Bug - Ngonilélé App" target="_blank"><button style="width:100%; background-color:#800020; color:white; padding:8px; border:none; border-radius:5px; cursor:pointer;">🐞 Reporter un bug</button></a>', unsafe_allow_html=True)
+    st.markdown(f'<a href="mailto:julienflorin59@gmail.com?subject=Rapport de Bug - Ngonilélé App" target="_blank"><button title="Signaler un problème technique ou une erreur" style="width:100%; background-color:#800020; color:white; padding:8px; border:none; border-radius:5px; cursor:pointer;">🐞 Reporter un bug</button></a>', unsafe_allow_html=True)
 
 # -------------------------------------------------------------------------
 # REORGANISATION DES ONGLETS (Accordage en 1er)
@@ -745,7 +745,7 @@ tab_acc, tab_edit, tab_video, tab_audio = st.tabs(["⚙️ Accordage", "📝 Éd
 with tab_acc:
     st.subheader("Gamme & Accordage")
     st.markdown("##### 1. Choisir une Gamme Préfinie")
-    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=2)
+    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=2, help="Choisissez un modèle d'accordage standard (Pentatonique, Blues, etc.).")
     
     col_apply, col_listen = st.columns(2)
     
@@ -798,9 +798,6 @@ with tab_acc:
 
     st.markdown("##### 2. Ajustement Manuel (Si besoin)")
     
-    # --------------------------------------------------------
-    # MODIFICATION : AJOUT D'UNE COLONNE ESPACEUR AU MILIEU
-    # --------------------------------------------------------
     col_g, col_sep, col_d = st.columns([1, 0.2, 1]) 
     acc_config = {}
     
@@ -818,7 +815,7 @@ with tab_acc:
             with c1:
                 st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
             with c2:
-                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning)
+                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
             
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
             
@@ -833,7 +830,7 @@ with tab_acc:
             with c1:
                 st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
             with c2:
-                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning)
+                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
             
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
@@ -841,7 +838,7 @@ with tab_acc:
 # TAB EDITEUR (Ex-Tab 1)
 # -----------------------
 with tab_edit:
-    titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé")
+    titre_partition = st.text_input("Titre de la partition", "Tablature Ngonilélé", help="Ce titre apparaîtra en haut de votre partition PDF et vidéo.")
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
@@ -856,7 +853,7 @@ with tab_edit:
 
         with subtab_btn:
             afficher_header_style("⌨️ Mode Rapide")
-            st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="btn_mode_doigt", horizontal=True)
+            st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="btn_mode_doigt", horizontal=True, help="Choisissez si les notes ajoutées sont jouées par le Pouce (P) ou l'Index (I).")
             
             def ajouter_note_boutons(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
@@ -895,7 +892,7 @@ with tab_edit:
         with subtab_visu:
             # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
             afficher_header_style("🎨 Mode Visuel")
-            st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True)
+            st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True, help="Force l'indication de doigté pour les prochaines notes.")
             def ajouter_note_visuelle(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "visu_mode_doigt")
                 ajouter_texte(f"+ {corde}{suffixe}")
@@ -939,7 +936,7 @@ with tab_edit:
         with subtab_seq:
             # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
             afficher_header_style("🎹 Séquenceur")
-            nb_temps = st.number_input("Nombre de temps", min_value=4, max_value=64, value=8, step=4)
+            nb_temps = st.number_input("Nombre de temps", min_value=4, max_value=64, value=8, step=4, help="Définit la longueur de la boucle à séquencer.")
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
             with cols[0]: st.write("**T**")
@@ -953,7 +950,7 @@ with tab_edit:
                     for i, c in enumerate(cordes_list):
                         key = f"T{t}_{c}"
                         if key not in st.session_state.seq_grid: st.session_state.seq_grid[key] = False
-                        with cols[i+1]: st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed")
+                        with cols[i+1]: st.session_state.seq_grid[key] = st.checkbox(" ", key=key, value=st.session_state.seq_grid[key], label_visibility="collapsed", help=f"Joue la corde {c} au temps {t+1}")
             st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
@@ -986,9 +983,9 @@ with tab_edit:
             
             c_bloc_1, c_bloc_2 = st.columns(2)
             with c_bloc_1:
-                new_block_name = st.text_input("Nom (ex: Refrain)", placeholder="Refrain")
-                new_block_content = st.text_area("Contenu", height=150, placeholder="+ 4G\n= 1D...")
-                if st.button("💾 Créer Bloc", help="Enregistre le contenu ci-dessus comme un nouveau bloc."):
+                new_block_name = st.text_input("Nom (ex: Refrain)", placeholder="Refrain", help="Donnez un nom à ce bloc.")
+                new_block_content = st.text_area("Contenu", height=150, placeholder="+ 4G\n= 1D...", help="Copiez ici le code de tablature pour ce bloc.")
+                if st.button("💾 Créer Bloc", help="Enregistre le contenu ci-dessus comme un nouveau bloc réutilisable."):
                     if new_block_name and new_block_content:
                         st.session_state.stored_blocks[new_block_name] = new_block_content
                         st.toast(f"Bloc '{new_block_name}' sauvegardé !", icon="💾")
@@ -1003,7 +1000,7 @@ with tab_edit:
 
             st.markdown("---")
             st.markdown("#### 🏗️ Assembler")
-            structure_input = st.text_input("Structure (ex: Refrain x2 + Couplet)", placeholder="Refrain x2 + Couplet")
+            structure_input = st.text_input("Structure (ex: Refrain x2 + Couplet)", placeholder="Refrain x2 + Couplet", help="Définissez l'ordre de votre morceau en utilisant les noms des blocs.")
             
             if st.button("🚀 Générer tout", type="primary", help="Compile la structure finale en utilisant les blocs définis."):
                 if structure_input:
@@ -1016,10 +1013,10 @@ with tab_edit:
         st.markdown("---")
         # --- AJOUT INDICATION AGRANDISSEMENT ---
         st.caption("💡 Astuce : Vous pouvez agrandir la zone de texte en tirant le coin inférieur droit.")
-        st.text_area("Code", height=150, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
+        st.text_area("Code", height=150, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed", help="Zone d'édition manuelle du code de la tablature.")
         
         col_play_btn, col_play_bpm = st.columns([1, 1])
-        with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100)
+        with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100, help="Vitesse de lecture pour l'aperçu audio.")
         with col_play_btn:
             st.write(""); st.write("")
             if st.button("🎧 Écouter", help="Joue un aperçu audio rapide de la tablature actuelle."):
@@ -1091,10 +1088,10 @@ with tab_edit:
             
             with tab_txt:
                 # Bouton Sauvegarder (stylisé par le CSS ci-dessus)
-                st.download_button(label="💾 Sauvegarder (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain", use_container_width=True)
+                st.download_button(label="💾 Sauvegarder (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain", use_container_width=True, help="Télécharge uniquement le code texte de la tablature.")
                 
                 # Chargeur (stylisé par le CSS ci-dessus, label caché, texte générique ajouté par CSS)
-                uploaded_txt = st.file_uploader("Charger .txt", type="txt", key="load_txt")
+                uploaded_txt = st.file_uploader("Charger .txt", type="txt", key="load_txt", help="Charge un fichier texte contenant une tablature.")
                 if uploaded_txt:
                     content = io.StringIO(uploaded_txt.getvalue().decode("utf-8")).read()
                     st.session_state.code_actuel = content
@@ -1117,14 +1114,16 @@ with tab_edit:
                     data=json_str, 
                     file_name=f"{titre_partition}.ngoni",
                     mime="application/json",
-                    use_container_width=True
+                    use_container_width=True,
+                    help="Sauvegarde tout (code, blocs, réglages) dans un fichier .ngoni."
                 )
                 
                 # Chargeur Projet (stylisé par le CSS ci-dessus, label caché, texte générique ajouté par CSS)
                 uploaded_proj = st.file_uploader(
                     "Charger votre projet sauvegardé", 
                     type=["ngoni", "json"], 
-                    key="load_proj"
+                    key="load_proj",
+                    help="Restaure un projet complet depuis un fichier .ngoni."
                 )
                 
                 if uploaded_proj:
@@ -1157,7 +1156,7 @@ with tab_edit:
             with container:
                  if st.session_state.pdf_buffer:
                     st.markdown("---")
-                    st.download_button(label="📕 Télécharger PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+                    st.download_button(label="📕 Télécharger PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True, help="Télécharge le livret complet au format PDF.")
 
         if st.button("🔄 Générer", type="primary", use_container_width=True, help="Lance la génération des visuels et du fichier PDF."):
             st.session_state.partition_buffers = [] 
@@ -1246,7 +1245,7 @@ with tab_video:
     else:
         col_v1, col_v2 = st.columns(2)
         with col_v1:
-            bpm = st.slider("BPM", 30, 200, 60, key="bpm_video")
+            bpm = st.slider("BPM", 30, 200, 60, key="bpm_video", help="Vitesse de la vidéo.")
             seq = parser_texte(st.session_state.code_actuel)
             duree_estimee = ((seq[-1]['temps'] - seq[0]['temps'] + 4) * (60/bpm)) if seq else 10
             st.write(f"Durée : {int(duree_estimee)}s")
@@ -1289,7 +1288,7 @@ with tab_video:
         if st.session_state.video_path and os.path.exists(st.session_state.video_path):
             st.video(st.session_state.video_path)
             with open(st.session_state.video_path, "rb") as file:
-                st.download_button("⬇️ Télécharger MP4", data=file, file_name="ngoni_video.mp4", mime="video/mp4", type="primary")
+                st.download_button("⬇️ Télécharger MP4", data=file, file_name="ngoni_video.mp4", mime="video/mp4", type="primary", help="Télécharger la vidéo générée sur votre ordinateur.")
 
 with tab_audio:
     c1, c2 = st.columns(2)
@@ -1297,19 +1296,19 @@ with tab_audio:
         st.subheader("🎧 Audio")
         if not HAS_PYDUB: st.error("Manque pydub")
         else:
-            bpm_audio = st.slider("BPM", 30, 200, 100, key="bpm_audio")
+            bpm_audio = st.slider("BPM", 30, 200, 100, key="bpm_audio", help="Vitesse pour l'export MP3.")
             if st.button("🎵 Créer MP3", type="primary", use_container_width=True, help="Génère uniquement le fichier audio."):
                 seq = parser_texte(st.session_state.code_actuel)
                 mp3 = generer_audio_mix(seq, bpm_audio, acc_config)
                 if mp3: st.session_state.audio_buffer = mp3
             if st.session_state.audio_buffer:
                 st.audio(st.session_state.audio_buffer, format="audio/mp3")
-                st.download_button("⬇️ MP3", data=st.session_state.audio_buffer, file_name="ngoni.mp3", mime="audio/mpeg", type="primary")
+                st.download_button("⬇️ MP3", data=st.session_state.audio_buffer, file_name="ngoni.mp3", mime="audio/mpeg", type="primary", help="Télécharger le fichier audio.")
     with c2:
         st.subheader("🥁 Métronome")
-        sig = st.radio("Sig", ["4/4", "3/4"], horizontal=True)
-        bpm_m = st.slider("BPM", 30, 200, 80, key="bpm_metro")
-        dur = st.slider("Sec", 10, 300, 60)
+        sig = st.radio("Sig", ["4/4", "3/4"], horizontal=True, help="Signature rythmique (Temps par mesure).")
+        bpm_m = st.slider("BPM", 30, 200, 80, key="bpm_metro", help="Vitesse du métronome.")
+        dur = st.slider("Sec", 10, 300, 60, help="Durée totale de la piste de métronome.")
         if st.button("▶️ Start", type="primary", help="Lance une piste de métronome simple."):
             mb = generer_metronome(bpm_m, dur, sig)
             if mb: st.session_state.metronome_buffer = mb
