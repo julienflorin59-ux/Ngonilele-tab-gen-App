@@ -227,6 +227,11 @@ BANQUE_TABLATURES = {
     "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G"
 }
 
+# --- ASSOCIATION AUTOMATIQUE DES GAMMES AUX MORCEAUX ---
+ASSOCIATIONS_MORCEAUX_GAMMES = {
+    "Manitoumani -M- & Lamomali": "3. Manitoumani (Standard)"
+}
+
 # En-tête de l'application
 st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les grands écrans.", icon="⚠️")
 
@@ -702,6 +707,17 @@ def charger_morceau():
         for temp_file in glob.glob("temp_*"):
             try: os.remove(temp_file)
             except: pass
+        
+        # NOUVELLE LOGIQUE : Chargement automatique de la gamme
+        if choix in ASSOCIATIONS_MORCEAUX_GAMMES:
+            nom_gamme = ASSOCIATIONS_MORCEAUX_GAMMES[choix]
+            if nom_gamme in GAMMES_PRESETS:
+                notes_str = GAMMES_PRESETS[nom_gamme]
+                parsed = parse_gamme_string(notes_str)
+                if len(parsed) == 12:
+                    for idx, k in enumerate(ORDRE_MAPPING_GAMME):
+                        st.session_state[f"acc_{k}"] = parsed[idx]
+                    st.toast(f"Gamme chargée : {nom_gamme}", icon="🎸")
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
@@ -755,7 +771,6 @@ with st.sidebar:
         st.code(url_share, language="text")
     
     st.markdown("---")
-    # --- MODIFICATION DE LA SECTION GUIDE & LEGENDE ---
     with st.expander("📖 Guide & Légende", expanded=False):
         st.markdown("""
         ### 🚀 Démarrage Rapide
@@ -776,7 +791,6 @@ with st.sidebar:
         * `=` : Note simultanée (accord).
         * `S` : Silence.
         """)
-    # --------------------------------------------------
     
     st.markdown("---")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com?subject=Rapport de Bug - Ngonilélé App" target="_blank"><button title="Signaler un problème technique ou une erreur" style="width:100%; background-color:#800020; color:white; padding:8px; border:none; border-radius:5px; cursor:pointer;">🐞 Reporter un bug</button></a>', unsafe_allow_html=True)
