@@ -34,22 +34,17 @@ st.markdown("""
 <style>
     /* Sur mobile uniquement (écrans < 640px) */
     @media (max-width: 640px) {
-        /* 1. Réduire les marges et la taille du texte des boutons */
         .stButton button {
             padding: 0px 2px !important;
             font-size: 0.8rem !important;
             min-height: 40px !important;
             white-space: nowrap !important;
         }
-        
-        /* 2. Forcer l'affichage côte à côte pour les groupes de 2 colonnes */
         div[data-testid="column"] {
             width: calc(50% - 0.5rem) !important;
             flex: 1 1 calc(50% - 0.5rem) !important;
             min-width: calc(50% - 0.5rem) !important;
         }
-        
-        /* 3. Exception pour le Séquenceur et le Visuel (scroll horizontal) */
         div[data-testid="stHorizontalBlock"] {
             overflow-x: auto !important;
             flex-wrap: nowrap !important;
@@ -72,12 +67,34 @@ DOSSIER_SAMPLES = 'samples'
 # --- COULEURS & CONSTANTES LOGIQUES ---
 POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D': 1, '2D': 2, '3D': 3, '4D': 4, '5D': 5, '6D': 6}
 COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
-# Couleurs pour l'interface visuelle (Boutons)
 COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
 
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
-NOTES_GAMME = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
+
+# --- MODIFICATION: LISTE DES NOTES ETENDUE (AVEC OCTAVES POUR EXEMPLE) ---
+# Vous pouvez ajouter ici toutes vos variantes (F3, F4, G3, G4...)
+NOTES_GAMME = [
+    'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
+    'C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', # Octave 3 (Grave)
+    'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4'  # Octave 4 (Aigu)
+]
+
+# --- DÉFINITION DES GAMMES PRESETS ---
+# Si vous voulez préciser l'octave dans un preset, écrivez par exemple "F3GAC..."
+GAMMES_PRESETS = {
+    "1. Pentatonique Fondamentale": "EGACDEGACDEG",
+    "2. Pentatonique (Descente Basse)": "FGACDEGACDEG",
+    "3. Manitoumani (Standard)": "FGACDEGABCEG",
+    "4. Orientale Sahara": "FABDEFG#ABCEF",
+    "5. Fa Blues Augmenté Nyama": "FG#A#CD#FGG#A#CD#F",
+    "6. Fa Ionien": "FAA#CDEFGACDF",
+    "7. Une Âme": "FGG#CDD#FG#A#CEbF",
+    "8. Impressionniste": "EFABCEGABCEG"
+}
+ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
+
+# Accordage par défaut
 DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
 
 # ==============================================================================
@@ -96,12 +113,23 @@ def load_image_asset(path):
     return None
 
 def afficher_header_style(titre):
-    """Fonction utilitaire pour afficher les titres stylisés"""
     st.markdown(f"""
     <div style="background-color: #d4b08c; padding: 5px 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
         <strong>{titre}</strong>
     </div>
     """, unsafe_allow_html=True)
+
+def parse_gamme_string(gamme_str):
+    """
+    Découpe une chaine (ex: 'F3G#A') en liste de notes.
+    Accepte : Lettre + (optionnel #/b) + (optionnel chiffre d'octave)
+    """
+    return re.findall(r"[A-G][#b]?[0-9]*", gamme_str)
+
+def get_color_for_note(note):
+    """Retourne la couleur de la note en ignorant les altérations (#/b) et les octaves (3, 4)"""
+    base_note = note[0].upper() # Prend juste la première lettre (F de F3 ou F#)
+    return COULEURS_CORDES_REF.get(base_note, '#000000')
 
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE
@@ -115,235 +143,34 @@ if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
 if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {}
 if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {}
+# Initialisation des variables d'accordage si elles n'existent pas
+for k, v in DEF_ACC.items():
+    if f"acc_{k}" not in st.session_state:
+        st.session_state[f"acc_{k}"] = v
 
 # ==============================================================================
 # 🎵 BANQUE DE DONNÉES
 # ==============================================================================
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
-    "Exercice Débutant 1 : Montée et descente de Gamme": """
-1   1D
-+   S
-+   1G
-+   S
-+   2D
-+   S
-+   2G
-+   S
-+   3D
-+   S
-+   3G
-+   S
-+   4D
-+   S
-+   4G
-+   S
-+   5D
-+   S
-+   5G
-+   S
-+   6D
-+   S
-+   6G
-+   S
-+   TXT  DESCENTE
-+   6G
-+   S
-+   6D
-+   S
-+   5G
-+   S
-+   5D
-+   S
-+   4G
-+   S
-+   4D
-+   S
-+   3G
-+   S
-+   3D
-+   S
-+   2G
-+   S
-+   2D
-+   S
-+   1G
-+   S
-+   1D
-""",
-    "Exercice Débutant 2 : Montée et descente de Gamme en triolets": """
-1   1D
-+   1G
-+   2D
-+   S
-+   1G
-+   2D
-+   2G
-+   S
-+   2D
-+   2G
-+   3D
-+   S
-+   2G
-+   3D
-+   3G
-+   S
-+   3D
-+   3G
-+   4D
-+   S
-+   3G
-+   4D
-+   4G
-+   S
-+   4D
-+   4G
-+   5D
-+   S
-+   4G
-+   5D
-+   5G
-+   S
-+   5D
-+   5G
-+   6D
-+   S
-+   5G
-+   6D
-+   6G
-+   S
-+   TXT  DESCENTE
-+   6G
-+   6D
-+   5G
-+   S
-+   6D
-+   5G
-+   5D
-+   S
-+   5G
-+   5D
-+   4G
-+   S
-+   5D
-+   4G
-+   4D
-+   S
-+   4G
-+   4D
-+   3G
-+   S
-+   4D
-+   3G
-+   3D
-+   S
-+   3G
-+   3D
-+   2G
-+   S
-+   3D
-+   2G
-+   2D
-+   S
-+   2G
-+   2D
-+   1G
-+   S
-+   2D
-+   1G
-+   1D
-""",
-    "Manitoumani -M- & Lamomali": """
-1   4D
-+   4G
-+   5D
-+   5G
-+   4G
-=   2D
-+   3G
-+   6D   x2
-+   2G
-=   5G
-+  3G
-+  6D   x2
-+  2G
-=  5G
-+ 3G
-+ 6D   x2
-+ 2G
-= 5G
-+   TXT  REPETER 2x
-+   PAGE
-+   4D
-+   4G
-+   5D
-+   5G
-+   4G
-=   1D
-+   2G
-+   6D   x2
-+   2G
-=   4G
-+   1D
-+   2G
-+   6D   x2
-+   2G
-=   4G
-+ S
-+ S
-+ PAGE
-+   1G
-+   3D
-+   3G
-+   5D
-+   1G
-+   3D
-+   3G
-+   5D
-+ S
-+ S
-+ S
-+ S
-+ S
-+ S
-+ S
-+ 4D
-+ PAGE
-+   4G
-+   5D
-+   5G
-+   4G
-=   2D
-+   3G
-+   6D   x2
-+   2G
-=   5G
-+  3G
-+  6D   x2
-+  2G
-=  5G
-+ 3G
-+ 6D   x2
-+ 2G
-= 5G
-"""
+    "Exercice Débutant 1 : Montée et descente de Gamme": "1   1D\n+   S\n+   1G\n+   S\n+   2D\n+   S\n+   2G\n+   S\n+   3D\n+   S\n+   3G\n+   S\n+   4D\n+   S\n+   4G\n+   S\n+   5D\n+   S\n+   5G\n+   S\n+   6D\n+   S\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   S\n+   6D\n+   S\n+   5G\n+   S\n+   5D\n+   S\n+   4G\n+   S\n+   4D\n+   S\n+   3G\n+   S\n+   3D\n+   S\n+   2G\n+   S\n+   2D\n+   S\n+   1G\n+   S\n+   1D",
+    "Exercice Débutant 2 : Montée et descente de Gamme en triolets": "1   1D\n+   1G\n+   2D\n+   S\n+   1G\n+   2D\n+   2G\n+   S\n+   2D\n+   2G\n+   3D\n+   S\n+   2G\n+   3D\n+   3G\n+   S\n+   3D\n+   3G\n+   4D\n+   S\n+   3G\n+   4D\n+   4G\n+   S\n+   4D\n+   4G\n+   5D\n+   S\n+   4G\n+   5D\n+   5G\n+   S\n+   5D\n+   5G\n+   6D\n+   S\n+   5G\n+   6D\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   6D\n+   5G\n+   S\n+   6D\n+   5G\n+   5D\n+   S\n+   5G\n+   5D\n+   4G\n+   S\n+   5D\n+   4G\n+   4D\n+   S\n+   4G\n+   4D\n+   3G\n+   S\n+   4D\n+   3G\n+   3D\n+   S\n+   3G\n+   3D\n+   2G\n+   S\n+   3D\n+   2G\n+   2D\n+   S\n+   2G\n+   2D\n+   1G\n+   S\n+   2D\n+   1G\n+   1D",
+    "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G"
 }
 
 # En-tête de l'application
-# --- AJOUT AVERTISSEMENT ---
-st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les grands écrans. L'utilisation sur téléphone mobile est déconseillée pour une expérience optimale.", icon="⚠️")
-# ---------------------------
+st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les grands écrans.", icon="⚠️")
 
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
-    <strong>👈 Ouvrez le menu latéral</strong> (flèche en haut à gauche) pour : Charger un morceau, lire le Guide complet, ou 🐞 Signaler un bug !
+    <strong>👈 Ouvrez le menu latéral</strong> pour charger un morceau.
 </div>
 """, unsafe_allow_html=True)
 
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_HEADER_IMG): st.image(CHEMIN_HEADER_IMG, width=100)
-    elif os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100) # Fallback
+    elif os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
     else: st.header("🪕")
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
@@ -439,8 +266,9 @@ def compiler_arrangement(structure_str, blocks_dict):
 # 🎹 MOTEUR AUDIO (OPTIMISÉ)
 # ==============================================================================
 def get_note_freq(note_name):
-    base_freqs = {'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23, 'G': 392.00, 'A': 440.00, 'B': 493.88}
-    return base_freqs.get(note_name, 440.0)
+    # Fréquences basiques, mais le système repose surtout sur les samples
+    base_freqs = {'C': 261.63, 'C#': 277.18, 'D': 293.66, 'Eb': 311.13, 'E': 329.63, 'F': 349.23, 'F#': 369.99, 'G': 392.00, 'G#': 415.30, 'A': 440.00, 'Bb': 466.16, 'B': 493.88}
+    return base_freqs.get(note_name[0].upper(), 440.0) # Fallback simple
 
 @st.cache_data(show_spinner=False)
 def generer_audio_mix(sequence, bpm, acc_config):
@@ -448,25 +276,39 @@ def generer_audio_mix(sequence, bpm, acc_config):
     if not sequence: return None
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
+    
     for corde in cordes_utilisees:
         loaded = False
+        # 1. On cherche le fichier qui correspond à la note configurée (ex: "F3.mp3" ou "C#.mp3")
+        note_name = acc_config.get(corde, {'n':'C'})['n']
+        
         if os.path.exists(DOSSIER_SAMPLES):
-            chemin = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
-            if os.path.exists(chemin): samples_loaded[corde] = AudioSegment.from_mp3(chemin); loaded = True
+            # Cherche exactement le nom de la note (ex: samples/F3.mp3)
+            chemin = os.path.join(DOSSIER_SAMPLES, f"{note_name}.mp3")
+            if os.path.exists(chemin): 
+                samples_loaded[corde] = AudioSegment.from_mp3(chemin)
+                loaded = True
             else:
-                chemin_min = os.path.join(DOSSIER_SAMPLES, f"{corde.lower()}.mp3")
-                if os.path.exists(chemin_min): samples_loaded[corde] = AudioSegment.from_mp3(chemin_min); loaded = True
+                # Fallback : cherche le nom de la corde par défaut (ex: samples/1G.mp3)
+                chemin_def = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
+                if os.path.exists(chemin_def):
+                    samples_loaded[corde] = AudioSegment.from_mp3(chemin_def)
+                    loaded = True
+
         if not loaded:
-            note_name = acc_config.get(corde, {'n':'C'})['n']
+            # Génération synthétique si pas de sample
             freq = get_note_freq(note_name)
             tone = Sine(freq).to_audio_segment(duration=600).fade_out(400)
             samples_loaded[corde] = tone - 5 
+            
     if not samples_loaded: return None
+    
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     if duree_totale_ms < 1000: duree_totale_ms = 1000
     mix = AudioSegment.silent(duration=duree_totale_ms)
+    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
@@ -474,11 +316,9 @@ def generer_audio_mix(sequence, bpm, acc_config):
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
     
-    # OPTIMISATION AUDIO: Export en bitrate réduit pour chargement rapide
     buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
     return buffer
 
-# --- OPTIMISATION DU METRONOME (CACHE + BITRATE REDUIT) ---
 @st.cache_data(show_spinner=False)
 def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     if not HAS_PYDUB: return None
@@ -496,14 +336,13 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
     metronome_track = (measure_block * nb_mesures)[:int(duration_sec*1000)]
     
-    # OPTIMISATION AUDIO: Export en 32k pour vitesse maximale
     buffer = io.BytesIO()
     metronome_track.export(buffer, format="mp3", bitrate="32k", parameters=["-preset", "ultrafast"])
     buffer.seek(0)
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE OPTIMISÉ (AVEC FIGURE)
+# 🎨 MOTEUR AFFICHAGE
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -574,10 +413,13 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
     
     for code, props in config_acc.items():
-        x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
+        x = props['x']; note = props['n']; 
+        # MODIF: Couleur indépendante de l'octave/altération
+        c = get_color_for_note(note)
+        
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero)
         ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us)
-        ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu)
+        ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu)
         ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
     for t in range(t_min, t_max + 1):
@@ -587,7 +429,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps'])
     processed_t = set()
     for n in sorted_notes:
-        t = n['temps'];
+        t = n['temps']
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
         elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
             
@@ -602,7 +444,9 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         elif code == 'SEPARATOR': 
             ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
-            props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
+            props = config_acc[code]; x = props['x']; 
+            c = get_color_for_note(props['n'])
+            
             ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3))
             ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
@@ -620,7 +464,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI par défaut, sera écrasé par l'appel de fonction
+def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
     if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
     y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
@@ -637,8 +481,9 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI p
 
     ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
     for code, props in config_acc.items():
-        x = props['x']; note = props['n']; c = COULEURS_CORDES_REF.get(note, '#000000')
-        ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note, '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
+        x = props['x']; note = props['n']; 
+        c = get_color_for_note(note)
+        ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
     for t in range(t_min, t_max + 1):
         y = -(t - t_min)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
@@ -656,7 +501,8 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI p
         if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
         elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
-            props = config_acc[code]; x = props['x']; c = COULEURS_CORDES_REF.get(props['n'], '#000000')
+            props = config_acc[code]; x = props['x']; 
+            c = get_color_for_note(props['n'])
             ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
             if 'doigt' in n:
@@ -678,36 +524,25 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI p
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
-# ==============================================================================
-# 🎬 MODIFICATION MAJEURE ICI : UTILISATION DE TEMPFILE
-# ==============================================================================
-def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15): # FPS modifiable
+def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15):
     pixels_par_temps, offset_premiere_note_px = metrics
-    
-    # Création de fichiers temporaires sécurisés
-    # On utilise delete=False car MoviePy a besoin d'accéder au chemin du fichier
-    # On s'assure de les supprimer dans le bloc 'finally'
     
     temp_img_path = None
     temp_audio_path = None
     output_filename = None
     
     try:
-        # 1. Écrire l'image dans un fichier temporaire
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as f_img:
             f_img.write(image_buffer.getbuffer())
             temp_img_path = f_img.name
 
-        # 2. Écrire l'audio dans un fichier temporaire
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f_audio:
             f_audio.write(audio_buffer.getbuffer())
             temp_audio_path = f_audio.name
             
-        # 3. Préparer le fichier de sortie
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as f_vid:
             output_filename = f_vid.name
 
-        # 4. Traitement MoviePy
         clip_img = ImageClip(temp_img_path)
         w, h = clip_img.size
         video_h = 480 
@@ -732,10 +567,8 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         final = video_visual.set_audio(audio_clip)
         final.fps = fps
         
-        # --- MODIF: Ajout de yuv420p pour lecture immédiate ---
         final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast', ffmpeg_params=['-pix_fmt', 'yuv420p'], logger=None)
         
-        # Fermeture des clips
         audio_clip.close(); video_visual.close(); clip_img.close(); final.close()
         return output_filename
 
@@ -743,12 +576,8 @@ def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metr
         st.error(f"Erreur vidéo : {e}")
         return None
     finally:
-        # Nettoyage sécurisé : on supprime les fichiers sources, mais PAS le fichier de sortie 
-        # (car Streamlit en a besoin pour l'afficher juste après)
         if temp_img_path and os.path.exists(temp_img_path): os.remove(temp_img_path)
         if temp_audio_path and os.path.exists(temp_audio_path): os.remove(temp_audio_path)
-        # Note: Le fichier vidéo final sera supprimé au prochain rechargement via la fonction charger_morceau() qui clean glob("ngoni_video_*.mp4")
-        # Ou par le nettoyage OS automatique du dossier temp
 
 def generer_pdf_livret(buffers, titre):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
@@ -756,8 +585,7 @@ def generer_pdf_livret(buffers, titre):
         pdf.add_page()
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}_{random.randint(0,1000)}.png"
         
-        # Note: Les buffers contiennent déjà l'image PNG encodée 
-        item['buf'].seek(0) # Assurer que la lecture commence au début
+        item['buf'].seek(0)
         with open(temp_img, "wb") as f:
             f.write(item['buf'].read()) 
 
@@ -801,7 +629,6 @@ def charger_morceau():
         for temp_file in glob.glob("temp_*"):
             try: os.remove(temp_file)
             except: pass
-        # Nettoyage fichiers vidéos temporaires systèmes si besoin (optionnel)
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
@@ -866,19 +693,80 @@ with st.sidebar:
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
+# ==============================================================================
+# ⚙️ TAB 2: ACCORDAGE (REFONDU)
+# ==============================================================================
 with tab2:
-    st.subheader("Configuration des cordes")
+    st.subheader("Gamme & Accordage")
+    
+    # 1. Sélection de la Gamme (Preset)
+    st.markdown("##### 1. Choisir une Gamme Préfinie")
+    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=2) # Index 2 = Manitoumani
+    
+    # 2. Logique d'application du Preset
+    if st.button("Appliquer cette gamme", type="primary", use_container_width=True, help="Configure automatiquement les 12 cordes selon le modèle choisi."):
+        notes_str = GAMMES_PRESETS[selected_preset_key]
+        parsed_notes = parse_gamme_string(notes_str)
+        
+        if len(parsed_notes) == 12:
+            for idx, corde_key in enumerate(ORDRE_MAPPING_GAMME):
+                note = parsed_notes[idx]
+                # On met à jour la valeur dans le state
+                st.session_state[f"acc_{corde_key}"] = note
+            st.toast(f"Gamme appliquée : {selected_preset_key}", icon="✅")
+            st.rerun()
+        else:
+            st.error(f"Erreur de format dans la gamme prédéfinie ({len(parsed_notes)} notes trouvées au lieu de 12).")
+
+    st.markdown("---")
+    
+    # 3. Affichage Légende Couleur
+    st.markdown("##### Code Couleur des Notes")
+    cols_legende = st.columns(7)
+    for i, (note, color) in enumerate(COULEURS_CORDES_REF.items()):
+        with cols_legende[i]:
+            st.markdown(f"<div style='text-align:center;'><span style='display:inline-block; width:20px; height:20px; background-color:{color}; border-radius:50%;'></span><br><b>{note}</b></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; font-size:0.8em; color:gray;'>(Les notes dièses # et bémols b gardent la couleur de leur note racine)</div>", unsafe_allow_html=True)
+    st.write("")
+
+    # 4. Configuration Manuelle
+    st.markdown("##### 2. Ajustement Manuel (Si besoin)")
+    
     col_g, col_d = st.columns(2)
     acc_config = {}
+    
+    def on_change_tuning():
+        pass
+
     with col_g:
-        st.write("**Main Gauche**")
+        st.write("**Main Gauche** (G)")
         for i in range(1, 7):
-            k = f"{i}G"; val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(DEF_ACC[k]), key=k)
+            k = f"{i}G"
+            current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
+            c_code = get_color_for_note(current_val)
+            
+            c1, c2 = st.columns([1, 4])
+            with c1:
+                st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
+            with c2:
+                # Selectbox avec la liste étendue
+                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning)
+            
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
+            
     with col_d:
-        st.write("**Main Droite**")
+        st.write("**Main Droite** (D)")
         for i in range(1, 7):
-            k = f"{i}D"; val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(DEF_ACC[k]), key=k)
+            k = f"{i}D"
+            current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
+            c_code = get_color_for_note(current_val)
+            
+            c1, c2 = st.columns([1, 4])
+            with c1:
+                st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
+            with c2:
+                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning)
+            
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
 with tab1:
