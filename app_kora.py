@@ -72,29 +72,33 @@ COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
 
-# --- LISTE DES NOTES ETENDUE ---
+# --- LISTE DES NOTES ETENDUE (Pour les menus déroulants) ---
 NOTES_GAMME = [
-    'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
-    'C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', # Octave 3 (Grave)
-    'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', # Octave 4 (Aigu)
-    'C5', 'D5', 'E5', 'F5', 'G5', 'A5', 'B5'  # Octave 5 (Très Aigu)
+    # Octave 3 (Grave)
+    'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+    # Octave 4 (Aigu)
+    'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+    # Octave 5 (Très Aigu)
+    'C5', 'C#5', 'D5', 'D#5', 'E5', 'F5', 'F#5', 'G5', 'G#5', 'A5', 'A#5', 'B5',
+    # Fallback générique sans octave (au cas où)
+    'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'
 ]
 
 # --- DÉFINITION DES GAMMES PRESETS ---
 GAMMES_PRESETS = {
-    "1. Pentatonique Fondamentale": "EGACDEGACDEG",
-    "2. Pentatonique (Descente Basse)": "FGACDEGACDEG",
-    "3. Manitoumani (Standard)": "FGACDEGABCEG",
-    "4. Orientale Sahara": "FABDEFG#ABCEF",
-    "5. Fa Blues Augmenté Nyama": "FG#A#CD#FGG#A#CD#F",
-    "6. Fa Ionien": "FAA#CDEFGACDF",
-    "7. Une Âme": "FGG#CDD#FG#A#CEbF",
-    "8. Impressionniste": "EFABCEGABCEG"
+    "1. Pentatonique Fondamentale": "E3G3A3C4D4E4G4A4C5D5E5G5",
+    "2. Pentatonique (Descente Basse)": "F3G3A3C4D4E4G4A4C5D5E5G5",
+    "3. Manitoumani (Standard)": "F3G3A3C4D4E4G4A4B4C5E5G5",
+    "4. Orientale Sahara": "F3A3B3D4E4F4G#4A4B4C5E5F5",
+    "5. Fa Blues Augmenté Nyama": "F3G#3A#3C4D#4F4G4G#4A#4C5D#5F5",
+    "6. Fa Ionien": "F3A3A#3C4D4E4F4G4A4C5D5F5",
+    "7. Une Âme": "F3G3G#3C4D4D#4F4G#4A#4C5D#5F5",
+    "8. Impressionniste": "E3F3A3B3C4E4G4A4B4C5E5G5"
 }
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
 # Accordage par défaut
-DEF_ACC = {'1G':'G','2G':'C','3G':'E','4G':'A','5G':'C','6G':'G','1D':'F','2D':'A','3D':'D','4D':'G','5D':'B','6D':'E'}
+DEF_ACC = {'1G':'G3','2G':'C3','3G':'E3','4G':'A4','5G':'C4','6G':'G4','1D':'F3','2D':'A3','3D':'D3','4D':'G4','5D':'B4','6D':'E4'}
 
 # ==============================================================================
 # 🚀 FONCTIONS UTILES (CACHE & SYSTEME)
@@ -120,14 +124,14 @@ def afficher_header_style(titre):
 
 def parse_gamme_string(gamme_str):
     """
-    Découpe une chaine (ex: 'F3G#A') en liste de notes.
+    Découpe une chaine (ex: 'F3G#4A') en liste de notes.
     Accepte : Lettre + (optionnel #/b) + (optionnel chiffre d'octave)
     """
     return re.findall(r"[A-G][#b]?[0-9]*", gamme_str)
 
 def get_color_for_note(note):
     """Retourne la couleur de la note en ignorant les altérations (#/b) et les octaves (3, 4)"""
-    base_note = note[0].upper() 
+    base_note = note[0].upper() # Prend juste la première lettre (F de F3 ou F#)
     return COULEURS_CORDES_REF.get(base_note, '#000000')
 
 # ==============================================================================
@@ -458,7 +462,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
-def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
+def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72): # DPI par défaut
     if not sequence: return None, 0, 0
     t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
     y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
@@ -836,6 +840,7 @@ with tab1:
                         st.toast(f"Bloc '{b_name_btn}' créé !", icon="📦")
 
         with subtab_visu:
+            # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
             afficher_header_style("🎨 Mode Visuel")
             st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True)
             def ajouter_note_visuelle(corde):
