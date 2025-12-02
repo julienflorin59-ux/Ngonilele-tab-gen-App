@@ -996,7 +996,7 @@ with tab_acc:
                 acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
         
         st.write("")
-        if st.button("🎧 Écouter ma gamme personnalisée", use_container_width=True):
+        if st.button("🎧 Écouter la gamme", use_container_width=True):
              temp_sequence = []
              for idx, corde_key in enumerate(ORDRE_MAPPING_GAMME):
                  temp_sequence.append({'temps': idx + 1, 'corde': corde_key})
