@@ -61,7 +61,8 @@ st.markdown("""
         color: black; /* Texte noir */
         padding: 10px 15px;
         transition: all 0.2s ease;
-        opacity: 0.9; /* Légère transparence pour les inactifs */
+        opacity: 0.9;
+        position: relative; /* Pour positionner l'infobulle */
     }
     
     /* Style de l'onglet actif (sélectionné) */
@@ -71,15 +72,53 @@ st.markdown("""
         color: black;
         font-weight: bold;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
-        opacity: 1; /* Pleine opacité pour l'actif */
+        opacity: 1;
     }
     
     /* Effet au survol */
     button[data-testid="stTab"]:hover {
         border-color: #8c6642;
-        background-color: #d4b08c; /* Le survol devient comme l'actif */
+        background-color: #d4b08c;
         opacity: 1;
     }
+
+    /* --- INFOBULLES CSS POUR LES SOUS-ONGLETS ÉDITEUR --- */
+    /* On cible le 2ème groupe d'onglets (celui de l'éditeur) */
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after {
+        position: absolute;
+        top: 110%; /* Juste en dessous du bouton */
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #3e3e3e; /* Gris foncé */
+        color: white;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: normal;
+        white-space: nowrap;
+        z-index: 9999;
+        pointer-events: none;
+        box-shadow: 0px 4px 6px rgba(0,0,0,0.2);
+    }
+
+    /* Contenu spécifique des infobulles par ordre d'onglet */
+    /* 1. Boutons */
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(1):hover::after {
+        content: "Saisie rapide via boutons cliquables";
+    }
+    /* 2. Visuel */
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(2):hover::after {
+        content: "Représentation graphique des cordes";
+    }
+    /* 3. Séquenceur */
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(3):hover::after {
+        content: "Grille rythmique pas à pas";
+    }
+    /* 4. Structure */
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(4):hover::after {
+        content: "Assemblage de blocs et arrangements";
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -716,20 +755,28 @@ with st.sidebar:
         st.code(url_share, language="text")
     
     st.markdown("---")
+    # --- MODIFICATION DE LA SECTION GUIDE & LEGENDE ---
     with st.expander("📖 Guide & Légende", expanded=False):
         st.markdown("""
-        ### 📖 Guide Rapide
-        **1. Éditeur :**
-        * **Boutons** : Cliquez sur 1G, 2D etc.
-        * **Visuel** : Cliquez sur les cordes.
-        * **Séquenceur** : Cochez les cases.
-        * *Astuce Mobile : Scrollez horizontalement si les onglets dépassent.*
+        ### 🚀 Démarrage Rapide
+        1. **⚙️ Accordage** : Choisissez d'abord votre gamme (étape cruciale !).
+        2. **📝 Éditeur** : Composez votre morceau via les boutons, le visuel ou le séquenceur.
+        3. **🔄 Générer** : Créez la partition PDF et les visuels.
 
-        **2. Syntaxe :**
+        ### 💾 Sauvegarde & Projets
+        * **Projet Complet (.ngoni)** : Sauvegarde **tout** (code + blocs personnalisés + réglages). Idéal pour reprendre plus tard.
+        * **Fichier Texte (.txt)** : Sauvegarde uniquement la tablature brute.
+
+        ### 🛠️ Outils de l'Éditeur
+        * **Blocs** : Créez des motifs (Intro, Refrain...) et assemblez-les dans l'onglet "Structure".
+        * **Agrandir** : Vous pouvez redimensionner la zone de code en tirant le coin inférieur droit.
+
+        ### 🎼 Syntaxe Manuelle
         * `+` : Nouvelle note (avance d'un temps).
-        * `=` : Note simultanée.
-        * `S` : Silence (Important pour le rythme).
+        * `=` : Note simultanée (accord).
+        * `S` : Silence.
         """)
+    # --------------------------------------------------
     
     st.markdown("---")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com?subject=Rapport de Bug - Ngonilélé App" target="_blank"><button title="Signaler un problème technique ou une erreur" style="width:100%; background-color:#800020; color:white; padding:8px; border:none; border-radius:5px; cursor:pointer;">🐞 Reporter un bug</button></a>', unsafe_allow_html=True)
