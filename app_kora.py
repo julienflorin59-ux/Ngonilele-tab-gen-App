@@ -29,83 +29,35 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION MOBILE (CSS HACK) & STYLE GLOBAL
+# 📱 OPTIMISATION MOBILE & STYLE
 # ==============================================================================
 st.markdown("""
 <style>
-    /* Sur mobile uniquement (écrans < 640px) */
     @media (max-width: 640px) {
-        .stButton button {
-            padding: 0px 2px !important;
-            font-size: 0.8rem !important;
-            min-height: 40px !important;
-            white-space: nowrap !important;
-        }
-        div[data-testid="column"] {
-            width: calc(50% - 0.5rem) !important;
-            flex: 1 1 calc(50% - 0.5rem) !important;
-            min-width: calc(50% - 0.5rem) !important;
-        }
-        div[data-testid="stHorizontalBlock"] {
-            overflow-x: auto !important;
-            flex-wrap: nowrap !important;
-        }
+        .stButton button { padding: 0px 2px !important; font-size: 0.8rem !important; min-height: 40px !important; white-space: nowrap !important; }
+        div[data-testid="column"] { width: calc(50% - 0.5rem) !important; flex: 1 1 calc(50% - 0.5rem) !important; min-width: calc(50% - 0.5rem) !important; }
+        div[data-testid="stHorizontalBlock"] { overflow-x: auto !important; flex-wrap: nowrap !important; }
     }
-
-    /* --- STYLE DES ONGLETS (TABS) ENC ADRÉS --- */
-    /* Encadrement des boutons d'onglets pour les mettre en valeur */
-    button[data-testid="stTab"] {
-        border: 1px solid #A67C52; /* Bordure marron */
-        border-radius: 5px; /* Coins arrondis */
-        margin-right: 5px; /* Espace entre les onglets */
-        background-color: #e5c4a3; /* Fond beige par défaut */
-        color: black; /* Texte noir */
-        padding: 10px 15px;
-        transition: all 0.2s ease;
-        opacity: 0.9;
-        position: relative; /* Pour positionner l'infobulle */
-    }
+    button[data-testid="stTab"] { border: 1px solid #A67C52; border-radius: 5px; margin-right: 5px; background-color: #e5c4a3; color: black; padding: 10px 15px; transition: all 0.2s ease; opacity: 0.9; position: relative; }
+    button[data-testid="stTab"][aria-selected="true"] { background-color: #d4b08c; border: 2px solid #A67C52; color: black; font-weight: bold; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); opacity: 1; }
+    button[data-testid="stTab"]:hover { border-color: #8c6642; background-color: #d4b08c; opacity: 1; }
     
-    /* Style de l'onglet actif (sélectionné) */
-    button[data-testid="stTab"][aria-selected="true"] {
-        background-color: #d4b08c; /* Fond beige légèrement plus foncé/saturé */
-        border: 2px solid #A67C52; /* Bordure plus épaisse */
-        color: black;
-        font-weight: bold;
-        box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
-        opacity: 1;
-    }
-    
-    /* Effet au survol */
-    button[data-testid="stTab"]:hover {
-        border-color: #8c6642;
-        background-color: #d4b08c;
-        opacity: 1;
-    }
-
-    /* --- INFOBULLES CSS POUR LES SOUS-ONGLETS ÉDITEUR --- */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after {
-        position: absolute;
-        top: 110%;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #3e3e3e;
-        color: white;
-        padding: 5px 10px;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: normal;
-        white-space: nowrap;
-        z-index: 9999;
-        pointer-events: none;
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.2);
-    }
-
+    /* Infobulles Editeur */
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after { position: absolute; top: 110%; left: 50%; transform: translateX(-50%); background-color: #3e3e3e; color: white; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: normal; white-space: nowrap; z-index: 9999; pointer-events: none; box-shadow: 0px 4px 6px rgba(0,0,0,0.2); }
     div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(1):hover::after { content: "Saisie rapide via boutons cliquables"; }
     div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(2):hover::after { content: "Représentation graphique des cordes"; }
     div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(3):hover::after { content: "Grille rythmique pas à pas"; }
     div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(4):hover::after { content: "Assemblage de blocs et arrangements"; }
-
+    
+    /* Style uploaders & downloads */
+    .stDownloadButton button { background-color: #e5c4a3 !important; color: black !important; border: none !important; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px 0px !important; transition: background-color 0.2s; }
+    .stDownloadButton button:hover { background-color: #d4b08c !important; }
+    [data-testid='stFileUploader'] { margin-top: 10px; }
+    [data-testid='stFileUploader'] label[data-testid='stWidgetLabel'] { display: none; }
+    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 0.6rem 1rem; min-height: 0px; align-items: center; justify-content: center; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px 0px !important; cursor: pointer; transition: background-color 0.2s; }
+    [data-testid='stFileDropzone']:hover { background-color: #d4b08c !important; }
+    [data-testid='stFileDropzone'] > div > div { display: none !important; }
+    [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,23 +72,19 @@ CHEMIN_LOGO_APP = 'ico_ngonilele.png'
 CHEMIN_HEADER_IMG = 'texture_ngonilele_2.png'
 DOSSIER_SAMPLES = 'samples'
 
-# --- COULEURS & CONSTANTES LOGIQUES ---
 POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D': 1, '2D': 2, '3D': 3, '4D': 4, '5D': 5, '6D': 6}
 COULEURS_CORDES_REF = {'C': '#FF0000', 'D': '#FF8C00', 'E': '#FFD700', 'F': '#32CD32', 'G': '#00BFFF', 'A': '#00008B', 'B': '#9400D3'}
 COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':'#FF4B4B','1G':'#00BFFF','1D':'#32CD32','2D':'#00008B','3D':'#FFA500','4D':'#00BFFF','5D':'#9400D3','6D':'#FFD700'}
-
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
 
-# --- LISTE DES NOTES ETENDUE ---
 NOTES_GAMME = [
     'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
-    'C3', 'D3', 'D#3', 'E3', 'F3', 'G3', 'G#3', 'A3', 'A#3', 'B3', # Octave 3 (Grave)
-    'C4', 'D4', 'D#4', 'E4', 'F4', 'G4', 'G#4', 'A4', 'A#4', 'B4', # Octave 4 (Aigu)
-    'C5', 'D5', 'D#5', 'E5', 'F5', 'G5', 'A5', 'B5'  # Octave 5 (Très Aigu)
+    'C3', 'D3', 'D#3', 'E3', 'F3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+    'C4', 'D4', 'D#4', 'E4', 'F4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+    'C5', 'D5', 'D#5', 'E5', 'F5', 'G5', 'A5', 'B5'
 ]
 
-# --- DÉFINITION DES GAMMES PRESETS ---
 GAMMES_PRESETS = {
     "1. Pentatonique Fondamentale": "E3G3A3C4D4E4G4A4C5D5E5G5",
     "2. Pentatonique (Descente Basse)": "F3G3A3C4D4E4G4A4C5D5E5G5",
@@ -148,42 +96,42 @@ GAMMES_PRESETS = {
     "8. Impressionniste": "E3F3A3B3C4E4G4A4B4C5E5G5"
 }
 
-# Ordre de mapping pour l'application des gammes (ZigZag)
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
-# Accordage par défaut
-DEF_ACC = {
-    '1D': 'E3', '1G': 'G3', '2D': 'A3', '2G': 'C4', 
-    '3D': 'D4', '3G': 'E4', '4D': 'G4', '4G': 'A4', 
-    '5D': 'C5', '5G': 'D5', '6D': 'E5', '6G': 'G5'
+# --- CONFIGURATION MATÉRIELLE DE BASE (HARDWARE) ---
+# Ces notes définissent la tension "normale" des cordes.
+# Règle : On ne peut pas accorder plus d'un ton au-dessus de ces notes.
+BASE_TUNING_HARDWARE = {
+    '1D': 'E3', '1G': 'G3',
+    '2D': 'A3', '2G': 'C4',
+    '3D': 'D4', '3G': 'E4',
+    '4D': 'G4', '4G': 'A4',
+    '5D': 'C5', '5G': 'D5',
+    '6D': 'E5', '6G': 'G5'
 }
 
-# --- ASSOCIATION AUTOMATIQUE DES GAMMES AUX MORCEAUX ---
+# Gamme par défaut logicielle (correspond ici à la base hardware)
+DEF_ACC = BASE_TUNING_HARDWARE.copy()
+
 ASSOCIATIONS_MORCEAUX_GAMMES = {
     "Manitoumani -M- & Lamomali": "3. Manitoumani (Standard)"
 }
 
 # ==============================================================================
-# 🚀 FONCTIONS UTILES (CACHE & SYSTEME)
+# 🚀 LOGIQUE MÉTIER & OUTILS
 # ==============================================================================
 @st.cache_resource
 def load_font_properties():
-    if os.path.exists(CHEMIN_POLICE):
-        return fm.FontProperties(fname=CHEMIN_POLICE)
+    if os.path.exists(CHEMIN_POLICE): return fm.FontProperties(fname=CHEMIN_POLICE)
     return fm.FontProperties(family='sans-serif')
 
 @st.cache_resource
 def load_image_asset(path):
-    if os.path.exists(path):
-        return mpimg.imread(path)
+    if os.path.exists(path): return mpimg.imread(path)
     return None
 
 def afficher_header_style(titre):
-    st.markdown(f"""
-    <div style="background-color: #d4b08c; padding: 5px 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;">
-        <strong>{titre}</strong>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div style="background-color: #d4b08c; padding: 5px 10px; border-radius: 5px; border-left: 5px solid #A67C52; color: black; margin-bottom: 10px;"><strong>{titre}</strong></div>""", unsafe_allow_html=True)
 
 def parse_gamme_string(gamme_str):
     return re.findall(r"[A-G][#b]?[0-9]*", gamme_str)
@@ -192,8 +140,46 @@ def get_color_for_note(note):
     base_note = note[0].upper() 
     return COULEURS_CORDES_REF.get(base_note, '#000000')
 
+# --- NOUVELLE FONCTION DE SÉCURITÉ TENSION ---
+def get_note_value(note_str):
+    """Convertit une note (ex: C#4) en valeur numérique (ex: 49) pour comparaison."""
+    # Mapping des notes chromatiques
+    semitones = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
+    
+    match = re.match(r"([A-G][#b]?)([0-9]*)", note_str.upper())
+    if not match: return -1 # Cas notes abstraites sans octave
+    
+    note_name = match.group(1)
+    octave = match.group(2)
+    
+    if not octave: return -1 # On ignore les notes sans octave pour le tuning précis
+    
+    val = semitones.get(note_name, 0) + (int(octave) * 12)
+    return val
+
+def get_valid_notes_for_string(string_key):
+    """Retourne la liste des notes autorisées pour une corde donnée (Max +1 ton)."""
+    base_note = BASE_TUNING_HARDWARE.get(string_key)
+    if not base_note: return NOTES_GAMME # Fallback si erreur config
+    
+    base_val = get_note_value(base_note)
+    max_val = base_val + 2 # +2 demi-tons = 1 ton
+    
+    valid_list = []
+    for n in NOTES_GAMME:
+        val = get_note_value(n)
+        # On filtre seulement les notes qui ont une octave (val != -1)
+        # et qui sont inférieures ou égales à la limite
+        if val != -1 and val <= max_val:
+            valid_list.append(n)
+    
+    # Si la liste est vide (cas extreme), on renvoie au moins la note de base
+    if not valid_list: return [base_note]
+    return valid_list
+# ---------------------------------------------
+
 # ==============================================================================
-# 📦 GESTION DE LA PERSISTANCE
+# 📦 STATE
 # ==============================================================================
 if 'partition_buffers' not in st.session_state: st.session_state.partition_buffers = []
 if 'partition_generated' not in st.session_state: st.session_state.partition_generated = False
@@ -205,77 +191,11 @@ if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
 if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {}
 if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {}
 for k, v in DEF_ACC.items():
-    if f"acc_{k}" not in st.session_state:
-        st.session_state[f"acc_{k}"] = v
+    if f"acc_{k}" not in st.session_state: st.session_state[f"acc_{k}"] = v
 
 # ==============================================================================
-# 🎵 BANQUE DE DONNÉES
+# 🧠 PARSER & RENDERING
 # ==============================================================================
-BANQUE_TABLATURES = {
-    "--- Nouveau / Vide ---": "",
-    "Exercice Débutant 1 : Montée et descente de Gamme": "1   1D\n+   S\n+   1G\n+   S\n+   2D\n+   S\n+   2G\n+   S\n+   3D\n+   S\n+   3G\n+   S\n+   4D\n+   S\n+   4G\n+   S\n+   5D\n+   S\n+   5G\n+   S\n+   6D\n+   S\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   S\n+   6D\n+   S\n+   5G\n+   S\n+   5D\n+   S\n+   4G\n+   S\n+   4D\n+   S\n+   3G\n+   S\n+   3D\n+   S\n+   2G\n+   S\n+   2D\n+   S\n+   1G\n+   S\n+   1D",
-    "Exercice Débutant 2 : Montée et descente de Gamme en triolets": "1   1D\n+   1G\n+   2D\n+   S\n+   1G\n+   2D\n+   2G\n+   S\n+   2D\n+   2G\n+   3D\n+   S\n+   2G\n+   3D\n+   3G\n+   S\n+   3D\n+   3G\n+   4D\n+   S\n+   3G\n+   4D\n+   4G\n+   S\n+   4D\n+   4G\n+   5D\n+   S\n+   4G\n+   5D\n+   5G\n+   S\n+   5D\n+   5G\n+   6D\n+   S\n+   5G\n+   6D\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   6D\n+   5G\n+   S\n+   6D\n+   5G\n+   5D\n+   S\n+   5G\n+   5D\n+   4G\n+   S\n+   5D\n+   4G\n+   4D\n+   S\n+   4G\n+   4D\n+   3G\n+   S\n+   4D\n+   3G\n+   3D\n+   S\n+   3G\n+   3D\n+   2G\n+   S\n+   3D\n+   2G\n+   2D\n+   S\n+   2G\n+   2D\n+   1G\n+   S\n+   2D\n+   1G\n+   1D",
-    "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G"
-}
-
-# En-tête de l'application
-st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les grands écrans.", icon="⚠️")
-
-st.markdown("""
-<div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
-    <strong>👈 Ouvrez le menu latéral</strong> pour charger un morceau.
-</div>
-""", unsafe_allow_html=True)
-
-col_logo, col_titre = st.columns([1, 5])
-with col_logo:
-    if os.path.exists(CHEMIN_HEADER_IMG): st.image(CHEMIN_HEADER_IMG, width=100)
-    elif os.path.exists(CHEMIN_LOGO_APP): st.image(CHEMIN_LOGO_APP, width=100)
-    else: st.header("🪕")
-with col_titre:
-    st.title("Générateur de Tablature Ngonilélé")
-    
-    # --- TITRE & LIEN DE TELECHARGEMENT ---
-    base_text = "Composez, Écoutez et Exportez."
-    pdf_path = "Livret_Ngonilélé.pdf"
-    link_html = ""
-    if os.path.exists(pdf_path):
-        with open(pdf_path, "rb") as f:
-            b64_pdf = base64.b64encode(f.read()).decode('utf-8')
-        link_html = f'&nbsp;&nbsp;|&nbsp;&nbsp;<a href="data:application/pdf;base64,{b64_pdf}" download="{pdf_path}" style="color:#A67C52; text-decoration:none; font-weight:bold;">📥 Télécharger le livret PDF Ngonilélé</a>'
-    
-    st.markdown(f"{base_text}{link_html}", unsafe_allow_html=True)
-
-
-# ==============================================================================
-# 🧠 MOTEUR LOGIQUE
-# ==============================================================================
-HAS_MOVIEPY = False
-try:
-    from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip, ColorClip
-    HAS_MOVIEPY = True
-except ImportError:
-    try:
-        from moviepy.editor import ImageClip, CompositeVideoClip, AudioFileClip
-        from moviepy.video.VideoClip import ColorClip
-        HAS_MOVIEPY = True
-    except:
-        HAS_MOVIEPY = False
-
-HAS_PYDUB = False
-try:
-    from pydub import AudioSegment
-    from pydub.generators import Sine, WhiteNoise
-    HAS_PYDUB = True
-except: pass
-
-def get_font_cached(size, weight='normal', style='normal'):
-    prop = load_font_properties().copy()
-    prop.set_size(size)
-    prop.set_weight(weight)
-    prop.set_style(style)
-    return prop
-
 def parser_texte(texte):
     data = []
     dernier_temps = 0
@@ -333,9 +253,6 @@ def compiler_arrangement(structure_str, blocks_dict):
             full_text += f"+ TXT [Bloc '{block_name}' introuvable]\n"
     return full_text
 
-# ==============================================================================
-# 🎹 MOTEUR AUDIO (OPTIMISÉ - ANTI CLIC & FAST PREVIEW)
-# ==============================================================================
 def get_note_freq(note_name):
     base_freqs = {'C': 261.63, 'C#': 277.18, 'D': 293.66, 'Eb': 311.13, 'E': 329.63, 'F': 349.23, 'F#': 369.99, 'G': 392.00, 'G#': 415.30, 'A': 440.00, 'Bb': 466.16, 'B': 493.88}
     return base_freqs.get(note_name[0].upper(), 440.0)
@@ -346,19 +263,14 @@ def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
     if not sequence: return None
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
-    
     for corde in cordes_utilisees:
         loaded = False
         note_name = acc_config.get(corde, {'n':'C'})['n']
-        
         if os.path.exists(DOSSIER_SAMPLES):
             chemin = os.path.join(DOSSIER_SAMPLES, f"{note_name}.mp3")
             if os.path.exists(chemin): 
-                # FADE IN 5ms + GAIN -2dB
                 sound = AudioSegment.from_mp3(chemin).fade_in(5).apply_gain(-2)
-                # COMPROMIS QUALITÉ/VITESSE PREVIEW : 2.5s
-                if preview_mode:
-                    sound = sound[:2500].fade_out(200)
+                if preview_mode: sound = sound[:2500].fade_out(200)
                 samples_loaded[corde] = sound
                 loaded = True
             else:
@@ -368,74 +280,51 @@ def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
                     if preview_mode: sound = sound[:2500].fade_out(200)
                     samples_loaded[corde] = sound
                     loaded = True
-
         if not loaded:
             freq = get_note_freq(note_name)
             duration = 400 if preview_mode else 600
             tone = Sine(freq).to_audio_segment(duration=duration).fade_in(5).fade_out(50).apply_gain(-5)
             samples_loaded[corde] = tone 
-            
     if not samples_loaded: return None
-    
     ms_par_temps = 60000 / bpm
     dernier_t = sequence[-1]['temps']
     duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
     if duree_totale_ms < 1000: duree_totale_ms = 1000
     mix = AudioSegment.silent(duration=duree_totale_ms)
-    
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
             t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
-    
-    # 128k pour une qualité décente, même en preview
     buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="128k"); buffer.seek(0)
     return buffer
 
 @st.cache_data(show_spinner=False)
 def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     if not HAS_PYDUB: return None
-    shaker_acc = WhiteNoise().to_audio_segment(duration=60).fade_out(50)
-    click_acc = Sine(1500).to_audio_segment(duration=20).fade_out(20).apply_gain(-10)
-    sound_accent = shaker_acc.overlay(click_acc).apply_gain(-2)
-    sound_normal = WhiteNoise().to_audio_segment(duration=40).fade_out(35).apply_gain(-8)
-    ms_per_beat = 60000 / bpm
-    silence_acc = max(0, ms_per_beat - len(sound_accent))
-    silence_norm = max(0, ms_per_beat - len(sound_normal))
-    beat_accent = sound_accent + AudioSegment.silent(duration=silence_acc)
-    beat_normal = sound_normal + AudioSegment.silent(duration=silence_norm)
-    if signature == "3/4": measure_block = beat_accent + beat_normal + beat_normal
-    else: measure_block = beat_accent + beat_normal + beat_normal + beat_normal
+    shaker_acc = WhiteNoise().to_audio_segment(duration=60).fade_out(50); click_acc = Sine(1500).to_audio_segment(duration=20).fade_out(20).apply_gain(-10)
+    sound_accent = shaker_acc.overlay(click_acc).apply_gain(-2); sound_normal = WhiteNoise().to_audio_segment(duration=40).fade_out(35).apply_gain(-8)
+    ms_per_beat = 60000 / bpm; silence_acc = max(0, ms_per_beat - len(sound_accent)); silence_norm = max(0, ms_per_beat - len(sound_normal))
+    beat_accent = sound_accent + AudioSegment.silent(duration=silence_acc); beat_normal = sound_normal + AudioSegment.silent(duration=silence_norm)
+    measure_block = beat_accent + beat_normal + beat_normal if signature == "3/4" else beat_accent + beat_normal + beat_normal + beat_normal
     nb_mesures = int((duration_sec * 1000) / len(measure_block)) + 1
     metronome_track = (measure_block * nb_mesures)[:int(duration_sec*1000)]
-    
-    buffer = io.BytesIO()
-    metronome_track.export(buffer, format="mp3", bitrate="32k", parameters=["-preset", "ultrafast"])
-    buffer.seek(0)
+    buffer = io.BytesIO(); metronome_track.export(buffer, format="mp3", bitrate="32k", parameters=["-preset", "ultrafast"]); buffer.seek(0)
     return buffer
 
-# ==============================================================================
-# 🎨 MOTEUR AFFICHAGE
-# ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
     prop_annotation = get_font_cached(16, 'bold'); prop_legende = get_font_cached(12, 'bold')
-    
     img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE)
     img_index = load_image_asset(CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX)
-
     rect = patches.FancyBboxPatch((-7.5, y_pos - 3.6), 15, 3.3, boxstyle="round,pad=0.1", linewidth=1.5, edgecolor=c_txt, facecolor=c_fond, zorder=0); ax.add_patch(rect)
     ax.text(0, y_pos - 0.6, "LÉGENDE", ha='center', va='center', fontsize=14, fontweight='bold', color=c_txt, fontproperties=prop_annotation)
     x_icon_center = -5.5; x_text_align = -4.5; y_row1 = y_pos - 1.2; y_row2 = y_pos - 1.8; y_row3 = y_pos - 2.4; y_row4 = y_pos - 3.0
-    
     if img_pouce is not None: ab = AnnotationBbox(OffsetImage(img_pouce, zoom=0.045), (x_icon_center, y_row1), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row1, "= Pouce", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    
     if img_index is not None: ab = AnnotationBbox(OffsetImage(img_index, zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    
     offsets = [-0.7, 0, 0.7]; 
     for i, off in enumerate(offsets): c = plt.Circle((x_icon_center + off, y_row3), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2); ax.add_patch(c); ax.text(x_icon_center + off, y_row3, str(i+1), ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
     ax.text(x_text_align, y_row3, "= Ordre de jeu", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
@@ -448,8 +337,7 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font_cached(32, 'bold')
     fig = Figure(figsize=(16, 8), facecolor=c_fond)
-    ax = fig.subplots()
-    ax.set_facecolor(c_fond)
+    ax = fig.subplots(); ax.set_facecolor(c_fond)
     ax.text(0, 2.5, titre, ha='center', va='bottom', fontproperties=prop_titre, color=c_txt)
     dessiner_contenu_legende(ax, 0.5, styles, mode_white)
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(-6, 4); ax.axis('off')
@@ -463,13 +351,9 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     lignes_sur_page = t_max - t_min + 1
     hauteur_fig = max(6, (lignes_sur_page * 0.75) + 6)
     fig = Figure(figsize=(16, hauteur_fig), facecolor=c_fond)
-    ax = fig.subplots()
-    ax.set_facecolor(c_fond)
+    ax = fig.subplots(); ax.set_facecolor(c_fond)
     y_top = 2.5; y_bot = - (t_max - t_min) - 1.5; y_top_cordes = y_top
-    prop_titre = get_font_cached(32, 'bold'); prop_texte = get_font_cached(20, 'bold')
-    prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic')
-    prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold')
-    prop_annotation = get_font_cached(16, 'bold')
+    prop_titre = get_font_cached(32, 'bold'); prop_texte = get_font_cached(20, 'bold'); prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic'); prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold'); prop_annotation = get_font_cached(16, 'bold')
     
     if not mode_white and options_visuelles['use_bg']:
         img_fond = load_image_asset(CHEMIN_IMAGE_FOND)
@@ -488,21 +372,16 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     ax.vlines(0, y_bot, y_top_cordes + 1.8, color=c_txt, lw=5, zorder=2)
     
     for code, props in config_acc.items():
-        x = props['x']; note = props['n']; 
-        # MODIF: Couleur indépendante de l'octave/altération
-        c = get_color_for_note(note)
-        
+        x = props['x']; note = props['n']; c = get_color_for_note(note)
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero)
         ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us)
         ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu)
         ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
     for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
-        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+        y = -(t - t_min); ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
 
-    map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps'])
-    processed_t = set()
+    map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps']); processed_t = set()
     for n in sorted_notes:
         t = n['temps']
         if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
@@ -516,12 +395,9 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         if code == 'TEXTE': 
             bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2)
             ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
-        elif code == 'SEPARATOR': 
-            ax.axhline(y, color=c_txt, lw=3, zorder=4)
+        elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
-            props = config_acc[code]; x = props['x']; 
-            c = get_color_for_note(props['n'])
-            
+            props = config_acc[code]; x = props['x']; c = get_color_for_note(props['n'])
             ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3))
             ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
@@ -556,12 +432,10 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
 
     ax.vlines(0, y_bot, y_top + 1.8, color=c_txt, lw=5, zorder=2)
     for code, props in config_acc.items():
-        x = props['x']; note = props['n']; 
-        c = get_color_for_note(note)
+        x = props['x']; note = props['n']; c = get_color_for_note(note)
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
     for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
-        ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
+        y = -(t - t_min); ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
     map_labels = {}; last_sep = t_min - 1; processed_t = set()
     for n in sequence:
         t = n['temps']; 
@@ -576,8 +450,7 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
         if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
         elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
-            props = config_acc[code]; x = props['x']; 
-            c = get_color_for_note(props['n'])
+            props = config_acc[code]; x = props['x']; c = get_color_for_note(props['n'])
             ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
             if 'doigt' in n:
@@ -590,66 +463,35 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
     ax.axis('off')
-    px_y_t0 = ax.transData.transform((0, 0))[1]
-    px_y_t1 = ax.transData.transform((0, -1))[1]
-    total_h_px = FIG_HEIGHT * DPI
-    pixels_par_temps = px_y_t0 - px_y_t1
-    offset_premiere_note_px = total_h_px - px_y_t0
+    px_y_t0 = ax.transData.transform((0, 0))[1]; px_y_t1 = ax.transData.transform((0, -1))[1]
+    total_h_px = FIG_HEIGHT * DPI; pixels_par_temps = px_y_t0 - px_y_t1; offset_premiere_note_px = total_h_px - px_y_t0
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
     buf.seek(0)
     return buf, pixels_par_temps, offset_premiere_note_px
 
 def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15):
     pixels_par_temps, offset_premiere_note_px = metrics
-    
-    temp_img_path = None
-    temp_audio_path = None
-    output_filename = None
-    
+    temp_img_path = None; temp_audio_path = None; output_filename = None
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as f_img:
-            f_img.write(image_buffer.getbuffer())
-            temp_img_path = f_img.name
-
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f_audio:
-            f_audio.write(audio_buffer.getbuffer())
-            temp_audio_path = f_audio.name
-            
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as f_vid:
-            output_filename = f_vid.name
-
-        clip_img = ImageClip(temp_img_path)
-        w, h = clip_img.size
-        video_h = 480 
-        bar_y = 100
-        start_y = bar_y - offset_premiere_note_px
-        speed_px_sec = pixels_par_temps * (bpm / 60.0)
-        
-        def scroll_func(t):
-            current_y = start_y - (speed_px_sec * t)
-            return ('center', current_y)
-        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as f_img: f_img.write(image_buffer.getbuffer()); temp_img_path = f_img.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f_audio: f_audio.write(audio_buffer.getbuffer()); temp_audio_path = f_audio.name
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as f_vid: output_filename = f_vid.name
+        clip_img = ImageClip(temp_img_path); w, h = clip_img.size; video_h = 480 
+        bar_y = 100; start_y = bar_y - offset_premiere_note_px; speed_px_sec = pixels_par_temps * (bpm / 60.0)
+        def scroll_func(t): return ('center', start_y - (speed_px_sec * t))
         moving_clip = clip_img.set_position(scroll_func).set_duration(duration_sec)
         try:
             bar_height = int(pixels_par_temps)
             highlight_bar = ColorClip(size=(w, bar_height), color=(255, 215, 0)).set_opacity(0.3).set_position(('center', bar_y - bar_height/2)).set_duration(duration_sec)
             bg_clip = ColorClip(size=(w, video_h), color=(229, 196, 163)).set_duration(duration_sec) 
             video_visual = CompositeVideoClip([bg_clip, moving_clip, highlight_bar], size=(w, video_h))
-        except:
-            video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
-            
+        except: video_visual = CompositeVideoClip([moving_clip], size=(w, video_h))
         audio_clip = AudioFileClip(temp_audio_path).subclip(0, duration_sec)
-        final = video_visual.set_audio(audio_clip)
-        final.fps = fps
-        
+        final = video_visual.set_audio(audio_clip); final.fps = fps
         final.write_videofile(output_filename, codec='libx264', audio_codec='aac', preset='ultrafast', ffmpeg_params=['-pix_fmt', 'yuv420p'], logger=None)
-        
         audio_clip.close(); video_visual.close(); clip_img.close(); final.close()
         return output_filename
-
-    except Exception as e:
-        st.error(f"Erreur vidéo : {e}")
-        return None
+    except Exception as e: st.error(f"Erreur vidéo : {e}"); return None
     finally:
         if temp_img_path and os.path.exists(temp_img_path): os.remove(temp_img_path)
         if temp_audio_path and os.path.exists(temp_audio_path): os.remove(temp_audio_path)
@@ -659,17 +501,11 @@ def generer_pdf_livret(buffers, titre):
     for item in buffers:
         pdf.add_page()
         temp_img = f"temp_pdf_{item['type']}_{item.get('idx', 0)}_{random.randint(0,1000)}.png"
-        
         item['buf'].seek(0)
-        with open(temp_img, "wb") as f:
-            f.write(item['buf'].read()) 
-
+        with open(temp_img, "wb") as f: f.write(item['buf'].read()) 
         pdf.image(temp_img, x=10, y=10, w=190)
         if os.path.exists(temp_img): os.remove(temp_img)
-    buf = io.BytesIO()
-    pdf_output = pdf.output(dest='S').encode('latin-1')
-    buf.write(pdf_output)
-    buf.seek(0)
+    buf = io.BytesIO(); pdf_output = pdf.output(dest='S').encode('latin-1'); buf.write(pdf_output); buf.seek(0)
     return buf
 
 # ==============================================================================
@@ -679,9 +515,7 @@ def generer_pdf_livret(buffers, titre):
 if len(BANQUE_TABLATURES) > 0: PREMIER_TITRE = list(BANQUE_TABLATURES.keys())[0]
 else: PREMIER_TITRE = "Défaut"; BANQUE_TABLATURES[PREMIER_TITRE] = ""
 
-if st.session_state.code_actuel == "":
-    st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
-
+if st.session_state.code_actuel == "": st.session_state.code_actuel = BANQUE_TABLATURES[PREMIER_TITRE].strip()
 query_params = st.query_params
 if "code" in query_params and st.session_state.code_actuel == BANQUE_TABLATURES[PREMIER_TITRE].strip():
     try: st.session_state.code_actuel = query_params["code"]
@@ -698,21 +532,15 @@ def charger_morceau():
         st.session_state.audio_buffer = None
         st.session_state.pdf_buffer = None
         st.session_state.seq_grid = {}
-        
-        plt.close('all')
-        gc.collect()
-        for temp_file in glob.glob("temp_*"):
+        plt.close('all'); gc.collect()
+        for temp_file in glob.glob("temp_*"): 
             try: os.remove(temp_file)
             except: pass
         
         # Gestion de la gamme
         nom_gamme_a_charger = "1. Pentatonique Fondamentale" # Défaut par défaut si rien n'est spécifié
-
-        if choix in ASSOCIATIONS_MORCEAUX_GAMMES:
-            nom_gamme_a_charger = ASSOCIATIONS_MORCEAUX_GAMMES[choix]
-        else:
-            # Si le morceau n'est pas associé, on force la gamme 1
-            nom_gamme_a_charger = "1. Pentatonique Fondamentale"
+        if choix in ASSOCIATIONS_MORCEAUX_GAMMES: nom_gamme_a_charger = ASSOCIATIONS_MORCEAUX_GAMMES[choix]
+        else: nom_gamme_a_charger = "1. Pentatonique Fondamentale" # Force défaut
 
         # Application de la gamme
         if nom_gamme_a_charger in GAMMES_PRESETS:
@@ -722,11 +550,8 @@ def charger_morceau():
                 for idx, k in enumerate(ORDRE_MAPPING_GAMME):
                     st.session_state[f"acc_{k}"] = parsed[idx]
                 st.session_state['gamme_selector'] = nom_gamme_a_charger
-                
-                if choix in ASSOCIATIONS_MORCEAUX_GAMMES:
-                     st.toast(f"Gamme chargée : {nom_gamme_a_charger}", icon="🎸")
-                else:
-                     st.toast(f"Gamme par défaut : {nom_gamme_a_charger}", icon="ℹ️")
+                if choix in ASSOCIATIONS_MORCEAUX_GAMMES: st.toast(f"Gamme chargée : {nom_gamme_a_charger}", icon="🎸")
+                else: st.toast(f"Gamme par défaut : {nom_gamme_a_charger}", icon="ℹ️")
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
@@ -741,8 +566,7 @@ def ajouter_texte(txt):
     st.session_state.widget_input = st.session_state.code_actuel
 
 def ajouter_avec_feedback(txt, label_toast):
-    ajouter_texte(txt)
-    st.toast(f"Ajouté : {label_toast}", icon="✅")
+    ajouter_texte(txt); st.toast(f"Ajouté : {label_toast}", icon="✅")
 
 def annuler_derniere_ligne():
     lines = st.session_state.code_actuel.strip().split('\n')
@@ -767,9 +591,7 @@ with st.sidebar:
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
     with st.expander("🎨 Apparence", expanded=False):
-        bg_color = "#e5c4a3"
-        use_bg_img = True
-        bg_alpha = 0.2
+        bg_color = "#e5c4a3"; use_bg_img = True; bg_alpha = 0.2
         st.markdown("---")
         force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Optimise le rendu pour économiser de l'encre à l'impression (fond blanc pur).")
     st.markdown("---")
@@ -777,16 +599,12 @@ with st.sidebar:
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button title="Envoyez vos créations par email au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
     
     # --- NOUVEAU BOUTON : PROPOSER GAMME ---
-    # On construit le corps du mail avec la configuration actuelle
     current_scale_info = ""
     for k in ORDRE_MAPPING_GAMME:
         note = st.session_state.get(f"acc_{k}", "?")
         current_scale_info += f"{k}: {note}%0A"
-        
     mailto_gamme = f"mailto:julienflorin59@gmail.com?subject=Proposition de nouvelle gamme Ngonilélé&body=Bonjour,%0A%0AVoici une proposition de nouvelle gamme :%0A%0A{current_scale_info}%0A%0ANom suggéré : ..."
-    
     st.markdown(f'<a href="{mailto_gamme}" target="_blank"><button title="Envoyez votre gamme personnalisée au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; margin-top:5px;">📧 Proposer une gamme</button></a>', unsafe_allow_html=True)
-    # ---------------------------------------
 
     if st.button("🔗 Créer un lien de partage", help="Génère une URL unique pour partager votre composition actuelle avec d'autres."):
         url_share = f"https://share.streamlit.io/votre_app?code={urllib.parse.quote(st.session_state.code_actuel)}"
@@ -861,7 +679,6 @@ with tab_acc:
                     temp_sequence.append({'temps': idx + 1, 'corde': corde_key})
                 
                 with st.spinner("Génération de l'aperçu..."):
-                    # BPM Ralenti à 100 pour bien entendre l'ordre
                     preview_buffer = generer_audio_mix(temp_sequence, 100, temp_acc_config, preview_mode=True)
                     if preview_buffer:
                         st.audio(preview_buffer, format='audio/mp3', autoplay=True)
@@ -869,6 +686,17 @@ with tab_acc:
                         st.error("Impossible de générer l'audio (fichiers manquants ?).")
             else:
                 st.error("Erreur format gamme.")
+
+    st.markdown("---")
+    st.markdown("##### Code Couleur des Notes")
+    cols_legende = st.columns(7)
+    for i, (note, color) in enumerate(COULEURS_CORDES_REF.items()):
+        with cols_legende[i]:
+            st.markdown(f"<div style='text-align:center;'><span style='display:inline-block; width:20px; height:20px; background-color:{color}; border-radius:50%;'></span><br><b>{note}</b></div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align:center; font-size:0.8em; color:gray;'>(Les notes dièses # et bémols b gardent la couleur de leur note racine)</div>", unsafe_allow_html=True)
+    st.write("")
+
+    st.markdown("##### 2. Ajustement Manuel (Si besoin)")
     
     # --- NOUVELLE SECTION : CRÉATION DE GAMME (Remplace "Ajustement Manuel") ---
     st.markdown("---")
@@ -893,7 +721,12 @@ with tab_acc:
                 with c1:
                     st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
                 with c2:
-                    val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
+                    # FILTRAGE DES NOTES AUTORISEES
+                    valid_notes = get_valid_notes_for_string(k)
+                    # Si la note actuelle n'est pas dans la liste (cas bizarre), on la rajoute ou on reset
+                    if current_val not in valid_notes: valid_notes.insert(0, current_val) # Hack visuel
+                    
+                    val = st.selectbox(f"Corde {k}", valid_notes, index=valid_notes.index(current_val) if current_val in valid_notes else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
                 
                 acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
                 
@@ -908,13 +741,16 @@ with tab_acc:
                 with c1:
                     st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
                 with c2:
-                    val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
+                    # FILTRAGE DES NOTES AUTORISEES
+                    valid_notes = get_valid_notes_for_string(k)
+                    if current_val not in valid_notes: valid_notes.insert(0, current_val)
+                    
+                    val = st.selectbox(f"Corde {k}", valid_notes, index=valid_notes.index(current_val) if current_val in valid_notes else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
                 
                 acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
         
         st.write("")
         if st.button("🎧 Écouter ma gamme personnalisée", use_container_width=True):
-             # Construction séquence ordre standard 1D -> 6G
              temp_sequence = []
              for idx, corde_key in enumerate(ORDRE_MAPPING_GAMME):
                  temp_sequence.append({'temps': idx + 1, 'corde': corde_key})
@@ -925,13 +761,6 @@ with tab_acc:
                      st.audio(preview_buffer, format='audio/mp3', autoplay=True)
 
     st.markdown("---")
-    st.markdown("##### Code Couleur des Notes")
-    cols_legende = st.columns(7)
-    for i, (note, color) in enumerate(COULEURS_CORDES_REF.items()):
-        with cols_legende[i]:
-            st.markdown(f"<div style='text-align:center;'><span style='display:inline-block; width:20px; height:20px; background-color:{color}; border-radius:50%;'></span><br><b>{note}</b></div>", unsafe_allow_html=True)
-    st.markdown("<div style='text-align:center; font-size:0.8em; color:gray;'>(Les notes dièses # et bémols b gardent la couleur de leur note racine)</div>", unsafe_allow_html=True)
-    st.write("")
 
 # -----------------------
 # TAB EDITEUR (Ex-Tab 1)
