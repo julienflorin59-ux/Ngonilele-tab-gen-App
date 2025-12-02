@@ -16,6 +16,7 @@ import gc
 import glob
 import json
 import tempfile
+import base64 # Ajout nécessaire pour le lien de téléchargement du livret
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -252,7 +253,18 @@ with col_logo:
     else: st.header("🪕")
 with col_titre:
     st.title("Générateur de Tablature Ngonilélé")
-    st.markdown("Composez, Écoutez et Exportez.")
+    
+    # --- TITRE & LIEN DE TELECHARGEMENT ---
+    base_text = "Composez, Écoutez et Exportez."
+    pdf_path = "Livret_Ngonilélé.pdf"
+    link_html = ""
+    if os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as f:
+            b64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        link_html = f'&nbsp;&nbsp;|&nbsp;&nbsp;<a href="data:application/pdf;base64,{b64_pdf}" download="{pdf_path}" style="color:#A67C52; text-decoration:none; font-weight:bold;">📥 Télécharger le livret PDF Ngonilélé</a>'
+    
+    st.markdown(f"{base_text}{link_html}", unsafe_allow_html=True)
+
 
 # ==============================================================================
 # 🧠 MOTEUR LOGIQUE
@@ -713,12 +725,15 @@ def charger_morceau():
             except: pass
         
         # Gestion de la gamme
-        nom_gamme_a_charger = "1. Pentatonique Fondamentale" # Défaut
+        nom_gamme_a_charger = "1. Pentatonique Fondamentale" # Défaut par défaut si rien n'est spécifié
 
         if choix in ASSOCIATIONS_MORCEAUX_GAMMES:
             nom_gamme_a_charger = ASSOCIATIONS_MORCEAUX_GAMMES[choix]
+        else:
+            # Si le morceau n'est pas associé, on force la gamme 1
+            nom_gamme_a_charger = "1. Pentatonique Fondamentale"
 
-        # Application de la gamme (qu'elle soit spécifique ou par défaut)
+        # Application de la gamme
         if nom_gamme_a_charger in GAMMES_PRESETS:
             notes_str = GAMMES_PRESETS[nom_gamme_a_charger]
             parsed = parse_gamme_string(notes_str)
