@@ -288,6 +288,7 @@ for k, v in DEF_ACC.items():
 # En-tête de l'application
 st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les grands écrans.", icon="⚠️")
 
+# --- MODIFICATION 1 : Texte d'accueil mis à jour ---
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
     <strong>👈 Ouvrez le menu latéral</strong> pour charger un morceau, apporter votre contribution, consulter le guide, reporter un bug.
@@ -827,18 +828,22 @@ def afficher_section_sauvegarde_bloc(suffix):
                 st.session_state.stored_blocks[b_name_btn] = st.session_state.code_actuel
                 st.toast(f"Bloc '{b_name_btn}' créé !", icon="📦")
 
+# --- VARIABLES APPARENCE FIXÉES (PUISQUE LE MENU EST SUPPRIMÉ) ---
+bg_color = "#e5c4a3"
+use_bg_img = True
+bg_alpha = 0.2
+force_white_print = True
+# ----------------------------------------------------------------
+
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
-    st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau, help="Charge une tablature d'exemple depuis la bibliothèque.")
+    st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau, help="Chargez un morceau ou un exercice depuis la bibliothèque.")
     st.caption("⚠️ Remplacera le texte actuel.")
-    st.markdown("---")
-    with st.expander("🎨 Apparence", expanded=False):
-        bg_color = "#e5c4a3"
-        use_bg_img = True
-        bg_alpha = 0.2
-        st.markdown("---")
-        force_white_print = st.checkbox("🖨️ Fond blanc pour impression", value=True, help="Optimise le rendu pour économiser de l'encre à l'impression (fond blanc pur).")
+    
+    # --- MODIFICATION 2 : SUPPRESSION DU MENU APPARENCE ---
+    # (Le code a été retiré ici)
+    
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button title="Envoyez vos créations par email au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
