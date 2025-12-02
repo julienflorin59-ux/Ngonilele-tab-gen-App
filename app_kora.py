@@ -166,8 +166,6 @@ GAMMES_PRESETS = {
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
 # --- CONFIGURATION MATÉRIELLE DE BASE (HARDWARE - TENSION DES CORDES) ---
-# Ces notes définissent la note "0" (tension normale) pour chaque corde physique.
-# La règle est : Note choisie <= Note Base + 1 ton (2 demi-tons).
 BASE_TUNING_HARDWARE = {
     '1D': 'E3', '1G': 'G3',
     '2D': 'A3', '2G': 'C4',
@@ -177,7 +175,7 @@ BASE_TUNING_HARDWARE = {
     '6D': 'E5', '6G': 'G5'
 }
 
-# Accordage par défaut au lancement (correspond à la Gamme 1 qui est aussi le hardware base)
+# Accordage par défaut au lancement
 DEF_ACC = BASE_TUNING_HARDWARE.copy()
 
 # --- ASSOCIATION AUTOMATIQUE DES GAMMES AUX MORCEAUX ---
@@ -218,56 +216,36 @@ def afficher_header_style(titre):
     """, unsafe_allow_html=True)
 
 def parse_gamme_string(gamme_str):
-    """
-    Découpe une chaine (ex: 'F3G#A') en liste de notes.
-    Accepte : Lettre + (optionnel #/b) + (optionnel chiffre d'octave)
-    """
     return re.findall(r"[A-G][#b]?[0-9]*", gamme_str)
 
 def get_color_for_note(note):
-    """Retourne la couleur de la note en ignorant les altérations (#/b) et les octaves (3, 4)"""
     base_note = note[0].upper() 
     return COULEURS_CORDES_REF.get(base_note, '#000000')
 
 # --- NOUVELLE FONCTION DE SÉCURITÉ TENSION AVEC OCTAVE ---
 def get_note_value(note_str):
-    """Convertit une note (ex: C#4) en valeur numérique (0-127) pour comparaison absolue."""
-    # Mapping des notes chromatiques (C=0, C#=1, ...)
     semitones = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
-    
-    # Regex pour séparer Nom et Octave
     match = re.match(r"^([A-G][#b]?)([0-9]+)$", note_str.upper())
-    if not match: 
-        return -1 # Pas d'octave trouvée (ex: "C" tout court), on ignore pour la sécurité
-    
+    if not match: return -1
     note_name = match.group(1)
     octave = int(match.group(2))
-    
     val = semitones.get(note_name, 0) + (octave * 12)
     return val
 
 def get_valid_notes_for_string(string_key):
-    """Retourne la liste des notes autorisées pour une corde donnée (Max +1 ton, Min -3 demi-tons)."""
     base_note = BASE_TUNING_HARDWARE.get(string_key)
-    if not base_note: return NOTES_GAMME # Fallback si erreur config
-    
+    if not base_note: return NOTES_GAMME
     base_val = get_note_value(base_note)
     if base_val == -1: return NOTES_GAMME
-    
-    max_val = base_val + 2 # +2 demi-tons = 1 ton (Limite TENSION MAX)
-    min_val = base_val - 3 # -3 demi-tons = Tierce Mineure descendante (Limite CORDE MOLLE)
-    
+    max_val = base_val + 2 
+    min_val = base_val - 3
     valid_list = []
     for n in NOTES_GAMME:
         val = get_note_value(n)
-        # On ne garde que les notes qui ont une octave définie et qui sont dans la plage
         if val != -1 and min_val <= val <= max_val:
             valid_list.append(n)
-    
-    # Si la liste est vide (cas extreme), on renvoie au moins la note de base
     if not valid_list: return [base_note]
     return valid_list
-# ---------------------------------------------
 
 # ==============================================================================
 # 📦 GESTION DE LA PERSISTANCE
@@ -866,6 +844,7 @@ with st.sidebar:
         1. **⚙️ Accordage** : Choisissez d'abord votre gamme (étape cruciale !).
         2. **📝 Éditeur** : Composez votre morceau via les boutons, le visuel ou le séquenceur.
         3. **🔄 Générer** : Créez la partition PDF et les visuels.
+        4. **🎥 Créer** : Créez votre tablature video ou audio !
 
         ### 💾 Sauvegarde & Projets
         * **Projet Complet (.ngoni)** : Sauvegarde **tout** (code + blocs personnalisés + réglages). Idéal pour reprendre plus tard.
@@ -879,6 +858,9 @@ with st.sidebar:
         * `+` : **Nouvelle note** (Avance d'un temps).
         * `=` : **Accord** (Joue la note *en même temps* que la précédente).
         * `S` : **Silence** (Pause).
+        * `x2` : **Doubler** (Répète la note ou l'accord précédent deux fois).
+        * `PAGE` : **Saut de page** (Force le passage à une nouvelle page PDF).
+        * `TXT` : **Texte** (Ajoute une annotation textuelle sur la partition).
         
         > **💡 Astuce :** Utilisez le bouton **Silence** (`+ S`) pour espacer les notes. C'est essentiel pour donner du **groove** et du **rythme** à votre mélodie, sinon le rendu audio semblera plat et "robotique".
         """)
@@ -1000,7 +982,7 @@ with tab_acc:
                 acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
         
         st.write("")
-        if st.button("🎧 Écouter la gamme", use_container_width=True):
+        if st.button("🎧 Écouter la gamme personnalisée", use_container_width=True):
              temp_sequence = []
              for idx, corde_key in enumerate(ORDRE_MAPPING_GAMME):
                  temp_sequence.append({'temps': idx + 1, 'corde': corde_key})
