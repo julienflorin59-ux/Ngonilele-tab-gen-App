@@ -166,6 +166,8 @@ GAMMES_PRESETS = {
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
 # --- CONFIGURATION MATÉRIELLE DE BASE (HARDWARE - TENSION DES CORDES) ---
+# Ces notes définissent la note "0" (tension normale) pour chaque corde physique.
+# La règle est : Note choisie <= Note Base + 1 ton (2 demi-tons).
 BASE_TUNING_HARDWARE = {
     '1D': 'E3', '1G': 'G3',
     '2D': 'A3', '2G': 'C4',
@@ -245,7 +247,7 @@ def get_note_value(note_str):
     return val
 
 def get_valid_notes_for_string(string_key):
-    """Retourne la liste des notes autorisées pour une corde donnée (Max +1 ton, Min -4 demi-tons)."""
+    """Retourne la liste des notes autorisées pour une corde donnée (Max +1 ton, Min -3 demi-tons)."""
     base_note = BASE_TUNING_HARDWARE.get(string_key)
     if not base_note: return NOTES_GAMME # Fallback si erreur config
     
@@ -253,7 +255,7 @@ def get_valid_notes_for_string(string_key):
     if base_val == -1: return NOTES_GAMME
     
     max_val = base_val + 2 # +2 demi-tons = 1 ton (Limite TENSION MAX)
-    min_val = base_val - 4 # -4 demi-tons = Tierce Majeure descendante (Limite CORDE MOLLE)
+    min_val = base_val - 3 # -3 demi-tons = Tierce Mineure descendante (Limite CORDE MOLLE)
     
     valid_list = []
     for n in NOTES_GAMME:
