@@ -1045,7 +1045,7 @@ with tab_edit:
             }
             /* Ajoute le "faux" texte par-dessus la dropzone via CSS */
             [data-testid='stFileDropzone']::after {
-                content: "📂 Cliquer pour charger le fichier";
+                content: "📂 Charger projet";
                 color: black;
                 font-weight: bold;
                 display: block;
