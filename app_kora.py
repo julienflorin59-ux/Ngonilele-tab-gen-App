@@ -998,11 +998,70 @@ with tab_edit:
 
         # --- GESTION FICHIER & PROJET (JSON) ---
         with st.expander("Gérer le fichier (Sauvegarde & Projet)"):
+            # --- CSS GLOBAL POUR CETTE SECTION ---
+            # Ce CSS cible spécifiquement les éléments à l'intérieur de cet expander
+            # pour les styliser en beige comme des boutons.
+            st.markdown("""
+            <style>
+            /* 1. Style des boutons de téléchargement (Download Button) pour les rendre beiges */
+            .stDownloadButton button {
+                background-color: #e5c4a3 !important; /* Beige */
+                color: black !important; /* Texte noir */
+                border: none !important;
+                box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px 0px !important;
+                transition: background-color 0.2s;
+            }
+            .stDownloadButton button:hover {
+                background-color: #d4b08c !important; /* Beige plus foncé au survol */
+            }
+
+            /* 2. Style des chargeurs de fichiers (File Uploader) pour les transformer en boutons beiges */
+            [data-testid='stFileUploader'] {
+                margin-top: 10px; /* Espace entre les boutons */
+            }
+            /* Cache l'étiquette standard (le label) au-dessus du chargeur */
+            [data-testid='stFileUploader'] label[data-testid='stWidgetLabel'] {
+                display: none;
+            }
+            /* Style la zone de dépôt (dropzone) pour qu'elle ressemble au bouton au-dessus */
+            [data-testid='stFileDropzone'] {
+                 background-color: #e5c4a3 !important; /* Beige */
+                 color: black !important; /* Texte noir */
+                 border: none !important;
+                 padding: 0.6rem 1rem;
+                 min-height: 0px; /* Écrase la hauteur par défaut */
+                 align-items: center;
+                 justify-content: center;
+                 box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px 0px !important;
+                 cursor: pointer;
+                 transition: background-color 0.2s;
+            }
+             [data-testid='stFileDropzone']:hover {
+                 background-color: #d4b08c !important; /* Beige plus foncé au survol */
+            }
+            /* CRUCIAL : Cache les éléments internes de la dropzone (icône nuage, texte "Drag and drop", bouton browse) */
+            [data-testid='stFileDropzone'] > div > div {
+                display: none !important;
+            }
+            /* Ajoute le "faux" texte par-dessus la dropzone via CSS */
+            [data-testid='stFileDropzone']::after {
+                content: "📂 Cliquer pour charger le fichier";
+                color: black;
+                font-weight: bold;
+                display: block;
+                text-align: center;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
             tab_txt, tab_proj = st.tabs(["📄 Texte", "📦 Projet Complet"])
             
             with tab_txt:
-                st.download_button(label="💾 Sauvegarder (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain")
-                uploaded_txt = st.file_uploader("📂 Charger (.txt)", type="txt", key="load_txt")
+                # Bouton Sauvegarder (stylisé par le CSS ci-dessus)
+                st.download_button(label="💾 Sauvegarder (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain", use_container_width=True)
+                
+                # Chargeur (stylisé par le CSS ci-dessus, label caché, texte générique ajouté par CSS)
+                uploaded_txt = st.file_uploader("Charger .txt", type="txt", key="load_txt")
                 if uploaded_txt:
                     content = io.StringIO(uploaded_txt.getvalue().decode("utf-8")).read()
                     st.session_state.code_actuel = content
@@ -1011,66 +1070,28 @@ with tab_edit:
                     st.rerun()
 
             with tab_proj:
-                # 📦 FONCTIONNALITÉ DEMANDÉE : EXPORT CONFIGURATION (CODE + BLOCS)
                 projet_data = {
                     "titre": titre_partition,
                     "code": st.session_state.code_actuel,
-                    "blocs": st.session_state.stored_blocks, # Sauvegarde les blocs créés par l'utilisateur
+                    "blocs": st.session_state.stored_blocks,
                     "version": "1.0"
                 }
                 json_str = json.dumps(projet_data, indent=4)
                 
-                # --- CSS POUR STYLISER LE FILE UPLOADER COMME UN BOUTON MARRON ---
-                st.markdown("""
-                <style>
-                /* Cible tous les file uploaders pour leur donner l'apparence d'un bouton */
-                [data-testid='stFileUploader'] section {
-                    padding: 0;
-                    background-color: #A67C52; /* Marron */
-                    color: white;
-                    border: none;
-                    border-radius: 0.5rem;
-                    min-height: 0px;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 4px 0px;
-                }
-                [data-testid='stFileUploader'] section:hover {
-                    background-color: #8c6642; /* Marron foncé au survol */
-                }
-                /* Cache le contenu par défaut (icône nuage, texte drag&drop, bouton browse) */
-                [data-testid='stFileUploader'] section > div {
-                    display: none;
-                }
-                /* Ajoute le texte personnalisé par dessus */
-                [data-testid='stFileUploader'] section::after {
-                    content: "📂 Charger votre projet sauvegardé";
-                    color: white;
-                    font-weight: bold;
-                    display: block;
-                    padding: 0.6rem 1rem;
-                    cursor: pointer;
-                    width: 100%;
-                    text-align: center;
-                }
-                </style>
-                """, unsafe_allow_html=True)
-                
+                # Bouton Sauvegarder Projet (stylisé par le CSS ci-dessus)
                 st.download_button(
                     label="💾 Sauvegarder votre projet", 
                     data=json_str, 
                     file_name=f"{titre_partition}.ngoni",
                     mime="application/json",
-                    type="primary",
                     use_container_width=True
                 )
                 
-                # On utilise label_visibility="collapsed" pour ne pas avoir de label au-dessus du "faux bouton"
+                # Chargeur Projet (stylisé par le CSS ci-dessus, label caché, texte générique ajouté par CSS)
                 uploaded_proj = st.file_uploader(
                     "Charger votre projet sauvegardé", 
                     type=["ngoni", "json"], 
-                    key="load_proj", 
-                    label_visibility="collapsed"
+                    key="load_proj"
                 )
                 
                 if uploaded_proj:
@@ -1078,7 +1099,7 @@ with tab_edit:
                         data = json.load(uploaded_proj)
                         st.session_state.code_actuel = data.get("code", "")
                         st.session_state.widget_input = data.get("code", "")
-                        st.session_state.stored_blocks = data.get("blocs", {}) # Restaure les blocs
+                        st.session_state.stored_blocks = data.get("blocs", {})
                         st.toast("Projet restauré (Code + Blocs) !", icon="🎉")
                         st.rerun()
                     except Exception as e:
