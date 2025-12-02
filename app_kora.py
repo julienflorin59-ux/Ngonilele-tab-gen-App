@@ -712,17 +712,25 @@ def charger_morceau():
             try: os.remove(temp_file)
             except: pass
         
-        # NOUVELLE LOGIQUE : Chargement automatique de la gamme
+        # Gestion de la gamme
+        nom_gamme_a_charger = "1. Pentatonique Fondamentale" # Défaut
+
         if choix in ASSOCIATIONS_MORCEAUX_GAMMES:
-            nom_gamme = ASSOCIATIONS_MORCEAUX_GAMMES[choix]
-            if nom_gamme in GAMMES_PRESETS:
-                notes_str = GAMMES_PRESETS[nom_gamme]
-                parsed = parse_gamme_string(notes_str)
-                if len(parsed) == 12:
-                    for idx, k in enumerate(ORDRE_MAPPING_GAMME):
-                        st.session_state[f"acc_{k}"] = parsed[idx]
-                    st.session_state['gamme_selector'] = nom_gamme # Mise à jour du selectbox
-                    st.toast(f"Gamme chargée : {nom_gamme}", icon="🎸")
+            nom_gamme_a_charger = ASSOCIATIONS_MORCEAUX_GAMMES[choix]
+
+        # Application de la gamme (qu'elle soit spécifique ou par défaut)
+        if nom_gamme_a_charger in GAMMES_PRESETS:
+            notes_str = GAMMES_PRESETS[nom_gamme_a_charger]
+            parsed = parse_gamme_string(notes_str)
+            if len(parsed) == 12:
+                for idx, k in enumerate(ORDRE_MAPPING_GAMME):
+                    st.session_state[f"acc_{k}"] = parsed[idx]
+                st.session_state['gamme_selector'] = nom_gamme_a_charger
+                
+                if choix in ASSOCIATIONS_MORCEAUX_GAMMES:
+                     st.toast(f"Gamme chargée : {nom_gamme_a_charger}", icon="🎸")
+                else:
+                     st.toast(f"Gamme par défaut : {nom_gamme_a_charger}", icon="ℹ️")
 
 def mise_a_jour_texte(): 
     st.session_state.code_actuel = st.session_state.widget_input
@@ -811,15 +819,7 @@ tab_acc, tab_edit, tab_video, tab_audio = st.tabs(["⚙️ Accordage", "📝 Éd
 with tab_acc:
     st.subheader("Gamme & Accordage")
     st.markdown("##### 1. Choisir une Gamme Préfinie")
-    
-    # --- MODIFICATION : Key et Index ---
-    selected_preset_key = st.selectbox(
-        "Sélectionner la gamme :", 
-        list(GAMMES_PRESETS.keys()), 
-        index=0,  # Index 0 = "1. Pentatonique Fondamentale"
-        key="gamme_selector", 
-        help="Choisissez un modèle d'accordage standard (Pentatonique, Blues, etc.)."
-    )
+    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=0, key="gamme_selector", help="Choisissez un modèle d'accordage standard (Pentatonique, Blues, etc.).")
     
     col_apply, col_listen = st.columns(2)
     
