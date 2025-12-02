@@ -290,7 +290,7 @@ st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les 
 
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
-    <strong>👈 Ouvrez le menu latéral</strong> pour charger un morceau.
+    <strong>👈 Ouvrez le menu latéral</strong> pour charger un morceau, apporter votre contribution, consulter le guide, reporter un bug.
 </div>
 """, unsafe_allow_html=True)
 
@@ -942,8 +942,6 @@ with tab_acc:
     st.markdown("<div style='text-align:center; font-size:0.8em; color:gray;'>(Les notes dièses # et bémols b gardent la couleur de leur note racine)</div>", unsafe_allow_html=True)
     st.write("")
 
-    st.markdown("##### 2. Ajustement Manuel (Si besoin)")
-    
     # --- NOUVELLE SECTION : CRÉATION DE GAMME (Remplace "Ajustement Manuel") ---
     st.markdown("---")
     with st.expander("➕ Créer / Personnaliser une gamme", expanded=True):
