@@ -16,7 +16,7 @@ import gc
 import glob
 import json
 import tempfile
-import base64 # Ajout nécessaire pour le lien de téléchargement du livret
+import base64
 
 # ==============================================================================
 # ⚙️ CONFIGURATION & CHEMINS
@@ -84,13 +84,12 @@ st.markdown("""
     }
 
     /* --- INFOBULLES CSS POUR LES SOUS-ONGLETS ÉDITEUR --- */
-    /* On cible le 2ème groupe d'onglets (celui de l'éditeur) */
     div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after {
         position: absolute;
-        top: 110%; /* Juste en dessous du bouton */
+        top: 110%;
         left: 50%;
         transform: translateX(-50%);
-        background-color: #3e3e3e; /* Gris foncé */
+        background-color: #3e3e3e;
         color: white;
         padding: 5px 10px;
         border-radius: 6px;
@@ -102,23 +101,10 @@ st.markdown("""
         box-shadow: 0px 4px 6px rgba(0,0,0,0.2);
     }
 
-    /* Contenu spécifique des infobulles par ordre d'onglet */
-    /* 1. Boutons */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(1):hover::after {
-        content: "Saisie rapide via boutons cliquables";
-    }
-    /* 2. Visuel */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(2):hover::after {
-        content: "Représentation graphique des cordes";
-    }
-    /* 3. Séquenceur */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(3):hover::after {
-        content: "Grille rythmique pas à pas";
-    }
-    /* 4. Structure */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(4):hover::after {
-        content: "Assemblage de blocs et arrangements";
-    }
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(1):hover::after { content: "Saisie rapide via boutons cliquables"; }
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(2):hover::after { content: "Représentation graphique des cordes"; }
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(3):hover::after { content: "Grille rythmique pas à pas"; }
+    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(4):hover::after { content: "Assemblage de blocs et arrangements"; }
 
 </style>
 """, unsafe_allow_html=True)
@@ -165,7 +151,7 @@ GAMMES_PRESETS = {
 # Ordre de mapping pour l'application des gammes (ZigZag)
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
-# Accordage par défaut (Maintenant mis à jour sur la gamme Pentatonique Fondamentale)
+# Accordage par défaut
 DEF_ACC = {
     '1D': 'E3', '1G': 'G3', '2D': 'A3', '2G': 'C4', 
     '3D': 'D4', '3G': 'E4', '4D': 'G4', '4G': 'A4', 
@@ -200,14 +186,9 @@ def afficher_header_style(titre):
     """, unsafe_allow_html=True)
 
 def parse_gamme_string(gamme_str):
-    """
-    Découpe une chaine (ex: 'F3G#A') en liste de notes.
-    Accepte : Lettre + (optionnel #/b) + (optionnel chiffre d'octave)
-    """
     return re.findall(r"[A-G][#b]?[0-9]*", gamme_str)
 
 def get_color_for_note(note):
-    """Retourne la couleur de la note en ignorant les altérations (#/b) et les octaves (3, 4)"""
     base_note = note[0].upper() 
     return COULEURS_CORDES_REF.get(base_note, '#000000')
 
@@ -794,6 +775,19 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 🤝 Contribuer")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button title="Envoyez vos créations par email au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
+    
+    # --- NOUVEAU BOUTON : PROPOSER GAMME ---
+    # On construit le corps du mail avec la configuration actuelle
+    current_scale_info = ""
+    for k in ORDRE_MAPPING_GAMME:
+        note = st.session_state.get(f"acc_{k}", "?")
+        current_scale_info += f"{k}: {note}%0A"
+        
+    mailto_gamme = f"mailto:julienflorin59@gmail.com?subject=Proposition de nouvelle gamme Ngonilélé&body=Bonjour,%0A%0AVoici une proposition de nouvelle gamme :%0A%0A{current_scale_info}%0A%0ANom suggéré : ..."
+    
+    st.markdown(f'<a href="{mailto_gamme}" target="_blank"><button title="Envoyez votre gamme personnalisée au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold; margin-top:5px;">📧 Proposer une gamme</button></a>', unsafe_allow_html=True)
+    # ---------------------------------------
+
     if st.button("🔗 Créer un lien de partage", help="Génère une URL unique pour partager votre composition actuelle avec d'autres."):
         url_share = f"https://share.streamlit.io/votre_app?code={urllib.parse.quote(st.session_state.code_actuel)}"
         st.code(url_share, language="text")
@@ -875,6 +869,60 @@ with tab_acc:
                         st.error("Impossible de générer l'audio (fichiers manquants ?).")
             else:
                 st.error("Erreur format gamme.")
+    
+    # --- NOUVELLE SECTION : CRÉATION DE GAMME (Remplace "Ajustement Manuel") ---
+    st.markdown("---")
+    with st.expander("➕ Créer / Personnaliser une gamme", expanded=True):
+        st.caption("Modifiez les notes ci-dessous pour créer votre propre gamme. Les changements s'appliquent immédiatement.")
+        
+        # ESPACEUR
+        col_g, col_sep, col_d = st.columns([1, 0.2, 1]) 
+        acc_config = {} # Pour stocker la config actuelle et la passer à l'audio preview
+        
+        def on_change_tuning():
+            pass
+
+        with col_g:
+            st.write("**Main Gauche** (G)")
+            for i in range(1, 7):
+                k = f"{i}G"
+                current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
+                c_code = get_color_for_note(current_val)
+                
+                c1, c2 = st.columns([1, 4])
+                with c1:
+                    st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
+                with c2:
+                    val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
+                
+                acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
+                
+        with col_d:
+            st.write("**Main Droite** (D)")
+            for i in range(1, 7):
+                k = f"{i}D"
+                current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
+                c_code = get_color_for_note(current_val)
+                
+                c1, c2 = st.columns([1, 4])
+                with c1:
+                    st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
+                with c2:
+                    val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
+                
+                acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
+        
+        st.write("")
+        if st.button("🎧 Écouter ma gamme personnalisée", use_container_width=True):
+             # Construction séquence ordre standard 1D -> 6G
+             temp_sequence = []
+             for idx, corde_key in enumerate(ORDRE_MAPPING_GAMME):
+                 temp_sequence.append({'temps': idx + 1, 'corde': corde_key})
+             
+             with st.spinner("Génération..."):
+                 preview_buffer = generer_audio_mix(temp_sequence, 100, acc_config, preview_mode=True)
+                 if preview_buffer:
+                     st.audio(preview_buffer, format='audio/mp3', autoplay=True)
 
     st.markdown("---")
     st.markdown("##### Code Couleur des Notes")
@@ -884,44 +932,6 @@ with tab_acc:
             st.markdown(f"<div style='text-align:center;'><span style='display:inline-block; width:20px; height:20px; background-color:{color}; border-radius:50%;'></span><br><b>{note}</b></div>", unsafe_allow_html=True)
     st.markdown("<div style='text-align:center; font-size:0.8em; color:gray;'>(Les notes dièses # et bémols b gardent la couleur de leur note racine)</div>", unsafe_allow_html=True)
     st.write("")
-
-    st.markdown("##### 2. Ajustement Manuel (Si besoin)")
-    
-    col_g, col_sep, col_d = st.columns([1, 0.2, 1]) 
-    acc_config = {}
-    
-    def on_change_tuning():
-        pass
-
-    with col_g:
-        st.write("**Main Gauche** (G)")
-        for i in range(1, 7):
-            k = f"{i}G"
-            current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
-            c_code = get_color_for_note(current_val)
-            
-            c1, c2 = st.columns([1, 4])
-            with c1:
-                st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
-            with c2:
-                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
-            
-            acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
-            
-    with col_d:
-        st.write("**Main Droite** (D)")
-        for i in range(1, 7):
-            k = f"{i}D"
-            current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
-            c_code = get_color_for_note(current_val)
-            
-            c1, c2 = st.columns([1, 4])
-            with c1:
-                st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
-            with c2:
-                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Définissez la note précise pour la corde {k}.")
-            
-            acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
 
 # -----------------------
 # TAB EDITEUR (Ex-Tab 1)
