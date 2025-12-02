@@ -61,8 +61,7 @@ st.markdown("""
         color: black; /* Texte noir */
         padding: 10px 15px;
         transition: all 0.2s ease;
-        opacity: 0.9;
-        position: relative; /* Pour positionner l'infobulle */
+        opacity: 0.9; /* Légère transparence pour les inactifs */
     }
     
     /* Style de l'onglet actif (sélectionné) */
@@ -72,53 +71,15 @@ st.markdown("""
         color: black;
         font-weight: bold;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
-        opacity: 1;
+        opacity: 1; /* Pleine opacité pour l'actif */
     }
     
     /* Effet au survol */
     button[data-testid="stTab"]:hover {
         border-color: #8c6642;
-        background-color: #d4b08c;
+        background-color: #d4b08c; /* Le survol devient comme l'actif */
         opacity: 1;
     }
-
-    /* --- INFOBULLES CSS POUR LES SOUS-ONGLETS ÉDITEUR --- */
-    /* On cible le 2ème groupe d'onglets (celui de l'éditeur) */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after {
-        position: absolute;
-        top: 110%; /* Juste en dessous du bouton */
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #3e3e3e; /* Gris foncé */
-        color: white;
-        padding: 5px 10px;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: normal;
-        white-space: nowrap;
-        z-index: 9999;
-        pointer-events: none;
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.2);
-    }
-
-    /* Contenu spécifique des infobulles par ordre d'onglet */
-    /* 1. Boutons */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(1):hover::after {
-        content: "Saisie rapide via boutons cliquables";
-    }
-    /* 2. Visuel */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(2):hover::after {
-        content: "Représentation graphique des cordes";
-    }
-    /* 3. Séquenceur */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(3):hover::after {
-        content: "Grille rythmique pas à pas";
-    }
-    /* 4. Structure */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(4):hover::after {
-        content: "Assemblage de blocs et arrangements";
-    }
-
 </style>
 """, unsafe_allow_html=True)
 
