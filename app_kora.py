@@ -72,8 +72,7 @@ COLORS_VISU = {'6G':'#00BFFF','5G':'#FF4B4B','4G':'#00008B','3G':'#FFD700','2G':
 TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la', 'B':'si'}
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
 
-# --- MODIFICATION: LISTE DES NOTES ETENDUE (AVEC OCTAVES POUR EXEMPLE) ---
-# Vous pouvez ajouter ici toutes vos variantes (F3, F4, G3, G4...)
+# --- LISTE DES NOTES ETENDUE ---
 NOTES_GAMME = [
     'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
     'C3', 'D3', 'E3', 'F3', 'G3', 'A3', 'B3', # Octave 3 (Grave)
@@ -81,7 +80,6 @@ NOTES_GAMME = [
 ]
 
 # --- DÉFINITION DES GAMMES PRESETS ---
-# Si vous voulez préciser l'octave dans un preset, écrivez par exemple "F3GAC..."
 GAMMES_PRESETS = {
     "1. Pentatonique Fondamentale": "EGACDEGACDEG",
     "2. Pentatonique (Descente Basse)": "FGACDEGACDEG",
@@ -143,7 +141,6 @@ if 'code_actuel' not in st.session_state: st.session_state.code_actuel = ""
 if 'pdf_buffer' not in st.session_state: st.session_state.pdf_buffer = None
 if 'seq_grid' not in st.session_state: st.session_state.seq_grid = {}
 if 'stored_blocks' not in st.session_state: st.session_state.stored_blocks = {}
-# Initialisation des variables d'accordage si elles n'existent pas
 for k, v in DEF_ACC.items():
     if f"acc_{k}" not in st.session_state:
         st.session_state[f"acc_{k}"] = v
@@ -263,12 +260,11 @@ def compiler_arrangement(structure_str, blocks_dict):
     return full_text
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO (OPTIMISÉ)
+# 🎹 MOTEUR AUDIO (OPTIMISÉ - ANTI CLIC)
 # ==============================================================================
 def get_note_freq(note_name):
-    # Fréquences basiques, mais le système repose surtout sur les samples
     base_freqs = {'C': 261.63, 'C#': 277.18, 'D': 293.66, 'Eb': 311.13, 'E': 329.63, 'F': 349.23, 'F#': 369.99, 'G': 392.00, 'G#': 415.30, 'A': 440.00, 'Bb': 466.16, 'B': 493.88}
-    return base_freqs.get(note_name[0].upper(), 440.0) # Fallback simple
+    return base_freqs.get(note_name[0].upper(), 440.0)
 
 @st.cache_data(show_spinner=False)
 def generer_audio_mix(sequence, bpm, acc_config):
@@ -279,27 +275,25 @@ def generer_audio_mix(sequence, bpm, acc_config):
     
     for corde in cordes_utilisees:
         loaded = False
-        # 1. On cherche le fichier qui correspond à la note configurée (ex: "F3.mp3" ou "C#.mp3")
         note_name = acc_config.get(corde, {'n':'C'})['n']
         
         if os.path.exists(DOSSIER_SAMPLES):
-            # Cherche exactement le nom de la note (ex: samples/F3.mp3)
             chemin = os.path.join(DOSSIER_SAMPLES, f"{note_name}.mp3")
             if os.path.exists(chemin): 
-                samples_loaded[corde] = AudioSegment.from_mp3(chemin)
+                # --- MODIFICATION : FADE IN 5ms + GAIN -2dB ---
+                samples_loaded[corde] = AudioSegment.from_mp3(chemin).fade_in(5).apply_gain(-2)
                 loaded = True
             else:
-                # Fallback : cherche le nom de la corde par défaut (ex: samples/1G.mp3)
                 chemin_def = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
                 if os.path.exists(chemin_def):
-                    samples_loaded[corde] = AudioSegment.from_mp3(chemin_def)
+                    samples_loaded[corde] = AudioSegment.from_mp3(chemin_def).fade_in(5).apply_gain(-2)
                     loaded = True
 
         if not loaded:
-            # Génération synthétique si pas de sample
             freq = get_note_freq(note_name)
-            tone = Sine(freq).to_audio_segment(duration=600).fade_out(400)
-            samples_loaded[corde] = tone - 5 
+            # Fade in aussi pour le synthé
+            tone = Sine(freq).to_audio_segment(duration=600).fade_in(5).fade_out(400).apply_gain(-5)
+            samples_loaded[corde] = tone 
             
     if not samples_loaded: return None
     
@@ -414,9 +408,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     
     for code, props in config_acc.items():
         x = props['x']; note = props['n']; 
-        # MODIF: Couleur indépendante de l'octave/altération
         c = get_color_for_note(note)
-        
         ax.text(x, y_top_cordes + 1.3, code, ha='center', color='gray', fontproperties=prop_numero)
         ax.text(x, y_top_cordes + 0.7, note, ha='center', color=c, fontproperties=prop_note_us)
         ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu)
@@ -446,7 +438,6 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         elif code in config_acc:
             props = config_acc[code]; x = props['x']; 
             c = get_color_for_note(props['n'])
-            
             ax.add_patch(plt.Circle((x, y), rayon, color=c_perle, zorder=3))
             ax.add_patch(plt.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
             ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
@@ -693,17 +684,11 @@ with st.sidebar:
 
 tab1, tab2, tab3, tab4 = st.tabs(["📝 Éditeur & Partition", "⚙️ Accordage", "🎬 Vidéo (Bêta)", "🎧 Audio & Groove"])
 
-# ==============================================================================
-# ⚙️ TAB 2: ACCORDAGE (REFONDU)
-# ==============================================================================
 with tab2:
     st.subheader("Gamme & Accordage")
-    
-    # 1. Sélection de la Gamme (Preset)
     st.markdown("##### 1. Choisir une Gamme Préfinie")
-    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=2) # Index 2 = Manitoumani
+    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=2)
     
-    # 2. Logique d'application du Preset
     if st.button("Appliquer cette gamme", type="primary", use_container_width=True, help="Configure automatiquement les 12 cordes selon le modèle choisi."):
         notes_str = GAMMES_PRESETS[selected_preset_key]
         parsed_notes = parse_gamme_string(notes_str)
@@ -711,7 +696,6 @@ with tab2:
         if len(parsed_notes) == 12:
             for idx, corde_key in enumerate(ORDRE_MAPPING_GAMME):
                 note = parsed_notes[idx]
-                # On met à jour la valeur dans le state
                 st.session_state[f"acc_{corde_key}"] = note
             st.toast(f"Gamme appliquée : {selected_preset_key}", icon="✅")
             st.rerun()
@@ -719,8 +703,6 @@ with tab2:
             st.error(f"Erreur de format dans la gamme prédéfinie ({len(parsed_notes)} notes trouvées au lieu de 12).")
 
     st.markdown("---")
-    
-    # 3. Affichage Légende Couleur
     st.markdown("##### Code Couleur des Notes")
     cols_legende = st.columns(7)
     for i, (note, color) in enumerate(COULEURS_CORDES_REF.items()):
@@ -729,7 +711,6 @@ with tab2:
     st.markdown("<div style='text-align:center; font-size:0.8em; color:gray;'>(Les notes dièses # et bémols b gardent la couleur de leur note racine)</div>", unsafe_allow_html=True)
     st.write("")
 
-    # 4. Configuration Manuelle
     st.markdown("##### 2. Ajustement Manuel (Si besoin)")
     
     col_g, col_d = st.columns(2)
@@ -749,7 +730,6 @@ with tab2:
             with c1:
                 st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
             with c2:
-                # Selectbox avec la liste étendue
                 val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning)
             
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
@@ -804,7 +784,7 @@ with tab1:
                 for c in ['1D','2D','3D','4D','5D','6D']: 
                     st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True, help=f"Ajoute la note {c} (Main Droite)")
             
-            st.write("") # Espaceur
+            st.write("") 
             
             c_tools = st.columns(2)
             with c_tools[0]:
@@ -827,7 +807,6 @@ with tab1:
                         st.toast(f"Bloc '{b_name_btn}' créé !", icon="📦")
 
         with subtab_visu:
-            # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
             afficher_header_style("🎨 Mode Visuel")
             st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True)
             def ajouter_note_visuelle(corde):
@@ -868,7 +847,6 @@ with tab1:
             with c_tools[5]: st.button("📝", key="v_txt", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Message", "Texte"), use_container_width=True, help="Ajouter du texte")
 
         with subtab_seq:
-            # Note: Le CSS en Partie 1 (overflow-x: auto) gère l'affichage mobile ici
             afficher_header_style("🎹 Séquenceur")
             nb_temps = st.number_input("Nombre de temps", min_value=4, max_value=64, value=8, step=4)
             cols = st.columns([0.8] + [1]*12) 
@@ -955,7 +933,6 @@ with tab1:
                     status.update(label="Prêt", state="complete")
                 if audio_prev: st.audio(audio_prev, format="audio/mp3")
 
-        # --- GESTION FICHIER & PROJET (JSON) ---
         with st.expander("Gérer le fichier (Sauvegarde & Projet)"):
             tab_txt, tab_proj = st.tabs(["📄 Texte", "📦 Projet Complet"])
             
@@ -970,11 +947,10 @@ with tab1:
                     st.rerun()
 
             with tab_proj:
-                # 📦 FONCTIONNALITÉ DEMANDÉE : EXPORT CONFIGURATION (CODE + BLOCS)
                 projet_data = {
                     "titre": titre_partition,
                     "code": st.session_state.code_actuel,
-                    "blocs": st.session_state.stored_blocks, # Sauvegarde les blocs créés par l'utilisateur
+                    "blocs": st.session_state.stored_blocks, 
                     "version": "1.0"
                 }
                 json_str = json.dumps(projet_data, indent=4)
@@ -992,7 +968,7 @@ with tab1:
                         data = json.load(uploaded_proj)
                         st.session_state.code_actuel = data.get("code", "")
                         st.session_state.widget_input = data.get("code", "")
-                        st.session_state.stored_blocks = data.get("blocs", {}) # Restaure les blocs
+                        st.session_state.stored_blocks = data.get("blocs", {}) 
                         st.toast("Projet restauré (Code + Blocs) !", icon="🎉")
                         st.rerun()
                     except Exception as e:
@@ -1029,13 +1005,10 @@ with tab1:
             options_visuelles = {'use_bg': use_bg_img, 'alpha': bg_alpha}
             
             with st.status("📸 Traitement en cours...", expanded=True) as status:
-                # --- AJOUT BARRE ---
                 prog_bar = st.progress(0, text="Analyse du texte...")
-                # -------------------
 
                 sequence = parser_texte(st.session_state.code_actuel)
                 
-                # Légende
                 status.write("📘 Génération de la Légende...")
                 fig_leg_ecran = generer_page_1_legende(titre_partition, styles_ecran, mode_white=False)
                 if force_white_print:
@@ -1048,7 +1021,6 @@ with tab1:
 
                 st.session_state.partition_buffers.append({'type':'legende', 'buf': buf_leg, 'img_ecran': fig_leg_ecran})
                 
-                # Pages
                 pages_data = []; current_page = []
                 for n in sequence:
                     if n['corde'] == 'PAGE_BREAK':
@@ -1062,10 +1034,8 @@ with tab1:
                 else:
                     total_steps = len(pages_data)
                     for idx, page in enumerate(pages_data):
-                        # --- Mise à jour de la barre ---
-                        p_cent = int(((idx) / total_steps) * 90) # On garde 10% pour le PDF final
+                        p_cent = int(((idx) / total_steps) * 90)
                         prog_bar.progress(p_cent + 10, text=f"Dessin de la page {idx+1}/{total_steps}...")
-                        # -------------------------------
                         
                         fig_ecran = generer_page_notes(page, idx+2, titre_partition, acc_config, styles_ecran, options_visuelles, mode_white=False)
                         if force_white_print:
@@ -1080,19 +1050,14 @@ with tab1:
                 st.session_state.partition_generated = True
                 visuals_rendered_this_run = True
                 
-                # --- MODIFICATION IMPORTANTE : ON AFFICHE LES VISUELS MAINTENANT ---
-                # Avant de lancer la génération du PDF
                 afficher_visuels(view_container)
-                # -------------------------------------------------------------------
                 
-                # PDF Final
                 prog_bar.progress(95, text="Assemblage du livret PDF...")
                 st.session_state.pdf_buffer = generer_pdf_livret(st.session_state.partition_buffers, titre_partition)
                 
                 prog_bar.progress(100, text="Terminé !")
                 status.update(label="✅ Génération terminée !", state="complete", expanded=False)
                 
-                # On affiche le bouton PDF (les visuels sont déjà affichés)
                 afficher_bouton_pdf(view_container)
 
         if st.session_state.partition_generated and not visuals_rendered_this_run:
@@ -1113,29 +1078,20 @@ with tab3:
         with col_v2:
             if st.button("🎥 Créer Vidéo", type="primary", use_container_width=True, help="Génère un fichier vidéo MP4 de la tablature avec le son."):
                 with st.status("🎬 Studio de montage...", expanded=True) as status:
-                    # --- AJOUT BARRE ---
                     v_bar = st.progress(0, text="Initialisation...")
-                    # -------------------
 
                     sequence = parser_texte(st.session_state.code_actuel)
                     
-                    # Etape 1 : Audio
                     v_bar.progress(10, text="Mixage de l'audio...")
                     audio_buffer = generer_audio_mix(sequence, bpm, acc_config)
                     
                     if audio_buffer:
-                        # Etape 2 : Image Longue
                         v_bar.progress(30, text="Génération de la partition déroulante (HD)...")
                         styles_video = {'FOND': bg_color, 'TEXTE': 'black', 'PERLE_FOND': bg_color, 'LEGENDE_FOND': bg_color}
-                        
-                        # --- DPI 90 pour la netteté des icones sans trop ralentir ---
                         img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=90)
                         
                         if img_buffer:
-                            # Etape 3 : Encodage Vidéo
                             v_bar.progress(50, text="Encodage vidéo en cours (Cela peut prendre quelques secondes)...")
-                            
-                            # --- FPS 12 pour fluidité correcte et rapidité ---
                             video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=12)
                             
                             if video_path:
