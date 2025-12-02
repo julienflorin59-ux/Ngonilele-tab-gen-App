@@ -143,6 +143,8 @@ TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la'
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
 
 # --- LISTE DES NOTES ETENDUE ---
+# Note: On garde les notes sans octave pour l'affichage générique si besoin, 
+# mais la logique de filtrage privilégiera celles avec octave.
 NOTES_GAMME = [
     'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
     'C3', 'D3', 'D#3', 'E3', 'F3', 'G3', 'G#3', 'A3', 'A#3', 'B3', # Octave 3 (Grave)
@@ -165,22 +167,26 @@ GAMMES_PRESETS = {
 # Ordre de mapping pour l'application des gammes (ZigZag)
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
-# Accordage par défaut (Maintenant mis à jour sur la gamme Pentatonique Fondamentale)
-DEF_ACC = {
-    '1D': 'E3', '1G': 'G3', '2D': 'A3', '2G': 'C4', 
-    '3D': 'D4', '3G': 'E4', '4D': 'G4', '4G': 'A4', 
-    '5D': 'C5', '5G': 'D5', '6D': 'E5', '6G': 'G5'
+# --- CONFIGURATION MATÉRIELLE DE BASE (HARDWARE - TENSION DES CORDES) ---
+# Ces notes définissent la note "0" (tension normale) pour chaque corde physique.
+# La règle est : Note choisie <= Note Base + 1 ton (2 demi-tons).
+BASE_TUNING_HARDWARE = {
+    '1D': 'E3', 
+    '1G': 'G3',
+    '2D': 'A3', 
+    '2G': 'C4',
+    '3D': 'D4', 
+    '3G': 'E4',
+    '4D': 'G4', 
+    '4G': 'A4',
+    '5D': 'C5', 
+    '5G': 'D5',
+    '6D': 'E5', 
+    '6G': 'G5'
 }
 
-# --- CONFIGURATION MATÉRIELLE DE BASE (HARDWARE) ---
-BASE_TUNING_HARDWARE = {
-    '1D': 'E3', '1G': 'G3',
-    '2D': 'A3', '2G': 'C4',
-    '3D': 'D4', '3G': 'E4',
-    '4D': 'G4', '4G': 'A4',
-    '5D': 'C5', '5G': 'D5',
-    '6D': 'E5', '6G': 'G5'
-}
+# Accordage par défaut au lancement (correspond à la Gamme 1 qui est aussi le hardware base)
+DEF_ACC = BASE_TUNING_HARDWARE.copy()
 
 # --- ASSOCIATION AUTOMATIQUE DES GAMMES AUX MORCEAUX ---
 ASSOCIATIONS_MORCEAUX_GAMMES = {
@@ -233,19 +239,19 @@ def get_color_for_note(note):
 
 # --- NOUVELLE FONCTION DE SÉCURITÉ TENSION ---
 def get_note_value(note_str):
-    """Convertit une note (ex: C#4) en valeur numérique (ex: 49) pour comparaison."""
-    # Mapping des notes chromatiques
+    """Convertit une note (ex: C#4) en valeur numérique (0-127) pour comparaison."""
+    # Mapping des notes chromatiques (C=0, C#=1, ...)
     semitones = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
     
-    match = re.match(r"([A-G][#b]?)([0-9]*)", note_str.upper())
-    if not match: return -1 # Cas notes abstraites sans octave
+    # Regex pour séparer Nom et Octave
+    match = re.match(r"^([A-G][#b]?)([0-9]+)$", note_str.upper())
+    if not match: 
+        return -1 # Pas d'octave trouvée (ex: "C" tout court), on ignore pour la sécurité
     
     note_name = match.group(1)
-    octave = match.group(2)
+    octave = int(match.group(2))
     
-    if not octave: return -1 # On ignore les notes sans octave pour le tuning précis
-    
-    val = semitones.get(note_name, 0) + (int(octave) * 12)
+    val = semitones.get(note_name, 0) + (octave * 12)
     return val
 
 def get_valid_notes_for_string(string_key):
@@ -254,13 +260,15 @@ def get_valid_notes_for_string(string_key):
     if not base_note: return NOTES_GAMME # Fallback si erreur config
     
     base_val = get_note_value(base_note)
+    if base_val == -1: return NOTES_GAMME
+    
     max_val = base_val + 2 # +2 demi-tons = 1 ton
     
     valid_list = []
     for n in NOTES_GAMME:
         val = get_note_value(n)
-        # On filtre seulement les notes qui ont une octave (val != -1)
-        # et qui sont inférieures ou égales à la limite
+        # On ne garde que les notes qui ont une octave définie et qui sont <= max_val
+        # On autorise les notes plus graves (pas de limite basse définie ici, sauf physique)
         if val != -1 and val <= max_val:
             valid_list.append(n)
     
