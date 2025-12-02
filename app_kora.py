@@ -164,8 +164,17 @@ GAMMES_PRESETS = {
 # Ordre de mapping pour l'application des gammes (ZigZag)
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
-# Accordage par défaut
-DEF_ACC = {'1G':'G3','2G':'C3','3G':'E3','4G':'A4','5G':'C4','6G':'G4','1D':'F3','2D':'A3','3D':'D3','4D':'G4','5D':'B4','6D':'E4'}
+# Accordage par défaut (Maintenant mis à jour sur la gamme Pentatonique Fondamentale)
+DEF_ACC = {
+    '1D': 'E3', '1G': 'G3', '2D': 'A3', '2G': 'C4', 
+    '3D': 'D4', '3G': 'E4', '4D': 'G4', '4G': 'A4', 
+    '5D': 'C5', '5G': 'D5', '6D': 'E5', '6G': 'G5'
+}
+
+# --- ASSOCIATION AUTOMATIQUE DES GAMMES AUX MORCEAUX ---
+ASSOCIATIONS_MORCEAUX_GAMMES = {
+    "Manitoumani -M- & Lamomali": "3. Manitoumani (Standard)"
+}
 
 # ==============================================================================
 # 🚀 FONCTIONS UTILES (CACHE & SYSTEME)
@@ -225,11 +234,6 @@ BANQUE_TABLATURES = {
     "Exercice Débutant 1 : Montée et descente de Gamme": "1   1D\n+   S\n+   1G\n+   S\n+   2D\n+   S\n+   2G\n+   S\n+   3D\n+   S\n+   3G\n+   S\n+   4D\n+   S\n+   4G\n+   S\n+   5D\n+   S\n+   5G\n+   S\n+   6D\n+   S\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   S\n+   6D\n+   S\n+   5G\n+   S\n+   5D\n+   S\n+   4G\n+   S\n+   4D\n+   S\n+   3G\n+   S\n+   3D\n+   S\n+   2G\n+   S\n+   2D\n+   S\n+   1G\n+   S\n+   1D",
     "Exercice Débutant 2 : Montée et descente de Gamme en triolets": "1   1D\n+   1G\n+   2D\n+   S\n+   1G\n+   2D\n+   2G\n+   S\n+   2D\n+   2G\n+   3D\n+   S\n+   2G\n+   3D\n+   3G\n+   S\n+   3D\n+   3G\n+   4D\n+   S\n+   3G\n+   4D\n+   4G\n+   S\n+   4D\n+   4G\n+   5D\n+   S\n+   4G\n+   5D\n+   5G\n+   S\n+   5D\n+   5G\n+   6D\n+   S\n+   5G\n+   6D\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   6D\n+   5G\n+   S\n+   6D\n+   5G\n+   5D\n+   S\n+   5G\n+   5D\n+   4G\n+   S\n+   5D\n+   4G\n+   4D\n+   S\n+   4G\n+   4D\n+   3G\n+   S\n+   4D\n+   3G\n+   3D\n+   S\n+   3G\n+   3D\n+   2G\n+   S\n+   3D\n+   2G\n+   2D\n+   S\n+   2G\n+   2D\n+   1G\n+   S\n+   2D\n+   1G\n+   1D",
     "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G"
-}
-
-# --- ASSOCIATION AUTOMATIQUE DES GAMMES AUX MORCEAUX ---
-ASSOCIATIONS_MORCEAUX_GAMMES = {
-    "Manitoumani -M- & Lamomali": "3. Manitoumani (Standard)"
 }
 
 # En-tête de l'application
@@ -806,7 +810,7 @@ tab_acc, tab_edit, tab_video, tab_audio = st.tabs(["⚙️ Accordage", "📝 Éd
 with tab_acc:
     st.subheader("Gamme & Accordage")
     st.markdown("##### 1. Choisir une Gamme Préfinie")
-    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=2, help="Choisissez un modèle d'accordage standard (Pentatonique, Blues, etc.).")
+    selected_preset_key = st.selectbox("Sélectionner la gamme :", list(GAMMES_PRESETS.keys()), index=0, help="Choisissez un modèle d'accordage standard (Pentatonique, Blues, etc.).")
     
     col_apply, col_listen = st.columns(2)
     
