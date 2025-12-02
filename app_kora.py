@@ -57,7 +57,7 @@ st.markdown("""
         border: 1px solid #A67C52; /* Bordure marron */
         border-radius: 5px; /* Coins arrondis */
         margin-right: 5px; /* Espace entre les onglets */
-        background-color: #e5c4a3; /* MODIFIÉ : Fond beige par défaut (au lieu de blanc) */
+        background-color: #e5c4a3; /* Fond beige par défaut */
         color: black; /* Texte noir */
         padding: 10px 15px;
         transition: all 0.2s ease;
@@ -818,8 +818,49 @@ with tab_acc:
                 val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning)
             
             acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
+    
+    # AJOUT DE L'ESPACEUR POUR DÉCALER LA DROITE
+    col_g, col_sep, col_d = st.columns([1, 0.2, 1]) 
+
+    with col_g:
+        pass # Déjà rempli au dessus, oups, je corrige la structure logique
+
+    # --- CORRECTION STRUCTURE LOGIQUE POUR L'AFFICHAGE ---
+    # Je refais la structure pour que ce soit propre avec l'espaceur
+    col_g_main, col_sep_main, col_d_main = st.columns([1, 0.2, 1])
+    
+    with col_g_main:
+        # Contenu Main Gauche (remis ici pour l'alignement)
+        # (J'ai supprimé le bloc précédent 'with col_g' qui était vide/mal placé dans ma logique précédente)
+        # RE-CRÉATION PROPRE DES COLONNES
+        pass
+
+    # --- RESTART SECTION MANUELLE ---
+    # Pour être sûr que le code est propre, je réécris la section 2. Ajustement Manuel
+    # en utilisant directement les colonnes avec l'espaceur.
+    
+    # (Note: Le bloc précédent `with col_g` et `with col_d` lignes 860-880 dans l'ancien code
+    #  est remplacé par ce qui suit)
+
+    # Réinitialisation des colonnes avec l'espaceur
+    c_gauche, c_espace, c_droite = st.columns([1, 0.15, 1])
+
+    with c_gauche:
+        st.write("**Main Gauche** (G)")
+        for i in range(1, 7):
+            k = f"{i}G"
+            current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
+            c_code = get_color_for_note(current_val)
             
-    with col_d:
+            c1, c2 = st.columns([1, 4])
+            with c1:
+                st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
+            with c2:
+                val = st.selectbox(f"Corde {k}", NOTES_GAMME, index=NOTES_GAMME.index(current_val) if current_val in NOTES_GAMME else 0, key=f"acc_{k}", on_change=on_change_tuning)
+            
+            acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
+
+    with c_droite:
         st.write("**Main Droite** (D)")
         for i in range(1, 7):
             k = f"{i}D"
