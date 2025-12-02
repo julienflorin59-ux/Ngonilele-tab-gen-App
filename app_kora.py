@@ -1020,16 +1020,59 @@ with tab_edit:
                 }
                 json_str = json.dumps(projet_data, indent=4)
                 
-                # --- MODIFICATION BOUTONS ---
+                # --- CSS POUR STYLISER LE FILE UPLOADER COMME UN BOUTON MARRON ---
+                st.markdown("""
+                <style>
+                /* Cible tous les file uploaders pour leur donner l'apparence d'un bouton */
+                [data-testid='stFileUploader'] section {
+                    padding: 0;
+                    background-color: #A67C52; /* Marron */
+                    color: white;
+                    border: none;
+                    border-radius: 0.5rem;
+                    min-height: 0px;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 4px 0px;
+                }
+                [data-testid='stFileUploader'] section:hover {
+                    background-color: #8c6642; /* Marron foncé au survol */
+                }
+                /* Cache le contenu par défaut (icône nuage, texte drag&drop, bouton browse) */
+                [data-testid='stFileUploader'] section > div {
+                    display: none;
+                }
+                /* Ajoute le texte personnalisé par dessus */
+                [data-testid='stFileUploader'] section::after {
+                    content: "📂 Charger votre projet sauvegardé";
+                    color: white;
+                    font-weight: bold;
+                    display: block;
+                    padding: 0.6rem 1rem;
+                    cursor: pointer;
+                    width: 100%;
+                    text-align: center;
+                }
+                </style>
+                """, unsafe_allow_html=True)
+                
                 st.download_button(
                     label="💾 Sauvegarder votre projet", 
                     data=json_str, 
                     file_name=f"{titre_partition}.ngoni",
                     mime="application/json",
-                    type="primary" # Bouton mis en valeur
+                    type="primary",
+                    use_container_width=True
                 )
                 
-                uploaded_proj = st.file_uploader("📂 Charger votre projet sauvegardé", type=["ngoni", "json"], key="load_proj")
+                # On utilise label_visibility="collapsed" pour ne pas avoir de label au-dessus du "faux bouton"
+                uploaded_proj = st.file_uploader(
+                    "Charger votre projet sauvegardé", 
+                    type=["ngoni", "json"], 
+                    key="load_proj", 
+                    label_visibility="collapsed"
+                )
+                
                 if uploaded_proj:
                     try:
                         data = json.load(uploaded_proj)
