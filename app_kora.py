@@ -288,7 +288,6 @@ for k, v in DEF_ACC.items():
 # En-tête de l'application
 st.warning("🖥️ **Optimisé pour Ordinateur :** Ce site est conçu pour les grands écrans.", icon="⚠️")
 
-# --- MODIFICATION 1 : Texte d'accueil mis à jour ---
 st.markdown("""
 <div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;">
     <strong>👈 Ouvrez le menu latéral</strong> pour charger un morceau, apporter votre contribution, consulter le guide, reporter un bug.
@@ -876,10 +875,12 @@ with st.sidebar:
         * **Blocs** : Créez des motifs (Intro, Refrain...) et assemblez-les dans l'onglet "Structure".
         * **Agrandir** : Vous pouvez redimensionner la zone de code en tirant le coin inférieur droit.
 
-        ### 🎼 Syntaxe Manuelle
-        * `+` : Nouvelle note (avance d'un temps).
-        * `=` : Note simultanée (accord).
-        * `S` : Silence.
+        ### 🎼 Syntaxe & Rythme
+        * `+` : **Nouvelle note** (Avance d'un temps).
+        * `=` : **Accord** (Joue la note *en même temps* que la précédente).
+        * `S` : **Silence** (Pause).
+        
+        > **💡 Astuce :** Utilisez le bouton **Silence** (`+ S`) pour espacer les notes. C'est essentiel pour donner du **groove** et du **rythme** à votre mélodie, sinon le rendu audio semblera plat et "robotique".
         """)
     
     st.markdown("---")
