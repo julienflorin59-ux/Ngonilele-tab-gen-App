@@ -143,8 +143,6 @@ TRADUCTION_NOTES = {'C':'do', 'D':'ré', 'E':'mi', 'F':'fa', 'G':'sol', 'A':'la'
 AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G':'I','5G':'I','6G':'I','4D':'I','5D':'I','6D':'I'}
 
 # --- LISTE DES NOTES ETENDUE ---
-# Note: On garde les notes sans octave pour l'affichage générique si besoin, 
-# mais la logique de filtrage privilégiera celles avec octave.
 NOTES_GAMME = [
     'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
     'C3', 'D3', 'D#3', 'E3', 'F3', 'G3', 'G#3', 'A3', 'A#3', 'B3', # Octave 3 (Grave)
@@ -168,21 +166,13 @@ GAMMES_PRESETS = {
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
 # --- CONFIGURATION MATÉRIELLE DE BASE (HARDWARE - TENSION DES CORDES) ---
-# Ces notes définissent la note "0" (tension normale) pour chaque corde physique.
-# La règle est : Note choisie <= Note Base + 1 ton (2 demi-tons).
 BASE_TUNING_HARDWARE = {
-    '1D': 'E3', 
-    '1G': 'G3',
-    '2D': 'A3', 
-    '2G': 'C4',
-    '3D': 'D4', 
-    '3G': 'E4',
-    '4D': 'G4', 
-    '4G': 'A4',
-    '5D': 'C5', 
-    '5G': 'D5',
-    '6D': 'E5', 
-    '6G': 'G5'
+    '1D': 'E3', '1G': 'G3',
+    '2D': 'A3', '2G': 'C4',
+    '3D': 'D4', '3G': 'E4',
+    '4D': 'G4', '4G': 'A4',
+    '5D': 'C5', '5G': 'D5',
+    '6D': 'E5', '6G': 'G5'
 }
 
 # Accordage par défaut au lancement (correspond à la Gamme 1 qui est aussi le hardware base)
@@ -237,9 +227,9 @@ def get_color_for_note(note):
     base_note = note[0].upper() 
     return COULEURS_CORDES_REF.get(base_note, '#000000')
 
-# --- NOUVELLE FONCTION DE SÉCURITÉ TENSION ---
+# --- NOUVELLE FONCTION DE SÉCURITÉ TENSION AVEC OCTAVE ---
 def get_note_value(note_str):
-    """Convertit une note (ex: C#4) en valeur numérique (0-127) pour comparaison."""
+    """Convertit une note (ex: C#4) en valeur numérique (0-127) pour comparaison absolue."""
     # Mapping des notes chromatiques (C=0, C#=1, ...)
     semitones = {'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5, 'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11}
     
@@ -255,21 +245,21 @@ def get_note_value(note_str):
     return val
 
 def get_valid_notes_for_string(string_key):
-    """Retourne la liste des notes autorisées pour une corde donnée (Max +1 ton)."""
+    """Retourne la liste des notes autorisées pour une corde donnée (Max +1 ton, Min -4 demi-tons)."""
     base_note = BASE_TUNING_HARDWARE.get(string_key)
     if not base_note: return NOTES_GAMME # Fallback si erreur config
     
     base_val = get_note_value(base_note)
     if base_val == -1: return NOTES_GAMME
     
-    max_val = base_val + 2 # +2 demi-tons = 1 ton
+    max_val = base_val + 2 # +2 demi-tons = 1 ton (Limite TENSION MAX)
+    min_val = base_val - 4 # -4 demi-tons = Tierce Majeure descendante (Limite CORDE MOLLE)
     
     valid_list = []
     for n in NOTES_GAMME:
         val = get_note_value(n)
-        # On ne garde que les notes qui ont une octave définie et qui sont <= max_val
-        # On autorise les notes plus graves (pas de limite basse définie ici, sauf physique)
-        if val != -1 and val <= max_val:
+        # On ne garde que les notes qui ont une octave définie et qui sont dans la plage
+        if val != -1 and min_val <= val <= max_val:
             valid_list.append(n)
     
     # Si la liste est vide (cas extreme), on renvoie au moins la note de base
