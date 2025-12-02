@@ -75,13 +75,12 @@ AUTOMATIC_FINGERING = {'1G':'P','2G':'P','3G':'P','1D':'P','2D':'P','3D':'P','4G
 # --- LISTE DES NOTES ETENDUE ---
 NOTES_GAMME = [
     'C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B',
-    'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3', # Octave 3
-    'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4', # Octave 4
-    'C5', 'C#5', 'D5', 'D#5', 'E5', 'F5', 'F#5', 'G5', 'G#5', 'A5', 'A#5', 'B5'  # Octave 5
+    'C3', 'D3', 'D#3', 'E3', 'F3', 'G3', 'G#3', 'A3', 'A#3', 'B3', # Octave 3 (Grave)
+    'C4', 'D4', 'D#4', 'E4', 'F4', 'G4', 'G#4', 'A4', 'A#4', 'B4', # Octave 4 (Aigu)
+    'C5', 'D5', 'D#5', 'E5', 'F5', 'G5', 'A5', 'B5'  # Octave 5 (Très Aigu)
 ]
 
 # --- DÉFINITION DES GAMMES PRESETS ---
-# Ordre strict : 1D, 1G, 2D, 2G, 3D, 3G, 4D, 4G, 5D, 5G, 6D, 6G
 GAMMES_PRESETS = {
     "1. Pentatonique Fondamentale": "E3G3A3C4D4E4G4A4C5D5E5G5",
     "2. Pentatonique (Descente Basse)": "F3G3A3C4D4E4G4A4C5D5E5G5",
@@ -93,11 +92,11 @@ GAMMES_PRESETS = {
     "8. Impressionniste": "E3F3A3B3C4E4G4A4B4C5E5G5"
 }
 
-# L'ordre exact d'attribution des notes de la chaine de caractères aux cordes
+# Ordre de mapping pour l'application des gammes (ZigZag)
 ORDRE_MAPPING_GAMME = ['1D', '1G', '2D', '2G', '3D', '3G', '4D', '4G', '5D', '5G', '6D', '6G']
 
-# Accordage par défaut (Basé sur la Gamme 3 Manitoumani)
-DEF_ACC = {'1D':'F3', '1G':'G3', '2D':'A3', '2G':'C4', '3D':'D4', '3G':'E4', '4D':'G4', '4G':'A4', '5D':'B4', '5G':'C5', '6D':'E5', '6G':'G5'}
+# Accordage par défaut
+DEF_ACC = {'1G':'G3','2G':'C3','3G':'E3','4G':'A4','5G':'C4','6G':'G4','1D':'F3','2D':'A3','3D':'D3','4D':'G4','5D':'B4','6D':'E4'}
 
 # ==============================================================================
 # 🚀 FONCTIONS UTILES (CACHE & SYSTEME)
@@ -264,14 +263,14 @@ def compiler_arrangement(structure_str, blocks_dict):
     return full_text
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO (OPTIMISÉ - ANTI CLIC)
+# 🎹 MOTEUR AUDIO (OPTIMISÉ - ANTI CLIC & FAST PREVIEW)
 # ==============================================================================
 def get_note_freq(note_name):
     base_freqs = {'C': 261.63, 'C#': 277.18, 'D': 293.66, 'Eb': 311.13, 'E': 329.63, 'F': 349.23, 'F#': 369.99, 'G': 392.00, 'G#': 415.30, 'A': 440.00, 'Bb': 466.16, 'B': 493.88}
     return base_freqs.get(note_name[0].upper(), 440.0)
 
 @st.cache_data(show_spinner=False)
-def generer_audio_mix(sequence, bpm, acc_config):
+def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
     if not HAS_PYDUB: return None
     if not sequence: return None
     samples_loaded = {}
@@ -285,17 +284,24 @@ def generer_audio_mix(sequence, bpm, acc_config):
             chemin = os.path.join(DOSSIER_SAMPLES, f"{note_name}.mp3")
             if os.path.exists(chemin): 
                 # FADE IN 5ms + GAIN -2dB
-                samples_loaded[corde] = AudioSegment.from_mp3(chemin).fade_in(5).apply_gain(-2)
+                sound = AudioSegment.from_mp3(chemin).fade_in(5).apply_gain(-2)
+                # OPTIMISATION PREVIEW : On coupe le son pour qu'il soit léger et rapide
+                if preview_mode:
+                    sound = sound[:800].fade_out(100)
+                samples_loaded[corde] = sound
                 loaded = True
             else:
                 chemin_def = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
                 if os.path.exists(chemin_def):
-                    samples_loaded[corde] = AudioSegment.from_mp3(chemin_def).fade_in(5).apply_gain(-2)
+                    sound = AudioSegment.from_mp3(chemin_def).fade_in(5).apply_gain(-2)
+                    if preview_mode: sound = sound[:800].fade_out(100)
+                    samples_loaded[corde] = sound
                     loaded = True
 
         if not loaded:
             freq = get_note_freq(note_name)
-            tone = Sine(freq).to_audio_segment(duration=600).fade_in(5).fade_out(400).apply_gain(-5)
+            duration = 400 if preview_mode else 600
+            tone = Sine(freq).to_audio_segment(duration=duration).fade_in(5).fade_out(50).apply_gain(-5)
             samples_loaded[corde] = tone 
             
     if not samples_loaded: return None
@@ -313,7 +319,7 @@ def generer_audio_mix(sequence, bpm, acc_config):
             if pos_ms < 0: pos_ms = 0
             mix = mix.overlay(samples_loaded[corde], position=pos_ms)
     
-    buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="64k"); buffer.seek(0)
+    buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="32k"); buffer.seek(0)
     return buffer
 
 @st.cache_data(show_spinner=False)
@@ -727,7 +733,7 @@ with tab2:
                 
                 with st.spinner("Génération de l'aperçu..."):
                     # BPM Ralenti à 100 pour bien entendre l'ordre
-                    preview_buffer = generer_audio_mix(temp_sequence, 100, temp_acc_config)
+                    preview_buffer = generer_audio_mix(temp_sequence, 100, temp_acc_config, preview_mode=True)
                     if preview_buffer:
                         st.audio(preview_buffer, format='audio/mp3', autoplay=True)
                     else:
