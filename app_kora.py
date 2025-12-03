@@ -30,101 +30,112 @@ st.set_page_config(
     page_title="Générateur Tablature Ngonilélé",
     layout="wide",
     page_icon="ico_ngonilele.png",
-    initial_sidebar_state="collapsed" # Sidebar fermée par défaut sur mobile pour gagner de la place
+    initial_sidebar_state="collapsed"
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : MODE COMPACT CÔTE-À-CÔTE
+# 📱 OPTIMISATION CSS : HYBRIDE PORTRAIT / PAYSAGE
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
     /* ============================================================
-       1. CONTENEUR PRINCIPAL ADAPTATIF
+       1. RÉGLAGES GLOBAUX MOBILE
     ============================================================ */
     .stApp {
-        overflow-x: hidden !important; /* On évite le scroll horizontal global */
+        overflow-x: hidden; /* Évite le scroll horizontal global inutile */
     }
     
     div[data-testid="block-container"] {
+        padding-top: 2rem !important;
         padding-left: 0.5rem !important;
         padding-right: 0.5rem !important;
-        padding-top: 2rem !important;
-        max-width: 100% !important;
     }
 
     /* ============================================================
-       2. FORCER LES COLONNES CÔTE À CÔTE (MAIS COMPACTES)
+       2. GESTION INTELLIGENTE DES COLONNES
     ============================================================ */
     
-    /* Sur mobile, on force le flex en ligne */
-    @media (max-width: 640px) {
+    /* PAR DÉFAUT (PC & PAYSAGE MOBILE) : Tout sur une ligne */
+    div[data-testid="stHorizontalBlock"] {
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+    
+    /* EN MODE PORTRAIT (Écrans étroits < 500px) */
+    @media (max-width: 500px) {
+        
+        /* On autorise le retour à la ligne pour recréer une grille */
         div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important; /* Ligne forcée */
-            flex-wrap: nowrap !important;   /* Pas de retour à la ligne */
-            gap: 0.3rem !important;         /* Espace réduit entre colonnes */
+            flex-wrap: wrap !important;
+            gap: 0.3rem !important;
         }
 
+        /* Chaque colonne prend ~48% de l'écran (donc 2 colonnes par ligne) */
+        /* C'est le compromis parfait entre "tout empilé" et "tout aligné" */
         div[data-testid="column"] {
-            min-width: 0 !important;        /* Permet à la colonne de rétrécir */
-            flex: 1 1 0 !important;         /* Partage équitable de l'espace */
-            width: auto !important;
+            flex: 1 1 45% !important; 
+            min-width: 45% !important;
+            max-width: 100% !important;
         }
         
-        /* Cas particulier pour l'éditeur visuel (beaucoup de colonnes) */
-        /* On permet le scroll horizontal uniquement pour les graphiques larges */
+        /* EXCEPTION : L'éditeur visuel (13 colonnes) DOIT scroller horizontalement */
+        /* On détecte ce bloc spécifique car il contient beaucoup de petits boutons */
         div[data-testid="stHorizontalBlock"]:has(button:contains("1G")) {
-             overflow-x: auto !important;
+             flex-wrap: nowrap !important; /* Force la ligne unique */
+             overflow-x: auto !important;  /* Active le scroll au doigt */
+             justify-content: flex-start !important;
+             padding-bottom: 10px !important; /* Espace pour scroller */
+        }
+        
+        /* Dans ce bloc scrollable, les colonnes sont toutes petites */
+        div[data-testid="stHorizontalBlock"]:has(button:contains("1G")) div[data-testid="column"] {
+            min-width: 40px !important;
+            flex: 0 0 auto !important;
         }
     }
 
     /* ============================================================
-       3. BOUTONS COMPACTS (TAILLE RÉDUITE)
+       3. BOUTONS ULTRA-COMPACTS
     ============================================================ */
     .stButton button {
         width: 100% !important;
-        padding: 0.2rem 0.1rem !important; /* Marges internes minuscules */
-        font-size: 0.85rem !important;     /* Texte plus petit */
-        min-height: 0px !important;        /* Enlever la hauteur min par défaut */
+        padding: 0.3rem 0.1rem !important;
+        font-size: 0.85rem !important;
+        line-height: 1.1 !important;
+        min-height: 2.5rem !important; /* Hauteur tactile correcte */
         height: auto !important;
-        line-height: 1.2 !important;
-        white-space: nowrap !important;    /* Texte sur une ligne */
-    }
-    
-    /* Boutons spécifiques de cordes (plus visibles) */
-    div[data-testid="column"] button p {
-        font-weight: bold;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
 
     /* ============================================================
-       4. ESTHÉTIQUE GÉNÉRALE
+       4. STYLE VISUEL & ONGLETS
     ============================================================ */
-    /* Onglets plus petits */
     button[data-testid="stTab"] { 
-        padding: 5px 10px !important;
-        font-size: 0.8rem !important;
-    }
-
-    /* Styles Couleurs */
-    button[data-testid="stTab"] { 
-        border: 1px solid #A67C52; border-radius: 5px; margin-right: 2px; 
-        background-color: #e5c4a3; color: black; opacity: 0.9; 
+        padding: 8px 10px !important;
+        font-size: 0.85rem !important;
+        background-color: #e5c4a3; 
+        color: black;
+        border: 1px solid #A67C52;
+        flex: 1; /* Les onglets prennent toute la largeur dispo */
     }
     button[data-testid="stTab"][aria-selected="true"] { 
-        background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
-    }
-    .stDownloadButton button { background-color: #e5c4a3 !important; color: black !important; border: none !important; }
-    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
-    [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
-
-    /* Infobulles (Tooltips) */
-    div[data-testid="stTooltipContent"] {
-        background-color: #333 !important;
-        color: white !important;
-        font-size: 0.8rem !important;
+        background-color: #d4b08c; 
+        font-weight: bold; 
     }
 
+    /* Masquer les labels inutiles des file uploader pour gagner de la place */
+    [data-testid='stFileUploader'] label { display: none; }
+    [data-testid='stFileDropzone'] { padding: 0.5rem; background-color: #e5c4a3; color: black; border: 1px dashed #A67C52; }
+    
+    /* Header plus petit sur mobile */
+    h1 { font-size: 1.5rem !important; }
+    
 </style>
 """
 
@@ -1393,7 +1404,7 @@ with tab_video:
                         img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=90)
                         if img_buffer:
                             v_bar.progress(50, text="Encodage vidéo en cours...")
-                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=12)
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duration_sec, (px, offset), bpm, fps=12)
                             if video_path:
                                 st.session_state.video_path = video_path 
                                 v_bar.progress(100, text="Terminé !")
