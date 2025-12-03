@@ -12,7 +12,6 @@ import tempfile
 import numpy as np
 
 # --- OPTIMISATION VITESSE 1 : BACKEND NON-INTERACTIF ---
-# Force Matplotlib à ne pas chercher de fenêtre d'affichage (gain de temps énorme sur serveur)
 import matplotlib
 matplotlib.use('Agg') 
 
@@ -37,7 +36,6 @@ st.set_page_config(
 # ==============================================================================
 # 📱 OPTIMISATION CSS & STYLE GLOBAL
 # ==============================================================================
-# Mis en cache pour éviter le re-calcul du string CSS à chaque reload
 @st.cache_resource
 def load_css_styles():
     return """
@@ -86,6 +84,19 @@ CHEMIN_ICON_INDEX_BLANC = 'icon_index_blanc.png'
 CHEMIN_LOGO_APP = 'ico_ngonilele.png'
 CHEMIN_HEADER_IMG = 'texture_ngonilele_2.png'
 DOSSIER_SAMPLES = 'samples'
+
+# --- NOUVELLES CONSTANTES RYTHMIQUES (BASE 12) ---
+TICKS_NOIRE = 12       # 1 temps
+TICKS_CROCHE = 6       # 1/2 temps
+TICKS_TRIOLET = 4      # 1/3 temps
+TICKS_DOUBLE = 3       # 1/4 temps
+
+SYMBOLES_DUREE = {
+    '+': TICKS_NOIRE,
+    '♪': TICKS_CROCHE,   # Croche (1 note)
+    '🎶': TICKS_TRIOLET, # Triolet (3 notes)
+    '♬': TICKS_DOUBLE    # Double (2 notes)
+}
 
 # --- COULEURS & CONSTANTES LOGIQUES ---
 POSITIONS_X = {'1G': -1, '2G': -2, '3G': -3, '4G': -4, '5G': -5, '6G': -6, '1D': 1, '2D': 2, '3D': 3, '4D': 4, '5D': 5, '6D': 6}
@@ -244,42 +255,81 @@ def get_font_cached(size, weight='normal', style='normal'):
     prop.set_style(style)
     return prop
 
+# --- NOUVEAU PARSER (COMPATIBLE BASE 12) ---
 def parser_texte(texte):
     data = []
-    dernier_temps = 0
+    current_tick = 0
+    last_note_tick = 0
+    last_note_duration = TICKS_NOIRE # Durée par défaut = Noire
+    
     if not texte: return []
+    
     for ligne in texte.strip().split('\n'):
         parts = ligne.strip().split(maxsplit=2)
         if not parts: continue
         try:
             col1 = parts[0]
-            if col1 == '+': t = dernier_temps + 1
-            elif col1 == '=': t = dernier_temps
-            elif col1.isdigit(): t = int(col1)
-            else: continue
-            if col1 != '=': dernier_temps = t
+            
+            # 1. DÉTECTION DU RYTHME
+            if col1 == '=':
+                this_start = last_note_tick
+                this_duration = last_note_duration
+            elif col1.isdigit():
+                # Cas "1" (début) ou chiffre => on reset ou on avance d'une noire
+                this_start = 0 if col1 == '1' else current_tick
+                this_duration = TICKS_NOIRE
+                current_tick = this_start + this_duration
+            elif col1 in SYMBOLES_DUREE:
+                # C'est un symbole (+, ♪, etc.)
+                this_duration = SYMBOLES_DUREE[col1]
+                this_start = current_tick
+                current_tick += this_duration
+            else:
+                # Cas par défaut (si l'utilisateur a tapé une vieille syntaxe sans symbole)
+                # On assume que c'est une Noire si ça ressemble à un '+' ou chiffre
+                if col1 == '+': 
+                    this_duration = TICKS_NOIRE
+                    this_start = current_tick
+                    current_tick += this_duration
+                else: continue
+
+            last_note_tick = this_start
+            last_note_duration = this_duration
+
+            # 2. ANALYSE DU CONTENU
             corde_valide = parts[1].upper()
+            
             if corde_valide == 'TXT':
                 msg = parts[2] if len(parts) > 2 else ""
-                data.append({'temps': t, 'corde': 'TEXTE', 'message': msg}); continue
+                data.append({'tick': this_start, 'duration': this_duration, 'corde': 'TEXTE', 'message': msg}); continue
             elif corde_valide == 'PAGE':
-                data.append({'temps': t, 'corde': 'PAGE_BREAK'}); continue
+                data.append({'tick': this_start, 'duration': 0, 'corde': 'PAGE_BREAK'}); continue
+            
             corde_valide = 'SILENCE' if corde_valide=='S' else 'SEPARATOR' if corde_valide=='SEP' else corde_valide
+            
             doigt = None; repetition = 1
             if len(parts) > 2:
                 for p in parts[2].split():
                     p_upper = p.upper()
                     if p_upper.startswith('X') and p_upper[1:].isdigit(): repetition = int(p_upper[1:])
                     elif p_upper in ['I', 'P']: doigt = p_upper
+            
             if not doigt and corde_valide in AUTOMATIC_FINGERING: doigt = AUTOMATIC_FINGERING[corde_valide]
+            
+            # Gestion répétition
+            temp_cursor = this_start
             for i in range(repetition):
-                current_time = t + i
-                note = {'temps': current_time, 'corde': corde_valide}
+                note = {'tick': temp_cursor, 'duration': this_duration, 'corde': corde_valide}
                 if doigt: note['doigt'] = doigt
                 data.append(note)
-                if i > 0: dernier_temps = current_time
+                
+                if i < repetition - 1:
+                    temp_cursor += this_duration
+                    current_tick = temp_cursor + this_duration # Mise à jour du curseur global si répétition
+
         except: pass
-    data.sort(key=lambda x: x['temps'])
+        
+    data.sort(key=lambda x: x['tick'])
     return data
 
 def compiler_arrangement(structure_str, blocks_dict):
@@ -300,7 +350,7 @@ def compiler_arrangement(structure_str, blocks_dict):
     return full_text
 
 # ==============================================================================
-# 🎹 MOTEUR AUDIO
+# 🎹 MOTEUR AUDIO (NOUVEAU - SLICING)
 # ==============================================================================
 def get_note_freq(note_name):
     base_freqs = {'C': 261.63, 'C#': 277.18, 'D': 293.66, 'Eb': 311.13, 'E': 329.63, 'F': 349.23, 'F#': 369.99, 'G': 392.00, 'G#': 415.30, 'A': 440.00, 'Bb': 466.16, 'B': 493.88}
@@ -310,6 +360,7 @@ def get_note_freq(note_name):
 def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
     if not HAS_PYDUB: return None
     if not sequence: return None
+    
     samples_loaded = {}
     cordes_utilisees = set([n['corde'] for n in sequence if n['corde'] in POSITIONS_X])
     
@@ -318,40 +369,58 @@ def generer_audio_mix(sequence, bpm, acc_config, preview_mode=False):
         note_name = acc_config.get(corde, {'n':'C'})['n']
         chemin = os.path.join(DOSSIER_SAMPLES, f"{note_name}.mp3")
         
-        # Optimisation: vérifier dossier une seule fois
         if os.path.exists(DOSSIER_SAMPLES):
             if os.path.exists(chemin): 
-                sound = AudioSegment.from_mp3(chemin).fade_in(5).apply_gain(-2)
-                if preview_mode: sound = sound[:2500].fade_out(200)
+                sound = AudioSegment.from_mp3(chemin) # Pas de fade in/out ici, on le fait après
                 samples_loaded[corde] = sound
                 loaded = True
             else:
                 chemin_def = os.path.join(DOSSIER_SAMPLES, f"{corde}.mp3")
                 if os.path.exists(chemin_def):
-                    sound = AudioSegment.from_mp3(chemin_def).fade_in(5).apply_gain(-2)
-                    if preview_mode: sound = sound[:2500].fade_out(200)
+                    sound = AudioSegment.from_mp3(chemin_def)
                     samples_loaded[corde] = sound
                     loaded = True
 
         if not loaded:
             freq = get_note_freq(note_name)
-            duration = 400 if preview_mode else 600
-            tone = Sine(freq).to_audio_segment(duration=duration).fade_in(5).fade_out(50).apply_gain(-5)
+            duration = 1000 # On génère un son long qu'on coupera
+            tone = Sine(freq).to_audio_segment(duration=duration).apply_gain(-5)
             samples_loaded[corde] = tone 
             
     if not samples_loaded: return None
-    ms_par_temps = 60000 / bpm
-    dernier_t = sequence[-1]['temps']
-    duree_totale_ms = int((dernier_t + 4) * ms_par_temps) 
-    if duree_totale_ms < 1000: duree_totale_ms = 1000
+    
+    # Calcul temps base 12
+    # 1 temps (Noire = 12 ticks) = 60000/BPM ms
+    ms_par_tick = (60000 / bpm) / TICKS_NOIRE
+    
+    dernier_tick = sequence[-1]['tick'] + sequence[-1]['duration']
+    duree_totale_ms = int(dernier_tick * ms_par_tick) + 1000 # Marge
     mix = AudioSegment.silent(duration=duree_totale_ms)
     
     for n in sequence:
         corde = n['corde']
         if corde in samples_loaded:
-            t = n['temps']; pos_ms = int((t - 1) * ms_par_temps)
-            if pos_ms < 0: pos_ms = 0
-            mix = mix.overlay(samples_loaded[corde], position=pos_ms)
+            start_ms = int(n['tick'] * ms_par_tick)
+            duration_ticks = n['duration']
+            
+            # Durée théorique
+            note_ms = int(duration_ticks * ms_par_tick)
+            
+            original_sample = samples_loaded[corde]
+            
+            # SLICING INTELLIGENT
+            # Si note rapide (croche ou moins), on coupe
+            # Sinon on laisse sonner un peu
+            len_to_keep = note_ms
+            if preview_mode and len_to_keep > 2000: len_to_keep = 2000
+            
+            if len(original_sample) > len_to_keep:
+                # On coupe et on fade out pour éviter le clic
+                played_sample = original_sample[:len_to_keep].fade_out(15)
+            else:
+                played_sample = original_sample
+
+            mix = mix.overlay(played_sample, position=start_ms)
     
     buffer = io.BytesIO(); mix.export(buffer, format="mp3", bitrate="128k"); buffer.seek(0)
     return buffer
@@ -378,7 +447,7 @@ def generer_metronome(bpm, duration_sec=30, signature="4/4"):
     return buffer
 
 # ==============================================================================
-# 🎨 MOTEUR AFFICHAGE
+# 🎨 MOTEUR AFFICHAGE (NOUVEAU - TICKS & LIGATURES)
 # ==============================================================================
 def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     c_txt = styles['TEXTE']; c_fond = styles['LEGENDE_FOND']; c_bulle = styles['PERLE_FOND']
@@ -397,13 +466,9 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     if img_index is not None: ab = AnnotationBbox(OffsetImage(img_index, zoom=0.045), (x_icon_center, y_row2), frameon=False); ax.add_artist(ab)
     ax.text(x_text_align, y_row2, "= Index", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     
-    offsets = [-0.7, 0, 0.7]; 
-    # OPTIMISATION: Utilisation de patches.Circle au lieu de plt.Circle
-    for i, off in enumerate(offsets): c = patches.Circle((x_icon_center + off, y_row3), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2); ax.add_patch(c); ax.text(x_icon_center + off, y_row3, str(i+1), ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
-    ax.text(x_text_align, y_row3, "= Ordre de jeu", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    x_simul_end = x_icon_center + 1.4; ax.plot([x_icon_center - 0.7, x_simul_end - 0.7], [y_row4, y_row4], color=c_txt, lw=3, zorder=1)
-    ax.add_patch(patches.Circle((x_icon_center - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2)); ax.add_patch(patches.Circle((x_simul_end - 0.7, y_row4), 0.25, facecolor=c_bulle, edgecolor=c_txt, lw=2, zorder=2))
-    ax.text(x_text_align, y_row4, "= Notes simultanées", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    # AJOUT VISUEL DES RYTHMES
+    ax.text(0, y_row3, "RYTHMES :  + = Noire  |  ♪ = Croche  |  🎶 = Triolet  |  ♬ = Double", ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
+
     x_droite = 1.5; y_text_top = y_pos - 1.2; line_height = 0.45
     ax.text(x_droite, y_text_top, "1G = 1ère corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*2, "1D = 1ère corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*3, "2D = 2ème corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*4, "(Etc...)", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
 
@@ -421,13 +486,20 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     img_pouce = load_image_asset(CHEMIN_ICON_POUCE_BLANC if mode_white else CHEMIN_ICON_POUCE)
     img_index = load_image_asset(CHEMIN_ICON_INDEX_BLANC if mode_white else CHEMIN_ICON_INDEX)
-    t_min = notes_page[0]['temps']; t_max = notes_page[-1]['temps']
-    lignes_sur_page = t_max - t_min + 1
-    hauteur_fig = max(6, (lignes_sur_page * 0.75) + 6)
+    
+    # CALCUL BASE 12 (TICKS)
+    tick_min = notes_page[0]['tick']
+    tick_max = notes_page[-1]['tick'] + 12 # +1 temps de marge
+    
+    # Echelle Y : 1 temps (noire) = 1.0 unité graphique
+    hauteur_unites = (tick_max - tick_min) / 12.0
+    hauteur_fig = max(6, (hauteur_unites * 0.75) + 6)
+    
     fig = Figure(figsize=(16, hauteur_fig), facecolor=c_fond)
     ax = fig.subplots()
     ax.set_facecolor(c_fond)
-    y_top = 2.5; y_bot = - (t_max - t_min) - 1.5; y_top_cordes = y_top
+    
+    y_top = 2.5; y_bot = - hauteur_unites - 1.5; y_top_cordes = y_top
     prop_titre = get_font_cached(32, 'bold'); prop_texte = get_font_cached(20, 'bold')
     prop_note_us = get_font_cached(24, 'bold'); prop_note_eu = get_font_cached(18, 'normal', 'italic')
     prop_numero = get_font_cached(14, 'bold'); prop_standard = get_font_cached(14, 'bold')
@@ -457,22 +529,33 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu)
         ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
+    # LIGNES HORIZONTALES (TEMPS) - Tous les 12 ticks
+    start_beat_tick = (tick_min // 12) * 12
+    for t in range(start_beat_tick, tick_max + 12, 12):
+        y = - ((t - tick_min) / 12.0)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
 
-    map_labels = {}; last_sep = t_min - 1; sorted_notes = sorted(notes_page, key=lambda x: x['temps'])
+    map_labels = {}; last_sep_tick = tick_min - 12
     processed_t = set()
-    for n in sorted_notes:
-        t = n['temps']
-        if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
-        elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-            
-    notes_par_temps_relatif = {}; rayon = 0.30
+    
+    # Labels de temps (1, 2, 3...)
     for n in notes_page:
-        t_absolu = n['temps']; y = -(t_absolu - t_min)
-        if y not in notes_par_temps_relatif: notes_par_temps_relatif[y] = []
-        notes_par_temps_relatif[y].append(n); code = n['corde']
+        t = n['tick']
+        if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep_tick = t
+        # On affiche le numéro si c'est le début d'un temps (multiple de 12)
+        elif t % 12 == 0 and t not in processed_t:
+            num_temps = (t - last_sep_tick) // 12
+            if num_temps > 0: map_labels[t] = str(num_temps)
+            processed_t.add(t)
+            
+    notes_par_tick = {}; rayon = 0.30
+    for n in notes_page:
+        tick_absolu = n['tick']
+        y = - ((tick_absolu - tick_min) / 12.0)
+        
+        if y not in notes_par_tick: notes_par_tick[y] = []
+        notes_par_tick[y].append(n); code = n['corde']
+        
         if code == 'TEXTE': 
             bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2)
             ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
@@ -481,29 +564,62 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         elif code in config_acc:
             props = config_acc[code]; x = props['x']; 
             c = get_color_for_note(props['n'])
-            # OPTIMISATION: patches.Circle au lieu de plt.Circle
+            
             ax.add_patch(patches.Circle((x, y), rayon, color=c_perle, zorder=3))
             ax.add_patch(patches.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
-            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
+            
+            # Numéro de temps seulement sur les temps pleins
+            label = map_labels.get(tick_absolu, "")
+            ax.text(x, y, label, ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
+            
             if 'doigt' in n:
                 doigt = n['doigt']; current_img = img_index if doigt == 'I' else img_pouce
                 if current_img is not None:
                     try: ab = AnnotationBbox(OffsetImage(current_img, zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
                     except: pass
                 else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
-                      
-    for y, group in notes_par_temps_relatif.items():
+    
+    # ACCORDS (Ligne horizontale)
+    for y, group in notes_par_tick.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
+
+    # LIGATURES (Beams) pour les groupes rythmiques
+    sorted_notes = sorted([n for n in notes_page if n['corde'] in config_acc], key=lambda x: x['tick'])
+    for i in range(len(sorted_notes) - 1):
+        n1 = sorted_notes[i]
+        n2 = sorted_notes[i+1]
+        
+        # Si notes courtes (< Noire) et dans le même temps
+        if n1['duration'] < 12 and n2['duration'] < 12:
+            beat1 = n1['tick'] // 12
+            beat2 = n2['tick'] // 12
+            if beat1 == beat2:
+                y1 = - ((n1['tick'] - tick_min) / 12.0)
+                y2 = - ((n2['tick'] - tick_min) / 12.0)
+                
+                lw_link = 3 if n1['duration'] <= 4 else 1.5
+                color_link = '#A67C52'
+                
+                # Double barre pour les doubles croches (durée 3 ticks)
+                if n1['duration'] == 3:
+                     ax.plot([-0.2, -0.2], [y1, y2], color=color_link, lw=lw_link, zorder=2, alpha=0.7)
+                     ax.plot([-0.3, -0.3], [y1, y2], color=color_link, lw=lw_link, zorder=2, alpha=0.7)
+                else:
+                     ax.plot([-0.2, -0.2], [y1, y2], color=color_link, lw=lw_link, zorder=2, alpha=0.7)
             
     ax.set_xlim(-7.5, 7.5); ax.set_ylim(y_bot, y_top + 5); ax.axis('off')
     return fig
 
 def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
     if not sequence: return None, 0, 0
-    t_min = sequence[0]['temps']; t_max = sequence[-1]['temps']
-    y_max_header = 3.0; y_min_footer = -(t_max - t_min) - 2.0; hauteur_unites = y_max_header - y_min_footer
-    FIG_WIDTH = 16; FIG_HEIGHT = hauteur_unites * 0.8; DPI = dpi
+    t_min = sequence[0]['tick']; t_max = sequence[-1]['tick']
+    
+    # Conversion Ticks -> Unités
+    hauteur_unites = (t_max - t_min) / 12.0
+    y_max_header = 3.0; y_min_footer = -hauteur_unites - 2.0
+    
+    FIG_WIDTH = 16; FIG_HEIGHT = (y_max_header - y_min_footer) * 0.8; DPI = dpi
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; c_perle = styles['PERLE_FOND']
     fig = Figure(figsize=(FIG_WIDTH, FIG_HEIGHT), dpi=DPI, facecolor=c_fond)
     ax = fig.subplots()
@@ -519,46 +635,46 @@ def generer_image_longue_calibree(sequence, config_acc, styles, dpi=72):
         x = props['x']; note = props['n']; 
         c = get_color_for_note(note)
         ax.text(x, y_top + 1.3, code, ha='center', color='gray', fontproperties=prop_numero); ax.text(x, y_top + 0.7, note, ha='center', color=c, fontproperties=prop_note_us); ax.text(x, y_top + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu); ax.vlines(x, y_bot, y_top, colors=c, lw=3, zorder=1)
-    for t in range(t_min, t_max + 1):
-        y = -(t - t_min)
+    
+    # Lignes temps
+    start_beat = (t_min // 12) * 12
+    for t in range(start_beat, t_max + 12, 12):
+        y = - ((t - t_min) / 12.0)
         ax.axhline(y=y, color='#666666', linestyle='-', linewidth=1, alpha=0.7, zorder=0.5)
-    map_labels = {}; last_sep = t_min - 1; processed_t = set()
-    for n in sequence:
-        t = n['temps']; 
-        if n['corde'] in ['SEPARATOR', 'TEXTE']: last_sep = t
-        elif t not in processed_t: map_labels[t] = str(t - last_sep); processed_t.add(t)
-    notes_par_temps = {}; rayon = 0.30
+        
+    notes_par_tick = {}; rayon = 0.30
     for n in sequence:
         if n['corde'] == 'PAGE_BREAK': continue 
-        t_absolu = n['temps']; y = -(t_absolu - t_min)
-        if y not in notes_par_temps: notes_par_temps[y] = []
-        notes_par_temps[y].append(n); code = n['corde']
+        t_absolu = n['tick']; y = - ((t_absolu - t_min) / 12.0)
+        if y not in notes_par_tick: notes_par_tick[y] = []
+        notes_par_tick[y].append(n); code = n['corde']
+        
         if code == 'TEXTE': bbox = dict(boxstyle="round,pad=0.5", fc=c_perle, ec=c_txt, lw=2); ax.text(0, y, n.get('message',''), ha='center', va='center', color='black', fontproperties=prop_annotation, bbox=bbox, zorder=10)
         elif code == 'SEPARATOR': ax.axhline(y, color=c_txt, lw=3, zorder=4)
         elif code in config_acc:
             props = config_acc[code]; x = props['x']; 
             c = get_color_for_note(props['n'])
-            # OPTIMISATION: patches.Circle au lieu de plt.Circle
             ax.add_patch(patches.Circle((x, y), rayon, color=c_perle, zorder=3)); ax.add_patch(patches.Circle((x, y), rayon, fill=False, edgecolor=c, lw=3, zorder=4))
-            ax.text(x, y, map_labels.get(t_absolu, ""), ha='center', va='center', color='black', fontproperties=prop_standard, zorder=6)
+            
             if 'doigt' in n:
                 doigt = n['doigt']; current_img = img_index if doigt == 'I' else img_pouce
                 if current_img is not None:
                     try: ab = AnnotationBbox(OffsetImage(current_img, zoom=0.045), (x - 0.70, y + 0.1), frameon=False, zorder=8); ax.add_artist(ab)
                     except: pass
                 else: ax.text(x - 0.70, y, doigt, ha='center', va='center', color=c_txt, fontproperties=prop_standard, zorder=7)
-    for y, group in notes_par_temps.items():
+    for y, group in notes_par_tick.items():
         xs = [config_acc[n['corde']]['x'] for n in group if n['corde'] in config_acc]; 
         if len(xs) > 1: ax.plot([min(xs), max(xs)], [y, y], color=c_txt, lw=2, zorder=2)
     ax.axis('off')
+    
     px_y_t0 = ax.transData.transform((0, 0))[1]
-    px_y_t1 = ax.transData.transform((0, -1))[1]
+    px_y_t1 = ax.transData.transform((0, -1))[1] # 1 temps
     total_h_px = FIG_HEIGHT * DPI
     pixels_par_temps = px_y_t0 - px_y_t1
     offset_premiere_note_px = total_h_px - px_y_t0
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=DPI, facecolor=c_fond, bbox_inches=None)
     buf.seek(0)
-    plt.close(fig) # Important
+    plt.close(fig) 
     return buf, pixels_par_temps, offset_premiere_note_px
 
 def creer_video_avec_son_calibree(image_buffer, audio_buffer, duration_sec, metrics, bpm, fps=15):
@@ -732,10 +848,12 @@ with st.sidebar:
         * **Fichier Texte (.txt)** : Sauvegarde uniquement la tablature brute.
 
         ### 🎼 Syntaxe & Rythme
-        * `+` : **Nouvelle note**.
+        * `+` : **Noire**.
+        * `♪` : **Croche**.
+        * `🎶` : **Triolet**.
+        * `♬` : **Double-croche**.
         * `=` : **Accord**.
-        * `S` : **Silence** (Essentiel pour le groove !).
-        * `x2` : **Doubler**.
+        * `S` : **Silence**.
         * `PAGE` : **Saut de page**.
         * `TXT` : **Texte**.
         """)
@@ -845,6 +963,17 @@ with tab_edit:
         with subtab_btn:
             afficher_header_style("⌨️ Mode Rapide")
             st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="btn_mode_doigt", horizontal=True)
+            
+            # --- MODIFICATION BOUTONS POUR NOUVEAU RYTHME ---
+            st.write("**Rythme :**")
+            c_r1, c_r2, c_r3, c_r4 = st.columns(4)
+            def add_symbol_only(s): st.session_state.code_actuel += f"\n{s} "
+            with c_r1: st.button("Noire (+)", on_click=add_symbol_only, args=("+",), use_container_width=True)
+            with c_r2: st.button("Croche (♪)", on_click=add_symbol_only, args=("♪",), use_container_width=True)
+            with c_r3: st.button("Triolet (🎶)", on_click=add_symbol_only, args=("🎶",), use_container_width=True)
+            with c_r4: st.button("Double (♬)", on_click=add_symbol_only, args=("♬",), use_container_width=True)
+            st.markdown("---")
+
             def ajouter_note_boutons(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
                 ajouter_texte(f"+ {corde}{suffixe}")
@@ -1104,7 +1233,7 @@ with tab_video:
         with col_v1:
             bpm = st.slider("BPM", 30, 200, 60, key="bpm_video")
             seq = parser_texte(st.session_state.code_actuel)
-            duree_estimee = ((seq[-1]['temps'] - seq[0]['temps'] + 4) * (60/bpm)) if seq else 10
+            duree_estimee = ((seq[-1]['tick'] / 12) * (60/bpm)) + 4 if seq else 10 # Estimation base 12
             st.write(f"Durée : {int(duree_estimee)}s")
         with col_v2:
             if st.button("🎥 Créer Vidéo", type="primary", use_container_width=True):
