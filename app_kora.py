@@ -30,89 +30,100 @@ st.set_page_config(
     page_title="Générateur Tablature Ngonilélé",
     layout="wide",
     page_icon="ico_ngonilele.png",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed" # Sidebar fermée par défaut sur mobile pour gagner de la place
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : FORCE "DESKTOP MODE" (CSS AGRESSIF)
+# 📱 OPTIMISATION CSS : MODE COMPACT CÔTE-À-CÔTE
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
     /* ============================================================
-       1. FORCER LA LARGEUR TOTALE (SCROLL HORIZONTAL)
+       1. CONTENEUR PRINCIPAL ADAPTATIF
     ============================================================ */
-    
-    /* Cible le conteneur principal de l'application */
     .stApp {
-        min-width: 1024px !important; /* Force une largeur d'écran d'ordinateur */
-        overflow-x: auto !important;  /* Autorise le scroll horizontal */
-    }
-
-    /* Force le conteneur interne à prendre toute la largeur */
-    div[data-testid="stAppViewContainer"] {
-        overflow-x: auto !important;
+        overflow-x: hidden !important; /* On évite le scroll horizontal global */
     }
     
-    section[data-testid="stSidebar"] {
-        z-index: 99999 !important; /* S'assure que le menu reste au dessus */
+    div[data-testid="block-container"] {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        padding-top: 2rem !important;
+        max-width: 100% !important;
     }
 
     /* ============================================================
-       2. BLOQUER L'EMPILEMENT DES COLONNES (L'ASTUCE CLÉ)
+       2. FORCER LES COLONNES CÔTE À CÔTE (MAIS COMPACTES)
     ============================================================ */
     
-    /* Streamlit utilise "stHorizontalBlock" pour les colonnes.
-       Sur mobile, il passe en 'column'. Ici, on le force en 'row'.
-    */
-    div[data-testid="stHorizontalBlock"] {
-        flex-direction: row !important; /* Interdit l'empilement vertical */
-        flex-wrap: nowrap !important;   /* Interdit le retour à la ligne */
+    /* Sur mobile, on force le flex en ligne */
+    @media (max-width: 640px) {
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important; /* Ligne forcée */
+            flex-wrap: nowrap !important;   /* Pas de retour à la ligne */
+            gap: 0.3rem !important;         /* Espace réduit entre colonnes */
+        }
+
+        div[data-testid="column"] {
+            min-width: 0 !important;        /* Permet à la colonne de rétrécir */
+            flex: 1 1 0 !important;         /* Partage équitable de l'espace */
+            width: auto !important;
+        }
+        
+        /* Cas particulier pour l'éditeur visuel (beaucoup de colonnes) */
+        /* On permet le scroll horizontal uniquement pour les graphiques larges */
+        div[data-testid="stHorizontalBlock"]:has(button:contains("1G")) {
+             overflow-x: auto !important;
+        }
+    }
+
+    /* ============================================================
+       3. BOUTONS COMPACTS (TAILLE RÉDUITE)
+    ============================================================ */
+    .stButton button {
         width: 100% !important;
+        padding: 0.2rem 0.1rem !important; /* Marges internes minuscules */
+        font-size: 0.85rem !important;     /* Texte plus petit */
+        min-height: 0px !important;        /* Enlever la hauteur min par défaut */
+        height: auto !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;    /* Texte sur une ligne */
     }
-
-    /* Cible chaque colonne individuelle */
-    div[data-testid="column"] {
-        flex: 1 1 auto !important;      /* Force les colonnes à se partager l'espace */
-        width: auto !important;         /* Annule la largeur 100% du mobile */
-        min-width: 50px !important;     /* Évite que les colonnes ne disparaissent */
+    
+    /* Boutons spécifiques de cordes (plus visibles) */
+    div[data-testid="column"] button p {
+        font-weight: bold;
     }
 
     /* ============================================================
-       3. STYLES ESTHÉTIQUES (TEXTE, BOUTONS, TABS)
+       4. ESTHÉTIQUE GÉNÉRALE
     ============================================================ */
-    
-    /* Onglets */
+    /* Onglets plus petits */
     button[data-testid="stTab"] { 
-        border: 1px solid #A67C52; border-radius: 5px; margin-right: 5px; 
-        background-color: #e5c4a3; color: black; padding: 10px 15px; 
-        white-space: nowrap !important;
+        padding: 5px 10px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Styles Couleurs */
+    button[data-testid="stTab"] { 
+        border: 1px solid #A67C52; border-radius: 5px; margin-right: 2px; 
+        background-color: #e5c4a3; color: black; opacity: 0.9; 
     }
     button[data-testid="stTab"][aria-selected="true"] { 
-        background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; 
+        background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
     }
-    
-    /* Boutons : Empêcher le texte de passer à la ligne */
-    .stButton button {
-        white-space: nowrap !important;
-        padding-left: 5px !important;
-        padding-right: 5px !important;
-    }
-    
-    /* Gestion Fichiers */
     .stDownloadButton button { background-color: #e5c4a3 !important; color: black !important; border: none !important; }
-    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; }
-    [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; }
+    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
+    [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
 
-    /* Infobulles */
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after {
-        position: absolute; top: 110%; left: 50%; transform: translateX(-50%); background-color: #3e3e3e; color: white; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; z-index: 9999; pointer-events: none; white-space: nowrap;
+    /* Infobulles (Tooltips) */
+    div[data-testid="stTooltipContent"] {
+        background-color: #333 !important;
+        color: white !important;
+        font-size: 0.8rem !important;
     }
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(1):hover::after { content: "Saisie rapide via boutons cliquables"; }
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(2):hover::after { content: "Représentation graphique des cordes"; }
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(3):hover::after { content: "Grille rythmique pas à pas"; }
-    div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:nth-child(4):hover::after { content: "Assemblage de blocs et arrangements"; }
 
 </style>
 """
@@ -255,9 +266,6 @@ if 'init_done' not in st.session_state:
     st.session_state.init_done = True
 
 # --- EN-TETE ---
-st.warning("🖥️ **Mode Bureau Forcé :** Si l'écran est petit, veuillez faire défiler horizontalement.", icon="↔️")
-st.markdown("""<div style="background-color: #d4b08c; color: black; padding: 10px; border-radius: 5px; border-left: 5px solid #A67C52; margin-bottom: 10px;"><strong>👈 Ouvrez le menu latéral</strong> pour charger un morceau, apporter votre contribution, consulter le guide, reporter un bug.</div>""", unsafe_allow_html=True)
-
 col_logo, col_titre = st.columns([1, 5])
 with col_logo:
     if os.path.exists(CHEMIN_HEADER_IMG): st.image(CHEMIN_HEADER_IMG, width=100)
