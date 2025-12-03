@@ -34,7 +34,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : MODE HYBRIDE (PC / MOBILE)
+# 📱 OPTIMISATION CSS : MODE HYBRIDE (PC / MOBILE PORTRAIT & PAYSAGE)
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
@@ -55,20 +55,21 @@ def load_css_styles():
     }
 
     /* ============================================================
-       2. GESTION INTELLIGENTE DES COLONNES (MOBILE)
+       2. GESTION INTELLIGENTE DES COLONNES (MOBILE & PAYSAGE)
     ============================================================ */
     
-    @media (max-width: 640px) {
+    /* On augmente la limite à 950px pour inclure les téléphones en mode PAYSAGE */
+    @media (max-width: 950px) {
     
         /* PAR DÉFAUT : On empile les colonnes verticalement (Stack) 
-           Cela permet à l'Aperçu de passer EN DESSOUS des Éditeurs sur mobile */
+           Cela permet à l'Aperçu de passer EN DESSOUS des Éditeurs sur mobile (portrait et paysage) */
         div[data-testid="stHorizontalBlock"] {
             flex-direction: column !important;
             gap: 1rem !important;
         }
 
         /* EXCEPTION : Si le bloc contient 3 colonnes ou plus (ex: Les boutons de cordes, le séquenceur),
-           alors on FORCE l'affichage en ligne (Row) pour garder G et D côte à côte */
+           alors on FORCE l'affichage en ligne (Row) pour garder G et D côte à côte, même sur mobile */
         div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)) {
             flex-direction: row !important; /* Ligne forcée */
             flex-wrap: nowrap !important;   /* Pas de retour à la ligne */
