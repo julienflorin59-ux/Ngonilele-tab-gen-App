@@ -30,88 +30,101 @@ st.set_page_config(
     page_title="Générateur Tablature Ngonilélé",
     layout="wide",
     page_icon="ico_ngonilele.png",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed" # Sidebar fermée par défaut sur mobile pour gagner de la place
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : AFFICHAGE HYBRIDE (PORTRAIT/PAYSAGE)
+# 📱 OPTIMISATION CSS : MODE COMPACT CÔTE-À-CÔTE
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
-    /* 1. CONFIGURATION GÉNÉRALE */
-    .stApp { overflow-x: hidden; }
+    /* ============================================================
+       1. CONTENEUR PRINCIPAL ADAPTATIF
+    ============================================================ */
+    .stApp {
+        overflow-x: hidden !important; /* On évite le scroll horizontal global */
+    }
+    
     div[data-testid="block-container"] {
-        padding-top: 1rem !important;
         padding-left: 0.5rem !important;
         padding-right: 0.5rem !important;
+        padding-top: 2rem !important;
+        max-width: 100% !important;
     }
 
-    /* 2. FORCER L'ALIGNEMENT CÔTE À CÔTE (Même en portrait) */
+    /* ============================================================
+       2. FORCER LES COLONNES CÔTE À CÔTE (MAIS COMPACTES)
+    ============================================================ */
+    
+    /* Sur mobile, on force le flex en ligne */
     @media (max-width: 640px) {
-        /* On oblige les colonnes à rester sur la même ligne avec défilement si besoin */
         div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important; /* Scroll horizontal si ça dépasse */
-            gap: 5px !important;
-            padding-bottom: 5px; /* Place pour la barre de scroll */
+            flex-direction: row !important; /* Ligne forcée */
+            flex-wrap: nowrap !important;   /* Pas de retour à la ligne */
+            gap: 0.3rem !important;         /* Espace réduit entre colonnes */
+        }
+
+        div[data-testid="column"] {
+            min-width: 0 !important;        /* Permet à la colonne de rétrécir */
+            flex: 1 1 0 !important;         /* Partage équitable de l'espace */
+            width: auto !important;
         }
         
-        /* Chaque colonne prend sa place naturelle sans s'écraser */
-        div[data-testid="column"] {
-            flex: 1 0 auto !important; /* Ne pas rétrécir en dessous du contenu min */
-            width: auto !important;
-            min-width: 45% !important; /* Assure que pour l'accordage (2 cols), ça fait ~50/50 */
+        /* Cas particulier pour l'éditeur visuel (beaucoup de colonnes) */
+        /* On permet le scroll horizontal uniquement pour les graphiques larges */
+        div[data-testid="stHorizontalBlock"]:has(button:contains("1G")) {
+             overflow-x: auto !important;
         }
     }
 
-    /* 3. LÉGENDE COULEURS (HTML) */
-    .legend-wrapper {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 8px;
-        margin-bottom: 15px;
-    }
-    .legend-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 30px;
-    }
-    .pastille {
-        width: 18px; height: 18px; border-radius: 50%; 
-        border: 1px solid #999; margin-bottom: 2px;
-    }
-    .legend-txt { font-size: 10px; font-weight: bold; }
-
-    /* 4. BOUTONS COMPACTS ET TEXTE */
+    /* ============================================================
+       3. BOUTONS COMPACTS (TAILLE RÉDUITE)
+    ============================================================ */
     .stButton button {
         width: 100% !important;
-        padding: 0.25rem 0.1rem !important;
-        font-size: 0.85rem !important;
-        line-height: 1.1 !important;
-        min-height: 2.5rem !important;
+        padding: 0.2rem 0.1rem !important; /* Marges internes minuscules */
+        font-size: 0.85rem !important;     /* Texte plus petit */
+        min-height: 0px !important;        /* Enlever la hauteur min par défaut */
         height: auto !important;
-        white-space: nowrap !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;    /* Texte sur une ligne */
     }
     
-    /* 5. ONGLETS ET INPUTS */
+    /* Boutons spécifiques de cordes (plus visibles) */
+    div[data-testid="column"] button p {
+        font-weight: bold;
+    }
+
+    /* ============================================================
+       4. ESTHÉTIQUE GÉNÉRALE
+    ============================================================ */
+    /* Onglets plus petits */
     button[data-testid="stTab"] { 
-        padding: 5px 10px !important; font-size: 0.8rem !important;
-        background-color: #e5c4a3; color: black; border: 1px solid #A67C52;
+        padding: 5px 10px !important;
+        font-size: 0.8rem !important;
+    }
+
+    /* Styles Couleurs */
+    button[data-testid="stTab"] { 
+        border: 1px solid #A67C52; border-radius: 5px; margin-right: 2px; 
+        background-color: #e5c4a3; color: black; opacity: 0.9; 
     }
     button[data-testid="stTab"][aria-selected="true"] { 
-        background-color: #d4b08c; font-weight: bold; 
+        background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
     }
-    [data-testid='stFileUploader'] label { display: none; }
-    
-    /* 6. INFOBULLES */
+    .stDownloadButton button { background-color: #e5c4a3 !important; color: black !important; border: none !important; }
+    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
+    [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
+
+    /* Infobulles (Tooltips) */
     div[data-testid="stTooltipContent"] {
-        background-color: #333 !important; color: white !important; font-size: 0.8rem !important;
+        background-color: #333 !important;
+        color: white !important;
+        font-size: 0.8rem !important;
     }
+
 </style>
 """
 
@@ -128,7 +141,7 @@ CHEMIN_LOGO_APP = 'ico_ngonilele.png'
 CHEMIN_HEADER_IMG = 'texture_ngonilele_2.png'
 DOSSIER_SAMPLES = 'samples'
 
-# --- CONSTANTES RYTHMIQUES (BASE 12) ---
+# --- NOUVELLES CONSTANTES RYTHMIQUES (BASE 12) ---
 TICKS_NOIRE = 12        # 1 temps
 TICKS_CROCHE = 6        # 1/2 temps
 TICKS_TRIOLET = 4       # 1/3 temps
@@ -870,10 +883,12 @@ with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
     
+    # --- MODIFICATION SIDEBAR (ONGLETS) ---
     tous_les_titres = list(BANQUE_TABLATURES.keys())
     titres_exos = [k for k in tous_les_titres if "Exercice" in k or "Démonstration" in k]
     titres_morceaux = [k for k in tous_les_titres if k not in titres_exos]
     
+    # Ajout du "Nouveau" dans les exos s'il n'y est pas, pour praticité
     if "--- Nouveau / Vide ---" in titres_morceaux and "--- Nouveau / Vide ---" not in titres_exos:
         titres_exos.insert(0, "--- Nouveau / Vide ---")
 
@@ -891,6 +906,7 @@ with st.sidebar:
     
     st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
+    # --- FIN MODIFICATION ---
     
     st.markdown("### 🤝 Contribuer")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com?subject=Proposition de partition" target="_blank"><button title="Envoyez vos créations par email au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Proposer une partition</button></a>', unsafe_allow_html=True)
@@ -968,56 +984,45 @@ with tab_acc:
 
     st.markdown("---")
     st.markdown("##### Code Couleur des Notes")
-    
-    # --- FIX 1 : LÉGENDE EN HTML/CSS (RESPONSIVE) ---
-    html_legend = '<div class="legend-wrapper">'
-    for note, color in COULEURS_CORDES_REF.items():
-        html_legend += f'''
-        <div class="legend-item">
-            <div class="pastille" style="background-color: {color};"></div>
-            <div class="legend-txt">{note}</div>
-        </div>
-        '''
-    html_legend += '</div>'
-    st.markdown(html_legend, unsafe_allow_html=True)
-    
+    cols_legende = st.columns(7)
+    for i, (note, color) in enumerate(COULEURS_CORDES_REF.items()):
+        with cols_legende[i]:
+            st.markdown(f"<div style='text-align:center;'><span style='display:inline-block; width:20px; height:20px; background-color:{color}; border-radius:50%;'></span><br><b>{note}</b></div>", unsafe_allow_html=True)
     st.markdown("<div style='text-align:center; font-size:0.8em; color:gray;'>(Les notes dièses # et bémols b gardent la couleur de leur note racine)</div>", unsafe_allow_html=True)
     st.write("")
 
     st.markdown("---")
     with st.expander("➕ Créer / Personnaliser une gamme", expanded=True):
-        # --- FIX 2 : ACCORDAGE GAUCHE / DROITE COTE A COTE ---
-        col_g, col_d = st.columns(2) 
+        col_g, col_sep, col_d = st.columns([1, 0.2, 1]) 
         acc_config = {}
         def on_change_tuning(): pass
 
         with col_g:
-            st.markdown("<div style='text-align:center; font-weight:bold; margin-bottom:5px;'>Main Gauche</div>", unsafe_allow_html=True)
+            st.write("**Main Gauche** (G)")
             for i in range(1, 7):
                 k = f"{i}G"
                 current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
                 c_code = get_color_for_note(current_val)
-                valid_notes = get_valid_notes_for_string(k)
-                if current_val not in valid_notes: valid_notes.insert(0, current_val)
-                
-                # Layout en mini colonnes pour aligner pastille et selectbox
-                c1, c2 = st.columns([0.5, 2])
-                with c1: st.markdown(f"<div style='margin-top:5px; width:15px; height:15px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc; margin-left:auto; margin-right:auto;'></div>", unsafe_allow_html=True)
-                with c2: val = st.selectbox(f"Corde {k}", valid_notes, index=valid_notes.index(current_val) if current_val in valid_notes else 0, key=f"acc_{k}", on_change=on_change_tuning, label_visibility="collapsed")
+                c1, c2 = st.columns([1, 4])
+                with c1: st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
+                with c2:
+                    valid_notes = get_valid_notes_for_string(k)
+                    if current_val not in valid_notes: valid_notes.insert(0, current_val)
+                    val = st.selectbox(f"Corde {k}", valid_notes, index=valid_notes.index(current_val) if current_val in valid_notes else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Choisissez la note pour la corde {k}")
                 acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
         
         with col_d:
-            st.markdown("<div style='text-align:center; font-weight:bold; margin-bottom:5px;'>Main Droite</div>", unsafe_allow_html=True)
+            st.write("**Main Droite** (D)")
             for i in range(1, 7):
                 k = f"{i}D"
                 current_val = st.session_state.get(f"acc_{k}", DEF_ACC[k])
                 c_code = get_color_for_note(current_val)
-                valid_notes = get_valid_notes_for_string(k)
-                if current_val not in valid_notes: valid_notes.insert(0, current_val)
-                
-                c1, c2 = st.columns([0.5, 2])
-                with c1: st.markdown(f"<div style='margin-top:5px; width:15px; height:15px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc; margin-left:auto; margin-right:auto;'></div>", unsafe_allow_html=True)
-                with c2: val = st.selectbox(f"Corde {k}", valid_notes, index=valid_notes.index(current_val) if current_val in valid_notes else 0, key=f"acc_{k}", on_change=on_change_tuning, label_visibility="collapsed")
+                c1, c2 = st.columns([1, 4])
+                with c1: st.markdown(f"<div style='margin-top:20px; width:20px; height:20px; background-color:{c_code}; border-radius:50%; border:1px solid #ccc;'></div>", unsafe_allow_html=True)
+                with c2:
+                    valid_notes = get_valid_notes_for_string(k)
+                    if current_val not in valid_notes: valid_notes.insert(0, current_val)
+                    val = st.selectbox(f"Corde {k}", valid_notes, index=valid_notes.index(current_val) if current_val in valid_notes else 0, key=f"acc_{k}", on_change=on_change_tuning, help=f"Choisissez la note pour la corde {k}")
                 acc_config[k] = {'x': POSITIONS_X[k], 'n': val}
         
         st.write("")
@@ -1044,11 +1049,15 @@ with tab_edit:
             if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
             return " I", " (Index)"
 
-        # --- FIX 3 : REAGENCEMENT EDITEUR BOUTONS POUR PORTRAIT ---
+        # --- DÉBUT MODIFICATION ONGLET BOUTONS (COMPACT) ---
         with subtab_btn:
+            # 1. Header compact + Doigté sur la même ligne pour gagner de la hauteur
             c_head, c_doigt = st.columns([1, 2])
-            with c_head: st.caption("🎹 **Saisie**") 
-            with c_doigt: st.radio("Doigté :", ["🖐️ Auto", "👍 P", "👆 I"], key="btn_mode_doigt", horizontal=True, label_visibility="collapsed")
+            with c_head:
+                st.caption("🎹 **Saisie Rapide**") # Plus petit que le header style
+            with c_doigt:
+                # Horizontal radio takes less vertical space
+                st.radio("Doigté :", ["🖐️ Auto", "👍 P", "👆 I"], key="btn_mode_doigt", horizontal=True, label_visibility="collapsed", help="Choisissez quel doigt est indiqué sur la tablature (Automatique, Pouce ou Index)")
 
             def ajouter_note_boutons(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
@@ -1057,52 +1066,63 @@ with tab_edit:
             
             def add_symbol_only(s): st.session_state.code_actuel += f"\n{s} "
 
-            # LIGNE 1 : CORDES GAUCHE / DROITE COTE A COTE
-            col_g, col_d = st.columns(2)
+            # 2. Layout en 3 Colonnes : Gauche | Droite | Outils (au lieu de tout empiler)
+            col_g, col_d, col_tools = st.columns([1, 1, 2])
+
+            # Colonne GAUCHE
             with col_g:
                 st.markdown("**Gauche**", unsafe_allow_html=True)
                 for c in ['1G','2G','3G','4G','5G','6G']:
-                    st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
+                    st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True, help=f"Ajoute la note sur la corde {c}")
+
+            # Colonne DROITE
             with col_d:
                 st.markdown("**Droite**", unsafe_allow_html=True)
                 for c in ['1D','2D','3D','4D','5D','6D']:
-                    st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
+                    st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True, help=f"Ajoute la note sur la corde {c}")
 
-            # LIGNE 2 : OUTILS EN DESSOUS
-            st.markdown("**Outils**", unsafe_allow_html=True)
-            c_tools_1, c_tools_2, c_tools_3, c_tools_4 = st.columns(4)
-            with c_tools_1: 
-                st.button("♩", on_click=add_symbol_only, args=("+",), use_container_width=True)
-                st.button("=", on_click=ajouter_avec_feedback, args=("=", "Simul."), use_container_width=True)
-            with c_tools_2: 
-                st.button("♪", on_click=add_symbol_only, args=("♪",), use_container_width=True)
-                st.button("x2", on_click=ajouter_avec_feedback, args=("x2", "x2"), use_container_width=True)
-            with c_tools_3: 
-                st.button("🎶", on_click=add_symbol_only, args=("🎶",), use_container_width=True)
-                st.button("S", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True)
-            with c_tools_4: 
-                st.button("♬", on_click=add_symbol_only, args=("♬",), use_container_width=True)
-                st.button("⌫", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
+            # Colonne OUTILS (Tout regroupé ici pour éviter le scroll)
+            with col_tools:
+                # A. Rythme (Ligne du haut)
+                st.markdown("**Rythme**", unsafe_allow_html=True)
+                c_r1, c_r2, c_r3, c_r4 = st.columns(4)
+                with c_r1: st.button("♩", on_click=add_symbol_only, args=("+",), use_container_width=True, help="Définit la prochaine note comme une Noire (+)")
+                with c_r2: st.button("♪", on_click=add_symbol_only, args=("♪",), use_container_width=True, help="Définit la prochaine note comme une Croche (♪)")
+                with c_r3: st.button("🎶", on_click=add_symbol_only, args=("🎶",), use_container_width=True, help="Définit la prochaine note comme un Triolet (🎶)")
+                with c_r4: st.button("♬", on_click=add_symbol_only, args=("♬",), use_container_width=True, help="Définit la prochaine note comme une Double-croche (♬)")
 
-            c_s1, c_s2 = st.columns(2)
-            with c_s1: st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True)
-            with c_s2: st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True)
+                # B. Actions (Grille compacte)
+                st.markdown("**Actions**", unsafe_allow_html=True)
+                c_t1, c_t2, c_t3, c_t4 = st.columns(4)
+                with c_t1: st.button("=", on_click=ajouter_avec_feedback, args=("=", "Simul."), use_container_width=True, help="Joue la note suivante simultanément avec la précédente (=)")
+                with c_t2: st.button("x2", on_click=ajouter_avec_feedback, args=("x2", "x2"), use_container_width=True, help="Répète la note précédente (x2)")
+                with c_t3: st.button("S", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True, help="Ajoute un temps de silence (S)")
+                with c_t4: st.button("⌫", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True, help="Supprime la dernière ligne ajoutée")
 
-            with st.expander("💾 Sauver Bloc", expanded=False):
-                b_name = st.text_input("Nom", key="name_blk_btn", label_visibility="collapsed", placeholder="Nom du bloc")
-                if st.button("Sauver", key="btn_save_btn"):
-                    if b_name and st.session_state.code_actuel:
-                        st.session_state.stored_blocks[b_name] = st.session_state.code_actuel
-                        st.toast(f"Bloc '{b_name}' créé !", icon="📦")
+                # C. Structure
+                st.write("") # Petit espace
+                c_s1, c_s2 = st.columns(2)
+                with c_s1: st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True, help="Ajoute un saut de page PDF")
+                with c_s2: st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True, help="Ajoute une annotation textuelle")
+
+                # D. Sauvegarde Bloc (Compact)
+                with st.expander("💾 Sauver Bloc", expanded=False):
+                    b_name = st.text_input("Nom", key="name_blk_btn", label_visibility="collapsed", placeholder="Nom du bloc", help="Nom du bloc à sauvegarder")
+                    if st.button("Sauver", key="btn_save_btn", help="Sauvegarde la séquence actuelle comme un nouveau bloc"):
+                        if b_name and st.session_state.code_actuel:
+                            st.session_state.stored_blocks[b_name] = st.session_state.code_actuel
+                            st.toast(f"Bloc '{b_name}' créé !", icon="📦")
+        # --- FIN MODIFICATION ---
 
         with subtab_visu:
             afficher_header_style("🎨 Mode Visuel")
             
+            # --- AJOUT SELECTEUR RYTHME ---
             c_doigt, c_rythme = st.columns(2)
             with c_doigt:
-                st.radio("Doigté :", ["🖐️ Auto", "👍 P", "👆 I"], key="visu_mode_doigt", horizontal=True)
+                st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True, help="Doigté par défaut pour les notes visuelles")
             with c_rythme:
-                st.radio("Rythme :", ["+", "♪", "🎶", "♬"], key="visu_mode_rythme", horizontal=True, index=0)
+                st.radio("Rythme par défaut :", ["+", "♪", "🎶", "♬"], key="visu_mode_rythme", horizontal=True, index=0, help="Durée de la note qui sera ajoutée en cliquant sur les cordes")
             
             def ajouter_note_visuelle(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "visu_mode_doigt")
@@ -1115,51 +1135,56 @@ with tab_edit:
                 elif action == "undo": annuler_derniere_ligne()
                 st.toast(msg_toast, icon="🛠️")
                 
-            st.write("") 
+            st.write("") # Petit espacement
             
-            col_head_g, col_head_d = st.columns(2)
-            with col_head_g: st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52;'>Gauche</div>", unsafe_allow_html=True)
-            with col_head_d: st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52;'>Droite</div>", unsafe_allow_html=True)
+            # --- MODIFICATION ICI : En-têtes explicites ---
+            col_head_g, col_head_sep, col_head_d = st.columns([6, 0.2, 6])
+            with col_head_g:
+                st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52; margin-bottom:5px;'>Cordes de gauche</div>", unsafe_allow_html=True)
+            with col_head_d:
+                st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52; margin-bottom:5px;'>Cordes de droite</div>", unsafe_allow_html=True)
+            # ----------------------------------------------
 
             cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
             
             cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
             for i, corde in enumerate(cordes_gauche):
                 with cols_visu[i]:
-                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True)
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True, help=f"Ajoute la note {corde}")
                     c = COLORS_VISU.get(corde, 'gray')
-                    st.markdown(f"<div style='margin:0 auto; width:10px; height:10px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
-                    st.markdown(f"<div style='margin:0 auto; width:2px; height:40px; background-color:{c};'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
             
             with cols_visu[6]: 
-                st.markdown("<div style='height:80px; width:2px; background-color:black; margin:0 auto;'></div>", unsafe_allow_html=True)
+                st.markdown("<div style='height:100px; width:4px; background-color:black; margin:0 auto; border-radius:2px;'></div>", unsafe_allow_html=True)
             
             cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
             for i, corde in enumerate(cordes_droite):
                 with cols_visu[i+7]:
-                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True)
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True, help=f"Ajoute la note {corde}")
                     c = COLORS_VISU.get(corde, 'gray')
-                    st.markdown(f"<div style='margin:0 auto; width:10px; height:10px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
-                    st.markdown(f"<div style='margin:0 auto; width:2px; height:40px; background-color:{c};'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
             
             st.write("")
             c_tools = st.columns(6)
-            with c_tools[0]: st.button("↩️", key="v_undo", on_click=outil_visuel_wrapper, args=("undo", "", "Annulé !"), use_container_width=True)
-            with c_tools[1]: st.button("🟰", key="v_simul", on_click=outil_visuel_wrapper, args=("ajouter", "=", "Simultané"), use_container_width=True)
-            with c_tools[2]: st.button("🔁", key="v_x2", on_click=outil_visuel_wrapper, args=("ajouter", "x2", "Doublé"), use_container_width=True)
-            with c_tools[3]: st.button("🔇", key="v_sil", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True)
-            with c_tools[4]: st.button("📄", key="v_page", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Page"), use_container_width=True)
-            with c_tools[5]: st.button("📝", key="v_txt", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Message", "Texte"), use_container_width=True)
+            with c_tools[0]: st.button("↩️", key="v_undo", on_click=outil_visuel_wrapper, args=("undo", "", "Annulé !"), use_container_width=True, help="Annuler la dernière action")
+            with c_tools[1]: st.button("🟰", key="v_simul", on_click=outil_visuel_wrapper, args=("ajouter", "=", "Simultané"), use_container_width=True, help="Notes simultanées (=)")
+            with c_tools[2]: st.button("🔁", key="v_x2", on_click=outil_visuel_wrapper, args=("ajouter", "x2", "Doublé"), use_container_width=True, help="Répéter la note (x2)")
+            with c_tools[3]: st.button("🔇", key="v_sil", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True, help="Ajouter un silence (S)")
+            with c_tools[4]: st.button("📄", key="v_page", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Page"), use_container_width=True, help="Saut de page")
+            with c_tools[5]: st.button("📝", key="v_txt", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Message", "Texte"), use_container_width=True, help="Annotation texte")
             afficher_section_sauvegarde_bloc("visu")
 
         with subtab_seq:
             afficher_header_style("🎹 Séquenceur")
             
-            seq_res = st.radio("Pas de la grille :", ["Noire (+)", "Croche (♪)", "Triolet (🎶)", "Double (♬)"], horizontal=True, key="seq_resolution")
+            # --- AJOUT SELECTEUR PAS DE GRILLE ---
+            seq_res = st.radio("Pas de la grille :", ["Noire (+)", "Croche (♪)", "Triolet (🎶)", "Double (♬)"], horizontal=True, key="seq_resolution", help="Définit la durée rythmique de chaque colonne de la grille")
             symbol_map = {"Noire (+)": "+", "Croche (♪)": "♪", "Triolet (🎶)": "🎶", "Double (♬)": "♬"}
             current_seq_symbol = symbol_map[seq_res]
             
-            nb_temps = st.number_input("Nombre de colonnes", min_value=4, max_value=64, value=8, step=4)
+            nb_temps = st.number_input("Nombre de colonnes", min_value=4, max_value=64, value=8, step=4, help="Nombre de temps affichés dans la grille")
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
             with cols[0]: st.write("**T**")
@@ -1176,13 +1201,14 @@ with tab_edit:
             st.write("")
             col_seq_btn, col_seq_reset = st.columns([3, 1])
             with col_seq_btn:
-                if st.button("📥 Insérer la séquence", type="primary", use_container_width=True):
+                if st.button("📥 Insérer la séquence", type="primary", use_container_width=True, help="Convertit la grille ci-dessus en code texte et l'ajoute à l'éditeur"):
                     texte_genere = ""
                     for t in range(nb_temps):
                         notes_activees = []
                         for c in cordes_list:
                             if st.session_state.seq_grid[f"T{t}_{c}"]: notes_activees.append(c)
                         
+                        # --- UTILISATION DU SYMBOLE CHOISI ---
                         if not notes_activees: texte_genere += f"{current_seq_symbol} S\n"
                         else:
                             premier = True
@@ -1194,7 +1220,7 @@ with tab_edit:
                     ajouter_texte(texte_genere)
                     st.toast("Séquence ajoutée !", icon="🎹")
             with col_seq_reset:
-                if st.button("🗑️"):
+                if st.button("🗑️", help="Vide toute la grille"):
                     for k in st.session_state.seq_grid: st.session_state.seq_grid[k] = False
                     st.rerun()
             afficher_section_sauvegarde_bloc("seq")
@@ -1203,9 +1229,9 @@ with tab_edit:
             afficher_header_style("📦 Blocs")
             c_bloc_1, c_bloc_2 = st.columns(2)
             with c_bloc_1:
-                new_block_name = st.text_input("Nom (ex: Refrain)", placeholder="Refrain")
-                new_block_content = st.text_area("Contenu", height=150, placeholder="+ 4G\n= 1D...")
-                if st.button("💾 Créer Bloc"):
+                new_block_name = st.text_input("Nom (ex: Refrain)", placeholder="Refrain", help="Nom du nouveau bloc")
+                new_block_content = st.text_area("Contenu", height=150, placeholder="+ 4G\n= 1D...", help="Code du bloc (copiez-collez ici ou utilisez le bouton de sauvegarde dans les autres onglets)")
+                if st.button("💾 Créer Bloc", help="Enregistre ce code comme un bloc réutilisable"):
                     if new_block_name and new_block_content:
                         st.session_state.stored_blocks[new_block_name] = new_block_content
                         st.toast(f"Bloc '{new_block_name}' sauvegardé !", icon="💾")
@@ -1216,8 +1242,8 @@ with tab_edit:
                 else: st.caption("Aucun.")
             st.markdown("---")
             st.markdown("#### 🏗️ Assembler")
-            structure_input = st.text_input("Structure (ex: Refrain x2 + Couplet)", placeholder="Refrain x2 + Couplet")
-            if st.button("🚀 Générer tout", type="primary"):
+            structure_input = st.text_input("Structure (ex: Refrain x2 + Couplet)", placeholder="Refrain x2 + Couplet", help="Définissez l'ordre de vos blocs (séparez par +)")
+            if st.button("🚀 Générer tout", type="primary", help="Remplace tout le code de l'éditeur par l'assemblage défini"):
                 if structure_input:
                     full_code = compiler_arrangement(structure_input, st.session_state.stored_blocks)
                     st.session_state.code_actuel = full_code
@@ -1227,13 +1253,13 @@ with tab_edit:
 
         st.markdown("---")
         st.caption("💡 Astuce : Vous pouvez agrandir la zone de texte en tirant le coin inférieur droit.")
-        st.text_area("Code", height=150, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed")
+        st.text_area("Code", height=150, key="widget_input", on_change=mise_a_jour_texte, label_visibility="collapsed", help="Zone d'édition manuelle du code de la tablature")
         
         col_play_btn, col_play_bpm = st.columns([1, 1])
-        with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100)
+        with col_play_bpm: bpm_preview = st.number_input("BPM", 40, 200, 100, help="Vitesse de lecture pour l'aperçu audio")
         with col_play_btn:
             st.write(""); st.write("")
-            if st.button("🎧 Écouter"):
+            if st.button("🎧 Écouter", help="Génère un aperçu audio rapide de ce qui est écrit dans l'éditeur"):
                 with st.status("🎵 ...", expanded=False) as status:
                     seq_prev = parser_texte(st.session_state.code_actuel)
                     audio_prev = generer_audio_mix(seq_prev, bpm_preview, acc_config)
@@ -1243,8 +1269,8 @@ with tab_edit:
         with st.expander("Gérer le fichier (Sauvegarde & Projet)"):
             tab_txt, tab_proj = st.tabs(["📄 Texte", "📦 Projet Complet"])
             with tab_txt:
-                st.download_button(label="💾 Sauvegarder (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain", use_container_width=True)
-                uploaded_txt = st.file_uploader("Charger .txt", type="txt", key="load_txt")
+                st.download_button(label="💾 Sauvegarder (.txt)", data=st.session_state.code_actuel, file_name=f"{titre_partition}.txt", mime="text/plain", use_container_width=True, help="Télécharge uniquement le texte de la tablature")
+                uploaded_txt = st.file_uploader("Charger .txt", type="txt", key="load_txt", help="Charge un fichier texte simple")
                 if uploaded_txt:
                     content = io.StringIO(uploaded_txt.getvalue().decode("utf-8")).read()
                     st.session_state.code_actuel = content
@@ -1254,8 +1280,8 @@ with tab_edit:
             with tab_proj:
                 projet_data = { "titre": titre_partition, "code": st.session_state.code_actuel, "blocs": st.session_state.stored_blocks, "version": "1.0" }
                 json_str = json.dumps(projet_data, indent=4)
-                st.download_button(label="💾 Sauvegarder votre projet", data=json_str, file_name=f"{titre_partition}.ngoni", mime="application/json", use_container_width=True)
-                uploaded_proj = st.file_uploader("Charger votre projet sauvegardé", type=["ngoni", "json"], key="load_proj")
+                st.download_button(label="💾 Sauvegarder votre projet", data=json_str, file_name=f"{titre_partition}.ngoni", mime="application/json", use_container_width=True, help="Sauvegarde tout : code, blocs et configuration")
+                uploaded_proj = st.file_uploader("Charger votre projet sauvegardé", type=["ngoni", "json"], key="load_proj", help="Restaure un projet complet")
                 if uploaded_proj:
                     try:
                         data = json.load(uploaded_proj)
@@ -1279,9 +1305,9 @@ with tab_edit:
             with container:
                  if st.session_state.pdf_buffer:
                     st.markdown("---")
-                    st.download_button(label="📕 Télécharger PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+                    st.download_button(label="📕 Télécharger PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True, help="Télécharger le fichier PDF final pour impression")
 
-        if st.button("🔄 Générer", type="primary", use_container_width=True):
+        if st.button("🔄 Générer", type="primary", use_container_width=True, help="Lance le traitement pour créer les images de la partition et le PDF"):
             st.session_state.partition_buffers = [] 
             st.session_state.pdf_buffer = None
             DPI_PDF_OPTIMISE = 150 
@@ -1355,7 +1381,7 @@ with tab_video:
             duree_estimee = ((seq[-1]['tick'] / 12) * (60/bpm)) + 4 if seq else 10 # Estimation base 12
             st.write(f"Durée : {int(duree_estimee)}s")
         with col_v2:
-            if st.button("🎥 Créer Vidéo", type="primary", use_container_width=True):
+            if st.button("🎥 Créer Vidéo", type="primary", use_container_width=True, help="Génère un fichier MP4 avec la tablature qui défile"):
                 with st.status("🎬 Studio de montage...", expanded=True) as status:
                     v_bar = st.progress(0, text="Initialisation...")
                     sequence = parser_texte(st.session_state.code_actuel)
@@ -1367,7 +1393,7 @@ with tab_video:
                         img_buffer, px, offset = generer_image_longue_calibree(sequence, acc_config, styles_video, dpi=90)
                         if img_buffer:
                             v_bar.progress(50, text="Encodage vidéo en cours...")
-                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duration_sec, (px, offset), bpm, fps=12)
+                            video_path = creer_video_avec_son_calibree(img_buffer, audio_buffer, duree_estimee, (px, offset), bpm, fps=12)
                             if video_path:
                                 st.session_state.video_path = video_path 
                                 v_bar.progress(100, text="Terminé !")
@@ -1386,7 +1412,7 @@ with tab_audio:
         if not HAS_PYDUB: st.error("Manque pydub")
         else:
             bpm_audio = st.slider("BPM", 30, 200, 100, key="bpm_audio", help="Vitesse pour le fichier MP3")
-            if st.button("🎵 Créer MP3", type="primary", use_container_width=True):
+            if st.button("🎵 Créer MP3", type="primary", use_container_width=True, help="Génère un fichier audio complet de votre morceau"):
                 seq = parser_texte(st.session_state.code_actuel)
                 mp3 = generer_audio_mix(seq, bpm_audio, acc_config)
                 if mp3: st.session_state.audio_buffer = mp3
