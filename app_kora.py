@@ -34,86 +34,90 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : METHODE "FORCE BRUTE"
+# 📱 OPTIMISATION CSS : METHODE "FORCE BRUTE" (NOUVELLE VERSION)
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
-    /* 1. CONTENEUR PRINCIPAL */
+    /* RESET GLOBAL */
     .stApp { overflow-x: hidden !important; }
     div[data-testid="block-container"] {
         padding-top: 1rem !important;
-        padding-left: 0.2rem !important; padding-right: 0.2rem !important;
+        padding-left: 0.5rem !important; padding-right: 0.5rem !important;
         max-width: 100% !important;
     }
 
     /* ==========================================================================
        REGLES CRITIQUES POUR MOBILE (Jusqu'à 950px - Portrait & Paysage)
-       On écrase tout comportement par défaut de Streamlit avec !important
     ========================================================================== */
     @media (max-width: 950px) {
     
-        /* --- A. LA STRUCTURE PRINCIPALE (Éditeur + Aperçu) --- 
-           Ce bloc a 2 colonnes principales. On VEUT qu'il s'empile.
-           Cible : Un bloc horizontal qui a un 2ème enfant mais PAS de 3ème enfant. */
+        /* 1. LA STRUCTURE PRINCIPALE (Éditeur + Aperçu)
+           Cible : Un bloc horizontal qui contient exactement 2 colonnes.
+           Action : ON LE FORCE EN COLONNE (VERTICAL) pour mettre l'aperçu en dessous. */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) {
             flex-direction: column !important;
-            gap: 2rem !important;
+            width: 100% !important;
+        }
+        /* Les colonnes à l'intérieur prennent toute la largeur */
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) > div[data-testid="column"] {
+            width: 100% !important;
+            min-width: 100% !important;
         }
 
-        /* --- B. L'ONGLET "BOUTONS" (Gauche | Droite | Outils) ---
-           Ce bloc a 3 colonnes. On VEUT qu'il reste en ligne (côte à côte).
-           Cible : Un bloc qui a un 3ème enfant mais PAS de 4ème enfant (ou pas de 6ème pour être sûr). */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-            gap: 5px !important;
-        }
-        /* Dans cet onglet, on donne une taille raisonnable aux colonnes (pas 1cm, mais pas 100%) */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) > div[data-testid="column"] {
-            min-width: 30vw !important; /* Chaque colonne prend 1/3 de l'écran */
-            max-width: 40vw !important;
-            flex: 0 0 auto !important;
-        }
-
-        /* --- C. L'ÉDITEUR VISUEL & SÉQUENCEUR (Les Cordes) ---
-           Ce sont des blocs avec beaucoup de colonnes (6, 12, 13...).
-           On VEUT qu'ils soient en ligne, avec SCROLL, et PETITS BOUTONS (1cm). */
+        /* 2. LES GRILLES DE BOUTONS (Visuel, Séquenceur)
+           Cible : Un bloc qui contient au moins 6 colonnes (vos 13 boutons).
+           Action : ON LE FORCE EN LIGNE (HORIZONTAL) avec SCROLL. */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) {
             flex-direction: row !important;
-            flex-wrap: nowrap !important; /* Interdit le retour à la ligne */
-            overflow-x: auto !important;  /* Scroll horizontal */
-            justify-content: flex-start !important;
+            flex-wrap: nowrap !important;        /* Interdit le retour à la ligne */
+            overflow-x: auto !important;         /* Active le scroll horizontal */
+            display: flex !important;
+            align-items: center !important;
             gap: 2px !important;
-            padding-bottom: 8px !important;
+            padding-bottom: 10px !important;     /* Place pour scroller */
         }
 
-        /* LA TAILLE DES BOUTONS VISUELS (Le fameux 1cm) */
+        /* 3. TAILLE DES BOUTONS "CORDES" (Le problème de largeur)
+           On force chaque colonne de ces grilles à faire ~42px fixe. */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) > div[data-testid="column"] {
-            width: 45px !important;       /* Largeur forcée */
-            min-width: 45px !important;
-            max-width: 45px !important;
-            flex: 0 0 auto !important;    /* Fixe */
+            min-width: 42px !important;
+            max-width: 42px !important;
+            width: 42px !important;
+            flex: 0 0 auto !important; /* Fixe */
         }
 
-        /* Ajustement du texte dans ces petits boutons */
+        /* Réduction du texte à l'intérieur pour que ça rentre */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) button {
             padding: 0px !important;
             font-size: 0.7rem !important;
-            min-height: 0px !important;
-            height: auto !important;
+            width: 100% !important;
             overflow: hidden !important;
+        }
+
+        /* 4. CAS PARTICULIER : L'ONGLET "BOUTONS" (3 Colonnes : G / D / Outils)
+           Cible : Un bloc qui a 3 colonnes mais pas 6.
+           Action : On garde en ligne, mais on laisse plus de place (pas 42px). */
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) {
+            flex-direction: row !important;
+            overflow-x: auto !important;
+            gap: 5px !important;
+        }
+        /* Chaque colonne prend 1/3 de l'écran environ */
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) > div[data-testid="column"] {
+            min-width: 30vw !important;
+            width: 30vw !important;
+            flex: 0 0 auto !important;
         }
     }
 
     /* ============================================================
-       ESTHÉTIQUE GÉNÉRALE
+       ESTHÉTIQUE GÉNÉRALE (PC & MOBILE)
     ============================================================ */
     .stButton button { width: 100%; line-height: 1.2; white-space: nowrap; }
-    div[data-testid="column"] button p { font-weight: bold; }
     
+    /* Couleur Onglets */
     button[data-testid="stTab"] { 
         padding: 5px 10px !important; font-size: 0.8rem !important;
         border: 1px solid #A67C52; border-radius: 5px; margin-right: 2px; 
@@ -122,6 +126,8 @@ def load_css_styles():
     button[data-testid="stTab"][aria-selected="true"] { 
         background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
     }
+    
+    /* Upload Zone */
     [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
     [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
 </style>
