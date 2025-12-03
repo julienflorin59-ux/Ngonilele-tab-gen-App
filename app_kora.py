@@ -759,10 +759,9 @@ if "code" in query_params and st.session_state.code_actuel == BANQUE_TABLATURES[
     try: st.session_state.code_actuel = query_params["code"]
     except: pass
 
-def charger_morceau():
-    choix = st.session_state.selection_banque
-    if choix in BANQUE_TABLATURES:
-        nouveau = BANQUE_TABLATURES[choix].strip()
+def charger_element_banque(titre):
+    if titre in BANQUE_TABLATURES:
+        nouveau = BANQUE_TABLATURES[titre].strip()
         st.session_state.code_actuel = nouveau
         st.session_state.widget_input = nouveau
         st.session_state.partition_generated = False
@@ -775,7 +774,7 @@ def charger_morceau():
         gc.collect()
         
         # Gestion de la gamme
-        nom_gamme_a_charger = ASSOCIATIONS_MORCEAUX_GAMMES.get(choix, "1. Pentatonique Fondamentale")
+        nom_gamme_a_charger = ASSOCIATIONS_MORCEAUX_GAMMES.get(titre, "1. Pentatonique Fondamentale")
         if nom_gamme_a_charger in GAMMES_PRESETS:
             notes_str = GAMMES_PRESETS[nom_gamme_a_charger]
             parsed = parse_gamme_string(notes_str)
@@ -826,10 +825,32 @@ force_white_print = True
 with st.sidebar:
     st.header("🎚️ Réglages")
     st.markdown("### 📚 Banque de Morceaux")
-    st.selectbox("Choisir un morceau :", options=list(BANQUE_TABLATURES.keys()), key='selection_banque', on_change=charger_morceau, help="Chargez un morceau ou un exercice depuis la bibliothèque.")
-    st.caption("⚠️ Remplacera le texte actuel.")
     
+    # --- MODIFICATION SIDEBAR (ONGLETS) ---
+    tous_les_titres = list(BANQUE_TABLATURES.keys())
+    titres_exos = [k for k in tous_les_titres if "Exercice" in k or "Démonstration" in k]
+    titres_morceaux = [k for k in tous_les_titres if k not in titres_exos]
+    
+    # Ajout du "Nouveau" dans les exos s'il n'y est pas, pour praticité
+    if "--- Nouveau / Vide ---" in titres_morceaux and "--- Nouveau / Vide ---" not in titres_exos:
+        titres_exos.insert(0, "--- Nouveau / Vide ---")
+
+    tab_b1, tab_b2 = st.tabs(["🎵 Morceaux", "💪 Exercices"])
+
+    with tab_b1:
+        choix_morceau = st.selectbox("Morceau :", options=titres_morceaux, key='sel_morceau')
+        if st.button("Charger Morceau", use_container_width=True):
+            charger_element_banque(choix_morceau)
+
+    with tab_b2:
+        choix_exo = st.selectbox("Exercice :", options=titres_exos, key='sel_exo')
+        if st.button("Charger Exercice", use_container_width=True):
+            charger_element_banque(choix_exo)
+    
+    st.caption("⚠️ Remplacera le texte actuel.")
     st.markdown("---")
+    # --- FIN MODIFICATION ---
+    
     st.markdown("### 🤝 Contribuer")
     st.markdown(f'<a href="mailto:julienflorin59@gmail.com" target="_blank"><button title="Envoyez vos créations par email au développeur" style="width:100%; background-color:#A67C52; color:white; padding:10px; border:none; border-radius:5px; cursor:pointer; font-weight:bold;">📧 Envoyer ma partition</button></a>', unsafe_allow_html=True)
     
