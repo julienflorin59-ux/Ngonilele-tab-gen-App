@@ -34,14 +34,15 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : MOBILE FRIENDLY & COMPACT
+# 📱 OPTIMISATION CSS : MOBILE PORTRAIT & PAYSAGE
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
-    /* 1. CONFIGURATION GÉNÉRALE */
-    .stApp { overflow-x: hidden; } /* Evite le scroll horizontal global */
+    /* 1. CONFIGURATION GLOBALE */
+    .stApp { overflow-x: hidden; } 
+    
     div[data-testid="block-container"] {
         padding-top: 1rem !important;
         padding-left: 0.5rem !important;
@@ -49,67 +50,77 @@ def load_css_styles():
         max-width: 100% !important;
     }
 
-    /* 2. FORCER L'ALIGNEMENT CÔTE À CÔTE (Gère le portrait) */
-    @media (max-width: 768px) {
-        /* Force les colonnes Streamlit à rester sur une ligne */
-        div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            gap: 5px !important;
-        }
-        
-        /* Force les colonnes à se partager l'espace (50/50 si 2 colonnes) */
-        div[data-testid="column"] {
-            flex: 1 1 auto !important;
-            width: auto !important;
-            min-width: 0 !important;
-        }
+    /* 2. STYLE DES BOUTONS (COMPACTS) */
+    .stButton button {
+        width: 100% !important;
+        padding: 0.4rem 0.1rem !important;
+        font-size: 0.9rem !important;
+        line-height: 1.1 !important;
+        min-height: 0px !important;
+        height: auto !important;
+        margin: 0px !important;
     }
 
-    /* 3. LÉGENDE COULEURS (HTML FLEXBOX) */
-    /* Remplace les colonnes Streamlit pour les pastilles */
+    /* 3. LÉGENDE COULEURS (FLEXBOX) */
     .legend-wrapper {
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
         gap: 8px;
         margin-bottom: 10px;
+        background-color: #f0f0f0;
+        padding: 5px;
+        border-radius: 10px;
     }
     .legend-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        width: 35px;
+        width: 30px;
     }
     .pastille {
         width: 20px; height: 20px; border-radius: 50%; 
         border: 1px solid #999; margin-bottom: 2px;
     }
-    .legend-txt { font-size: 10px; font-weight: bold; text-align: center; line-height: 1; }
+    .legend-txt { font-size: 10px; font-weight: bold; text-align: center; color: black; }
 
-    /* 4. BOUTONS COMPACTS */
-    .stButton button {
-        width: 100% !important;
-        padding: 0.3rem 0.1rem !important;
-        font-size: 0.85rem !important;
-        line-height: 1.1 !important;
-        min-height: 2.5rem !important;
-        height: auto !important;
-        white-space: nowrap !important;
+    /* 4. OPTIMISATION DES COLONNES SUR MOBILE */
+    @media (max-width: 640px) {
+        /* Force l'affichage en ligne (Row) au lieu de colonne */
+        div[data-testid="column"] {
+            flex: 1 1 0 !important; /* Partage équitable */
+            min-width: 0 !important; /* Autorise le rétrécissement maximum */
+            padding: 0px 2px !important;
+        }
+        
+        div[data-testid="stHorizontalBlock"] {
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 2px !important;
+        }
+        
+        /* Exception pour les formulaires qui ont besoin de place */
+        div[data-testid="stHorizontalBlock"]:has(input) {
+             /* On laisse les inputs normaux tranquilles si besoin */
+        }
     }
     
     /* 5. ONGLETS ET INPUTS */
     button[data-testid="stTab"] { 
-        padding: 5px 10px !important; font-size: 0.8rem !important;
+        padding: 8px 5px !important; font-size: 0.8rem !important;
         background-color: #e5c4a3; color: black; border: 1px solid #A67C52;
-        flex: 1; /* Tabs prennent toute la largeur */
+        flex: 1; 
     }
     button[data-testid="stTab"][aria-selected="true"] { 
         background-color: #d4b08c; font-weight: bold; 
     }
     [data-testid='stFileUploader'] label { display: none; }
     
-    /* 6. INFOBULLES */
+    /* 6. TEXTES */
+    h3 { font-size: 1.2rem !important; padding-bottom: 0px; }
+    p { margin-bottom: 0.5rem; }
+
+    /* 7. INFOBULLES */
     div[data-testid="stTooltipContent"] {
         background-color: #333 !important; color: white !important; font-size: 0.8rem !important;
     }
@@ -1279,9 +1290,9 @@ with tab_edit:
                 elif item['type'] == 'page': st.markdown(f"#### Page {item['idx']}"); st.pyplot(item['img_ecran'])
     def afficher_bouton_pdf(container):
         with container:
-             if st.session_state.pdf_buffer:
-                st.markdown("---")
-                st.download_button(label="📕 Télécharger PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
+                if st.session_state.pdf_buffer:
+                    st.markdown("---")
+                    st.download_button(label="📕 Télécharger PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
 
     if st.button("🔄 Générer", type="primary", use_container_width=True):
         st.session_state.partition_buffers = [] 
