@@ -992,13 +992,13 @@ with tab_edit:
 
             # Colonne GAUCHE
             with col_g:
-                st.markdown("**G**", unsafe_allow_html=True)
+                st.markdown("**Gauche**", unsafe_allow_html=True)
                 for c in ['1G','2G','3G','4G','5G','6G']:
                     st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
 
             # Colonne DROITE
             with col_d:
-                st.markdown("**D**", unsafe_allow_html=True)
+                st.markdown("**Droite**", unsafe_allow_html=True)
                 for c in ['1D','2D','3D','4D','5D','6D']:
                     st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
 
@@ -1007,7 +1007,7 @@ with tab_edit:
                 # A. Rythme (Ligne du haut)
                 st.markdown("**Rythme**", unsafe_allow_html=True)
                 c_r1, c_r2, c_r3, c_r4 = st.columns(4)
-                with c_r1: st.button("+", on_click=add_symbol_only, args=("+",), use_container_width=True, help="Noire")
+                with c_r1: st.button("♩", on_click=add_symbol_only, args=("+",), use_container_width=True, help="Noire")
                 with c_r2: st.button("♪", on_click=add_symbol_only, args=("♪",), use_container_width=True, help="Croche")
                 with c_r3: st.button("🎶", on_click=add_symbol_only, args=("🎶",), use_container_width=True, help="Triolet")
                 with c_r4: st.button("♬", on_click=add_symbol_only, args=("♬",), use_container_width=True, help="Double")
@@ -1015,16 +1015,16 @@ with tab_edit:
                 # B. Actions (Grille compacte)
                 st.markdown("**Actions**", unsafe_allow_html=True)
                 c_t1, c_t2, c_t3, c_t4 = st.columns(4)
-                with c_t1: st.button("=", on_click=ajouter_avec_feedback, args=("=", "Simul."), use_container_width=True, help="Simultané")
-                with c_t2: st.button("x2", on_click=ajouter_avec_feedback, args=("x2", "x2"), use_container_width=True, help="Doubler")
-                with c_t3: st.button("S", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True, help="Silence")
+                with c_t1: st.button("=", on_click=ajouter_avec_feedback, args=("=", "Simul."), use_container_width=True, help="Notes simultanées")
+                with c_t2: st.button("x2", on_click=ajouter_avec_feedback, args=("x2", "x2"), use_container_width=True, help="Doubler la note")
+                with c_t3: st.button("S", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True, help="Ajouter un silence")
                 with c_t4: st.button("⌫", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True, help="Effacer ligne")
 
                 # C. Structure
                 st.write("") # Petit espace
                 c_s1, c_s2 = st.columns(2)
-                with c_s1: st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True)
-                with c_s2: st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True)
+                with c_s1: st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True, help="Ajouter un saut de page")
+                with c_s2: st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True, help="Ajouter une annotation textuelle")
 
                 # D. Sauvegarde Bloc (Compact)
                 with st.expander("💾 Sauver Bloc", expanded=False):
