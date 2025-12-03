@@ -478,7 +478,19 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
     ax.text(0, y_row3, "RYTHMES :  + = Noire  |  ♪ = Croche  |  🎶 = Triolet  |  ♬ = Double", ha='center', va='center', fontsize=12, fontweight='bold', color=c_txt)
 
     x_droite = 1.5; y_text_top = y_pos - 1.2; line_height = 0.45
-    ax.text(x_droite, y_text_top, "1G = 1ère corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*2, "1D = 1ère corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*3, "2D = 2ème corde à droite", ha='left', va='center', fontproperties=prop_legende, color=c_txt); ax.text(x_droite, y_text_top - line_height*4, "(Etc...)", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    
+    # --- MODIFICATION: Ligne horizontale avec Flexbox-like drawing en Matplotlib ---
+    # On dessine une ligne noire au milieu
+    ax.plot([x_droite + 0.5, 6.0], [y_text_top + 0.2, y_text_top + 0.2], color='black', lw=2)
+    # Lettre G à gauche
+    ax.text(x_droite + 0.2, y_text_top + 0.2, "G", ha='right', va='center', fontsize=14, fontweight='bold', color=c_txt)
+    # Lettre D à droite
+    ax.text(6.3, y_text_top + 0.2, "D", ha='left', va='center', fontsize=14, fontweight='bold', color=c_txt)
+    
+    # Texte explicatif dessous (inchangé)
+    ax.text(x_droite, y_text_top - line_height, "1G = 1ère corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    ax.text(x_droite, y_text_top - line_height*2, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
+    # ... suite des textes ...
 
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font_cached(32, 'bold')
