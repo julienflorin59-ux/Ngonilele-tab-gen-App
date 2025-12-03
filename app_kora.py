@@ -46,16 +46,23 @@ def load_css_styles():
         div[data-testid="column"] { width: calc(50% - 0.5rem) !important; flex: 1 1 calc(50% - 0.5rem) !important; min-width: calc(50% - 0.5rem) !important; }
         div[data-testid="stHorizontalBlock"] { overflow-x: auto !important; flex-wrap: nowrap !important; }
     }
-    /* --- STYLE DES ONGLETS (TABS) --- */
-    button[data-testid="stTab"] { border: 1px solid #A67C52; border-radius: 5px; margin-right: 5px; background-color: #e5c4a3; color: black; padding: 10px 15px; transition: all 0.2s ease; opacity: 0.9; position: relative; }
-    button[data-testid="stTab"][aria-selected="true"] { background-color: #d4b08c; border: 2px solid #A67C52; color: black; font-weight: bold; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); opacity: 1; }
-    button[data-testid="stTab"]:hover { border-color: #8c6642; background-color: #d4b08c; opacity: 1; }
     
-    /* --- BOUTONS COMPACTS (Global) --- */
+    /* --- STYLE DES ONGLETS (TABS) --- */
+    button[data-testid="stTab"] { border: 1px solid #A67C52; border-radius: 5px; margin-right: 5px; background-color: #e5c4a3; color: black; padding: 5px 10px; transition: all 0.2s ease; opacity: 0.9; position: relative; }
+    button[data-testid="stTab"][aria-selected="true"] { background-color: #d4b08c; border: 2px solid #A67C52; color: black; font-weight: bold; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); opacity: 1; }
+    
+    /* --- BOUTONS ULTRA COMPACTS --- */
+    .stButton { margin-bottom: 0px !important; }
     .stButton button {
-        padding-top: 0.4rem;
-        padding-bottom: 0.4rem;
+        padding: 2px 8px !important;
+        font-size: 0.9rem !important;
+        line-height: 1.2 !important;
+        min-height: 0px !important;
+        height: auto !important;
+        margin-top: 0px !important;
+        margin-bottom: 2px !important;
     }
+    div[data-testid="stVerticalBlock"] { gap: 0.2rem !important; }
     
     /* --- INFOBULLES --- */
     div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after {
@@ -69,9 +76,9 @@ def load_css_styles():
     /* GESTION FICHIERS STYLE */
     .stDownloadButton button { background-color: #e5c4a3 !important; color: black !important; border: none !important; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px 0px !important; transition: background-color 0.2s; }
     .stDownloadButton button:hover { background-color: #d4b08c !important; }
-    [data-testid='stFileUploader'] { margin-top: 10px; }
+    [data-testid='stFileUploader'] { margin-top: 5px; }
     [data-testid='stFileUploader'] label[data-testid='stWidgetLabel'] { display: none; }
-    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 0.6rem 1rem; min-height: 0px; align-items: center; justify-content: center; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px 0px !important; cursor: pointer; transition: background-color 0.2s; }
+    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 0.4rem 1rem; min-height: 0px; align-items: center; justify-content: center; box-shadow: rgba(0, 0, 0, 0.1) 0px 2px 4px 0px !important; cursor: pointer; transition: background-color 0.2s; }
     [data-testid='stFileDropzone']:hover { background-color: #d4b08c !important; }
     [data-testid='stFileDropzone'] > div > div { display: none !important; }
     [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; }
@@ -91,17 +98,17 @@ CHEMIN_LOGO_APP = 'ico_ngonilele.png'
 CHEMIN_HEADER_IMG = 'texture_ngonilele_2.png'
 DOSSIER_SAMPLES = 'samples'
 
-# --- NOUVELLES CONSTANTES RYTHMIQUES (BASE 12) ---
-TICKS_NOIRE = 12       # 1 temps
-TICKS_CROCHE = 6       # 1/2 temps
-TICKS_TRIOLET = 4      # 1/3 temps
-TICKS_DOUBLE = 3       # 1/4 temps
+# --- CONSTANTES RYTHMIQUES (BASE 12) ---
+TICKS_NOIRE = 12       
+TICKS_CROCHE = 6       
+TICKS_TRIOLET = 4      
+TICKS_DOUBLE = 3       
 
 SYMBOLES_DUREE = {
     '+': TICKS_NOIRE,
-    '♪': TICKS_CROCHE,   # Croche (1 note)
-    '🎶': TICKS_TRIOLET, # Triolet (3 notes)
-    '♬': TICKS_DOUBLE    # Double (2 notes)
+    '♪': TICKS_CROCHE,   
+    '🎶': TICKS_TRIOLET, 
+    '♬': TICKS_DOUBLE    
 }
 
 # --- COULEURS & CONSTANTES LOGIQUES ---
@@ -137,12 +144,13 @@ BASE_TUNING_HARDWARE = {
 DEF_ACC = BASE_TUNING_HARDWARE.copy()
 ASSOCIATIONS_MORCEAUX_GAMMES = {"Manitoumani -M- & Lamomali": "3. Manitoumani (Standard)"}
 
+# --- BANQUE DE MORCEAUX ---
 BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
     "Exercice Débutant 1 : Montée et descente de Gamme": "1   1D\n+   S\n+   1G\n+   S\n+   2D\n+   S\n+   2G\n+   S\n+   3D\n+   S\n+   3G\n+   S\n+   4D\n+   S\n+   4G\n+   S\n+   5D\n+   S\n+   5G\n+   S\n+   6D\n+   S\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   S\n+   6D\n+   S\n+   5G\n+   S\n+   5D\n+   S\n+   4G\n+   S\n+   4D\n+   S\n+   3G\n+   S\n+   3D\n+   S\n+   2G\n+   S\n+   2D\n+   S\n+   1G\n+   S\n+   1D",
     "Exercice Débutant 2 : Montée et descente de Gamme en triolets": "1   1D\n+   1G\n+   2D\n+   S\n+   1G\n+   2D\n+   2G\n+   S\n+   2D\n+   2G\n+   3D\n+   S\n+   2G\n+   3D\n+   3G\n+   S\n+   3D\n+   3G\n+   4D\n+   S\n+   3G\n+   4D\n+   4G\n+   S\n+   4D\n+   4G\n+   5D\n+   S\n+   4G\n+   5D\n+   5G\n+   S\n+   5D\n+   5G\n+   6D\n+   S\n+   5G\n+   6D\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   6D\n+   5G\n+   S\n+   6D\n+   5G\n+   5D\n+   S\n+   5G\n+   5D\n+   4G\n+   S\n+   5D\n+   4G\n+   4D\n+   S\n+   4G\n+   4D\n+   3G\n+   S\n+   4D\n+   3G\n+   3D\n+   S\n+   3G\n+   3D\n+   2G\n+   S\n+   3D\n+   2G\n+   2D\n+   S\n+   2G\n+   2D\n+   1G\n+   S\n+   2D\n+   1G\n+   1D",
-    "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G",
     "Exercice 3 : Les Tierces": "1   1G\n+   3G\n+   2G\n+   4G\n+   3G\n+   5G\n+   4G\n+   6G\n+   S\n+   TXT  COTE DROIT\n+   1D\n+   3D\n+   2D\n+   4D\n+   3D\n+   5D\n+   4D\n+   6D\n+   S\n+   TXT  FINAL\n+   6G\n=   6D",
+    "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G",
     "Démonstration Rythmes": "1   6G\n+   TXT  NOIRES (+)\n+   6D\n+   5G\n+   5D\n+   S\n+   TXT  CROCHES (♪)\n♪   4G\n♪   4D\n♪   3G\n♪   3D\n+   S\n+   TXT  TRIOLETS (🎶)\n🎶   2G\n🎶   2D\n🎶   1G\n🎶   1D\n🎶   2G\n🎶   2D\n+   S\n+   TXT  DOUBLES (♬)\n♬ 6G\n♬ 6D\n♬ 5G\n♬ 5D\n♬ 4G\n♬ 4D\n♬ 3G\n♬ 3D"
 }
 
@@ -479,18 +487,12 @@ def dessiner_contenu_legende(ax, y_pos, styles, mode_white=False):
 
     x_droite = 1.5; y_text_top = y_pos - 1.2; line_height = 0.45
     
-    # --- MODIFICATION: Ligne horizontale avec Flexbox-like drawing en Matplotlib ---
-    # On dessine une ligne noire au milieu
-    ax.plot([x_droite + 0.5, 6.0], [y_text_top + 0.2, y_text_top + 0.2], color='black', lw=2)
-    # Lettre G à gauche
-    ax.text(x_droite + 0.2, y_text_top + 0.2, "G", ha='right', va='center', fontsize=14, fontweight='bold', color=c_txt)
-    # Lettre D à droite
-    ax.text(6.3, y_text_top + 0.2, "D", ha='left', va='center', fontsize=14, fontweight='bold', color=c_txt)
+    # --- MODIFICATION: REMPLACEMENT LIGNE PAR TEXTE ---
+    ax.text(0, y_text_top + 0.2, "Boutons G = Cordes de gauche  |  Boutons D = Cordes de droite", ha='center', va='center', fontsize=14, fontweight='bold', color=c_txt)
     
     # Texte explicatif dessous (inchangé)
     ax.text(x_droite, y_text_top - line_height, "1G = 1ère corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
     ax.text(x_droite, y_text_top - line_height*2, "2G = 2ème corde à gauche", ha='left', va='center', fontproperties=prop_legende, color=c_txt)
-    # ... suite des textes ...
 
 def generer_page_1_legende(titre, styles, mode_white=False):
     c_fond = styles['FOND']; c_txt = styles['TEXTE']; prop_titre = get_font_cached(32, 'bold')
