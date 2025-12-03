@@ -34,27 +34,65 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS & STYLE GLOBAL
+# 📱 OPTIMISATION CSS & STYLE GLOBAL (FORCE DESKTOP)
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
-    /* Sur mobile uniquement (écrans < 640px) */
-    @media (max-width: 640px) {
-        .stButton button { padding: 0px 2px !important; font-size: 0.8rem !important; min-height: 40px !important; white-space: nowrap !important; }
-        div[data-testid="column"] { width: calc(50% - 0.5rem) !important; flex: 1 1 calc(50% - 0.5rem) !important; min-width: calc(50% - 0.5rem) !important; }
-        div[data-testid="stHorizontalBlock"] { overflow-x: auto !important; flex-wrap: nowrap !important; }
+    /* --- FORCER LE MODE ORDINATEUR SUR MOBILE --- */
+    /* On impose une largeur minimale au conteneur principal */
+    .stApp {
+        min-width: 1280px !important; /* Force la largeur d'un écran standard */
+        overflow-x: auto !important;  /* Permet le scroll horizontal si besoin */
     }
+    
+    /* On s'assure que le conteneur de blocs ne rétrécit pas */
+    div[data-testid="block-container"] {
+        min-width: 1200px !important;
+        max-width: 100% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+
+    /* Empêcher l'empilement des colonnes (flex-wrap) */
+    div[data-testid="column"] {
+        min-width: 0 !important; /* Évite que les colonnes ne prennent 100% */
+        flex: 1 !important;      /* Force les colonnes à rester côte à côte */
+    }
+
     /* --- STYLE DES ONGLETS (TABS) --- */
-    button[data-testid="stTab"] { border: 1px solid #A67C52; border-radius: 5px; margin-right: 5px; background-color: #e5c4a3; color: black; padding: 10px 15px; transition: all 0.2s ease; opacity: 0.9; position: relative; }
-    button[data-testid="stTab"][aria-selected="true"] { background-color: #d4b08c; border: 2px solid #A67C52; color: black; font-weight: bold; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); opacity: 1; }
-    button[data-testid="stTab"]:hover { border-color: #8c6642; background-color: #d4b08c; opacity: 1; }
+    button[data-testid="stTab"] { 
+        border: 1px solid #A67C52; 
+        border-radius: 5px; 
+        margin-right: 5px; 
+        background-color: #e5c4a3; 
+        color: black; 
+        padding: 10px 15px; 
+        transition: all 0.2s ease; 
+        opacity: 0.9; 
+        position: relative; 
+        font-size: 1rem !important; /* Taille de police stable */
+    }
+    button[data-testid="stTab"][aria-selected="true"] { 
+        background-color: #d4b08c; 
+        border: 2px solid #A67C52; 
+        color: black; 
+        font-weight: bold; 
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.1); 
+        opacity: 1; 
+    }
+    button[data-testid="stTab"]:hover { 
+        border-color: #8c6642; 
+        background-color: #d4b08c; 
+        opacity: 1; 
+    }
     
     /* --- BOUTONS COMPACTS (Global) --- */
     .stButton button {
         padding-top: 0.4rem;
         padding-bottom: 0.4rem;
+        white-space: nowrap !important; /* Empêche le texte de passer à la ligne */
     }
     
     /* --- INFOBULLES SUR LES ONGLETS (CSS) --- */
