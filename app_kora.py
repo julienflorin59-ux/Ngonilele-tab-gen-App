@@ -4,7 +4,6 @@ import io
 import re
 import gc
 import json
-import glob
 import random
 import base64
 import urllib.parse
@@ -34,90 +33,79 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : METHODE "FORCE BRUTE" (NOUVELLE VERSION)
+# 📱 CSS ULTRA-AGRESSIF POUR MOBILE PORTRAIT (CÔTE À CÔTE FORCÉ)
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
-    /* RESET GLOBAL */
+    /* Reset de base */
     .stApp { overflow-x: hidden !important; }
     div[data-testid="block-container"] {
         padding-top: 1rem !important;
-        padding-left: 0.5rem !important; padding-right: 0.5rem !important;
+        padding-left: 0.2rem !important; padding-right: 0.2rem !important;
         max-width: 100% !important;
     }
 
     /* ==========================================================================
-       REGLES CRITIQUES POUR MOBILE (Jusqu'à 950px - Portrait & Paysage)
+       🚨 ZONE CRITIQUE : MOBILE PORTRAIT UNIQUEMENT 🚨
+       C'est ici qu'on force le "côte à côte" contre la volonté de Streamlit.
     ========================================================================== */
-    @media (max-width: 950px) {
-    
-        /* 1. LA STRUCTURE PRINCIPALE (Éditeur + Aperçu)
-           Cible : Un bloc horizontal qui contient exactement 2 colonnes.
-           Action : ON LE FORCE EN COLONNE (VERTICAL) pour mettre l'aperçu en dessous. */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) {
-            flex-direction: column !important;
-            width: 100% !important;
-        }
-        /* Les colonnes à l'intérieur prennent toute la largeur */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) > div[data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
-        }
-
-        /* 2. LES GRILLES DE BOUTONS (Visuel, Séquenceur)
-           Cible : Un bloc qui contient au moins 6 colonnes (vos 13 boutons).
-           Action : ON LE FORCE EN LIGNE (HORIZONTAL) avec SCROLL. */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) {
+    @media only screen and (max-width: 768px) and (orientation: portrait) {
+        
+        /* 1. LA RÈGLE D'OR : INTERDICTION D'EMPILER */
+        /* On cible TOUS les blocs horizontaux et on les force à rester en LIGNE (row) */
+        div[data-testid="stHorizontalBlock"] {
             flex-direction: row !important;
-            flex-wrap: nowrap !important;        /* Interdit le retour à la ligne */
-            overflow-x: auto !important;         /* Active le scroll horizontal */
-            display: flex !important;
+            flex-wrap: nowrap !important; /* Interdit le retour à la ligne */
             align-items: center !important;
-            gap: 2px !important;
-            padding-bottom: 10px !important;     /* Place pour scroller */
         }
 
-        /* 3. TAILLE DES BOUTONS "CORDES" (Le problème de largeur)
-           On force chaque colonne de ces grilles à faire ~42px fixe. */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) > div[data-testid="column"] {
-            min-width: 42px !important;
-            max-width: 42px !important;
-            width: 42px !important;
-            flex: 0 0 auto !important; /* Fixe */
+        /* 2. LA COMPRESSION : Forcer les colonnes à se partager l'espace */
+        /* "flex: 1 1 0" signifie : grandis si tu peux, rétrécis si tu dois, pars d'une base de 0px */
+        div[data-testid="column"] {
+            flex: 1 1 0px !important;
+            width: auto !important;
+            min-width: 0px !important; /* CRUCIAL : Autorise la colonne à être minuscule */
+            padding: 0 1px !important; /* Espace minimal entre colonnes */
         }
 
-        /* Réduction du texte à l'intérieur pour que ça rentre */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) button {
-            padding: 0px !important;
-            font-size: 0.7rem !important;
-            width: 100% !important;
-            overflow: hidden !important;
+        /* 3. LES BOUTONS : Ils doivent être minuscules pour rentrer */
+        /* On cible les boutons à l'intérieur des colonnes */
+        div[data-testid="column"] button {
+             padding: 0px !important;       /* Zéro marge interne */
+             margin: 0px !important;
+             font-size: 9px !important;     /* Police minuscule */
+             line-height: 1 !important;
+             min-height: 35px !important;   /* Hauteur suffisante pour le doigt */
+             height: auto !important;
+             white-space: nowrap !important; /* Le texte ne doit pas passer à la ligne */
+             border-radius: 2px !important;
         }
 
-        /* 4. CAS PARTICULIER : L'ONGLET "BOUTONS" (3 Colonnes : G / D / Outils)
-           Cible : Un bloc qui a 3 colonnes mais pas 6.
-           Action : On garde en ligne, mais on laisse plus de place (pas 42px). */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) {
-            flex-direction: row !important;
-            overflow-x: auto !important;
-            gap: 5px !important;
+        /* 4. GESTION DES ESPACEURS ET SÉPARATEURS */
+        /* Les colonnes vides ou séparateurs doivent être très fins */
+        div[data-testid="column"]:empty, div[data-testid="column"] > div:empty {
+            flex: 0 0 2px !important; /* Largeur fixe minuscule */
+            min-width: 2px !important;
         }
-        /* Chaque colonne prend 1/3 de l'écran environ */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) > div[data-testid="column"] {
-            min-width: 30vw !important;
-            width: 30vw !important;
-            flex: 0 0 auto !important;
+        
+        /* 5. EXCEPTION : L'EN-TÊTE (Logo + Titre) */
+        /* Pour éviter que le logo ne soit écrasé à 0px, on cible la première colonne du premier bloc */
+        div[data-testid="block-container"] > div:first-child > div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child {
+             flex: 0 0 50px !important; /* Taille fixe pour le logo */
+             min-width: 50px !important;
+        }
+         /* Et on laisse plus de place au titre */
+        div[data-testid="block-container"] > div:first-child > div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) {
+             flex: 3 1 0px !important; /* Le titre prend 3x plus de place que le reste */
         }
     }
 
-    /* ============================================================
-       ESTHÉTIQUE GÉNÉRALE (PC & MOBILE)
-    ============================================================ */
-    .stButton button { width: 100%; line-height: 1.2; white-space: nowrap; }
+    /* Styles Généraux (PC et Mobile) */
+    .stButton button { width: 100%; border-radius: 4px; }
     
-    /* Couleur Onglets */
+    /* Onglets */
     button[data-testid="stTab"] { 
         padding: 5px 10px !important; font-size: 0.8rem !important;
         border: 1px solid #A67C52; border-radius: 5px; margin-right: 2px; 
@@ -126,10 +114,6 @@ def load_css_styles():
     button[data-testid="stTab"][aria-selected="true"] { 
         background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
     }
-    
-    /* Upload Zone */
-    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
-    [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
 </style>
 """
 
