@@ -34,7 +34,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : PORTRAIT AVEC PETITS BOUTONS
+# 📱 OPTIMISATION CSS : FORÇAGE AGRESSIF DU MODE HORIZONTAL
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
@@ -51,64 +51,73 @@ def load_css_styles():
     }
 
     /* ============================================================
-       2. RÈGLES CRITIQUES MOBILE (Portrait < 640px)
+       2. LOGIQUE INTELLIGENTE : EMPILER OU NE PAS EMPILER ?
+       (S'applique à TOUS les écrans mobiles < 900px)
     ============================================================ */
-    @media (max-width: 640px) {
+    @media (max-width: 900px) {
     
-        /* A. STRUCTURE GLOBALE : EMPILER LES GROS BLOCS
-           Force l'Aperçu à se mettre EN DESSOUS de l'Éditeur. */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2)):not(:has(div[data-testid="column"]:nth-child(3))) {
-            flex-direction: column !important;
-            gap: 1.5rem !important;
+        /* --- CAS 1 : LA STRUCTURE PRINCIPALE (2 colonnes) ---
+           On veut que l'Éditeur soit au-dessus et l'Aperçu en dessous.
+           On cible les blocs qui ont EXACTEMENT 2 enfants colonnes. */
+        div[data-testid="stHorizontalBlock"] {
+             /* Par défaut sur mobile, Streamlit empile tout, c'est ce qu'on veut pour la structure */
+             flex-direction: column !important;
         }
 
-        /* B. ÉDITEUR VISUEL (Guitare) : MODE COMPACT HORIZONTAL
-           Cible les blocs de cordes (ceux avec beaucoup de colonnes).
-           On force l'affichage en LIGNE (Row) avec défilement horizontal. */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(6)) {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;   /* Interdit le retour à la ligne */
-            overflow-x: auto !important;    /* Active le scroll horizontal */
-            gap: 0.2rem !important;
-            padding-bottom: 5px !important;
+        /* --- CAS 2 : LES OUTILS, CORDES ET ACCORDAGE (> 2 colonnes) ---
+           On veut qu'ils restent CÔTE À CÔTE (G/D, Cordes, Séquenceur).
+           On cible les blocs qui ont 3 colonnes ou plus. */
+        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)) {
+            flex-direction: row !important;      /* Force la ligne */
+            flex-wrap: nowrap !important;        /* Interdit le retour à la ligne */
+            overflow-x: auto !important;         /* Active le scroll horizontal si ça dépasse */
+            justify-content: flex-start !important;
             align-items: center !important;
-            justify-content: flex-start !important; /* Colle les boutons à gauche */
+            gap: 2px !important;                 /* Espace très fin entre les éléments */
+            padding-bottom: 5px !important;      /* Espace pour le doigt */
         }
 
-        /* C. TAILLE RÉDUITE DES BOUTONS EN PORTRAIT
-           C'est ici qu'on empêche les boutons d'être énormes (4cm).
-           On leur donne une taille fixe (environ 1cm / 45px). */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(6)) div[data-testid="column"] {
-            min-width: 45px !important;  /* Largeur minimum fixe */
-            max-width: 50px !important;  /* Largeur maximum fixe */
-            flex: 0 0 auto !important;   /* Empêche le bouton de s'étirer */
+        /* --- CAS 2 BIS : Ajustement des colonnes dans ces blocs horizontaux --- */
+        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)) div[data-testid="column"] {
+            width: auto !important;              /* Largeur auto selon contenu */
+            min-width: 0px !important;           /* Permet de rétrécir */
+            flex: 0 0 auto !important;           /* Ne pas s'étirer */
         }
         
-        /* Ajustement du texte à l'intérieur des petits boutons */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(6)) button {
-            padding: 0.2rem 0 !important;
-            font-size: 0.75rem !important;
-        }
-    }
-    
-    /* ============================================================
-       3. RÈGLES MOBILE PAYSAGE (640px - 950px)
-    ============================================================ */
-    @media (min-width: 641px) and (max-width: 950px) {
-         /* Même logique : Aperçu sous l'éditeur */
-         div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2)):not(:has(div[data-testid="column"]:nth-child(3))) {
-            flex-direction: column !important;
-            gap: 1.5rem !important;
+        /* --- CAS 3 : BOUTONS MINCES EN PORTRAIT (< 500px) --- 
+           Pour éviter les boutons de 4cm de large. */
+        @media (max-width: 500px) {
+            /* Cible les boutons à l'intérieur des blocs horizontaux (Cordes, etc.) */
+            div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)) button {
+                width: 42px !important;          /* LARGEUR FIXE (taille d'un doigt) */
+                min-width: 42px !important;
+                padding: 0px !important;         /* Pas de marge interne inutile */
+                font-size: 0.75rem !important;   /* Texte plus petit */
+                overflow: hidden !important;
+            }
+            
+            /* Cas spécifique pour l'onglet "Boutons" (Gauche/Droite/Outils) */
+            /* On veut que les 3 colonnes prennent 1/3 de l'écran chacune environ */
+            div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)):not(:has(div[data-testid="column"]:nth-child(6))) div[data-testid="column"] {
+                 min-width: 30vw !important; /* 30% de la largeur de l'écran */
+            }
+            
+             /* Dans l'onglet "Boutons", les boutons à l'intérieur doivent remplir leur colonne */
+            div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)):not(:has(div[data-testid="column"]:nth-child(6))) button {
+                 width: 100% !important; 
+            }
         }
     }
 
     /* ============================================================
-       4. ESTHÉTIQUE GÉNÉRALE
+       3. ESTHÉTIQUE GÉNÉRALE
     ============================================================ */
+    /* Style par défaut des boutons (Desktop) */
     .stButton button {
-        width: 100% !important; padding: 0.2rem 0.1rem !important; 
-        font-size: 0.85rem !important; min-height: 0px !important; height: auto !important;
-        line-height: 1.2 !important; white-space: nowrap !important;    
+        width: 100%; 
+        padding: 0.2rem 0.1rem;
+        min-height: 0px; height: auto;
+        line-height: 1.2; white-space: nowrap;    
     }
     div[data-testid="column"] button p { font-weight: bold; }
     
