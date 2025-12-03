@@ -34,111 +34,84 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : FORCE LIGNE MEME EN PORTRAIT
+# 📱 OPTIMISATION CSS : AFFICHAGE HYBRIDE (PORTRAIT/PAYSAGE)
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
-    /* ============================================================
-       1. FORCER L'ALIGNEMENT HORIZONTAL (LE COEUR DU FIX)
-    ============================================================ */
-    
-    /* Sur mobile (max-width 640px), Streamlit force normalement les colonnes
-       à s'empiler (flex-direction: column). On l'INTERDIT ici. */
-       
+    /* 1. CONFIGURATION GÉNÉRALE */
+    .stApp { overflow-x: hidden; }
+    div[data-testid="block-container"] {
+        padding-top: 1rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+
+    /* 2. FORCER L'ALIGNEMENT CÔTE À CÔTE (Même en portrait) */
     @media (max-width: 640px) {
-        
-        div[data-testid="column"] {
-            width: 50% !important;      /* Chaque colonne prend 50% de l'écran */
-            flex: 1 1 auto !important;  /* Force le partage de l'espace */
-            min-width: 50px !important; /* Autorise le rétrécissement */
-        }
-        
-        /* Cible les conteneurs de colonnes */
+        /* On oblige les colonnes à rester sur la même ligne avec défilement si besoin */
         div[data-testid="stHorizontalBlock"] {
-            flex-direction: row !important; /* FORCE LA LIGNE */
-            flex-wrap: nowrap !important;   /* INTERDIT LE RETOUR À LA LIGNE */
-            gap: 5px !important;            /* Réduit l'espace entre colonnes */
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important; /* Scroll horizontal si ça dépasse */
+            gap: 5px !important;
+            padding-bottom: 5px; /* Place pour la barre de scroll */
         }
         
-        /* Réduire le padding interne pour que ça rentre en portrait */
-        div[data-testid="block-container"] {
-            padding-left: 0.2rem !important;
-            padding-right: 0.2rem !important;
+        /* Chaque colonne prend sa place naturelle sans s'écraser */
+        div[data-testid="column"] {
+            flex: 1 0 auto !important; /* Ne pas rétrécir en dessous du contenu min */
+            width: auto !important;
+            min-width: 45% !important; /* Assure que pour l'accordage (2 cols), ça fait ~50/50 */
         }
     }
 
-    /* ============================================================
-       2. LÉGENDE COULEUR (STYLE HTML)
-    ============================================================ */
-    .legend-container {
+    /* 3. LÉGENDE COULEURS (HTML) */
+    .legend-wrapper {
         display: flex;
-        flex-wrap: wrap; /* Autorise le retour à la ligne pour les pastilles */
+        flex-wrap: wrap;
         justify-content: center;
-        gap: 10px;
-        margin-bottom: 10px;
+        gap: 8px;
+        margin-bottom: 15px;
     }
     .legend-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        width: 40px;
+        width: 30px;
     }
     .pastille {
-        width: 20px; 
-        height: 20px; 
-        border-radius: 50%; 
-        border: 1px solid #ccc;
-        margin-bottom: 2px;
+        width: 18px; height: 18px; border-radius: 50%; 
+        border: 1px solid #999; margin-bottom: 2px;
     }
-    .legend-text {
-        font-size: 0.8rem;
-        font-weight: bold;
-    }
+    .legend-txt { font-size: 10px; font-weight: bold; }
 
-    /* ============================================================
-       3. BOUTONS COMPACTS
-    ============================================================ */
+    /* 4. BOUTONS COMPACTS ET TEXTE */
     .stButton button {
         width: 100% !important;
-        padding: 0.2rem 0.1rem !important;
-        font-size: 0.8rem !important;
-        line-height: 1.2 !important;
-        min-height: 2.5rem !important; 
+        padding: 0.25rem 0.1rem !important;
+        font-size: 0.85rem !important;
+        line-height: 1.1 !important;
+        min-height: 2.5rem !important;
         height: auto !important;
         white-space: nowrap !important;
     }
     
-    /* Onglets */
+    /* 5. ONGLETS ET INPUTS */
     button[data-testid="stTab"] { 
-        padding: 5px 8px !important;
-        font-size: 0.8rem !important;
-        border: 1px solid #A67C52; 
-        background-color: #e5c4a3; 
-        color: black; opacity: 0.9; margin-right: 2px;
+        padding: 5px 10px !important; font-size: 0.8rem !important;
+        background-color: #e5c4a3; color: black; border: 1px solid #A67C52;
     }
     button[data-testid="stTab"][aria-selected="true"] { 
-        background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
+        background-color: #d4b08c; font-weight: bold; 
     }
-
-    /* Selectbox compacte pour l'accordage */
-    div[data-baseweb="select"] > div {
-        padding-top: 0px !important;
-        padding-bottom: 0px !important;
-        min-height: 30px !important;
-    }
-    
-    /* Masquer les labels inutiles */
     [data-testid='stFileUploader'] label { display: none; }
     
-    /* Infobulles */
+    /* 6. INFOBULLES */
     div[data-testid="stTooltipContent"] {
-        background-color: #333 !important;
-        color: white !important;
-        font-size: 0.8rem !important;
+        background-color: #333 !important; color: white !important; font-size: 0.8rem !important;
     }
-
 </style>
 """
 
@@ -610,7 +583,7 @@ def generer_page_notes(notes_page, idx, titre, config_acc, styles, options_visue
         ax.text(x, y_top_cordes + 0.1, TRADUCTION_NOTES.get(note[0].upper(), '?'), ha='center', color=c, fontproperties=prop_note_eu)
         ax.vlines(x, y_bot, y_top_cordes, colors=c, lw=3, zorder=1)
     
-    # Lignes HORIZONTALES (TEMPS) - Tous les 12 ticks
+    # LIGNES HORIZONTALES (TEMPS) - Tous les 12 ticks
     start_beat_tick = (tick_min // 12) * 12
     for t in range(start_beat_tick, tick_max + 12, 12):
         y = - ((t - tick_min) / 12.0)
@@ -997,12 +970,12 @@ with tab_acc:
     st.markdown("##### Code Couleur des Notes")
     
     # --- FIX 1 : LÉGENDE EN HTML/CSS (RESPONSIVE) ---
-    html_legend = '<div class="legend-container">'
+    html_legend = '<div class="legend-wrapper">'
     for note, color in COULEURS_CORDES_REF.items():
         html_legend += f'''
         <div class="legend-item">
             <div class="pastille" style="background-color: {color};"></div>
-            <div class="legend-text">{note}</div>
+            <div class="legend-txt">{note}</div>
         </div>
         '''
     html_legend += '</div>'
