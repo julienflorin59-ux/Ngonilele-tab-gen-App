@@ -51,6 +51,12 @@ def load_css_styles():
     button[data-testid="stTab"][aria-selected="true"] { background-color: #d4b08c; border: 2px solid #A67C52; color: black; font-weight: bold; box-shadow: 0px 2px 5px rgba(0,0,0,0.1); opacity: 1; }
     button[data-testid="stTab"]:hover { border-color: #8c6642; background-color: #d4b08c; opacity: 1; }
     
+    /* --- BOUTONS COMPACTS (Global) --- */
+    .stButton button {
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+    }
+    
     /* --- INFOBULLES --- */
     div[data-testid="stTabs"]:nth-of-type(2) button[data-testid="stTab"]:hover::after {
         position: absolute; top: 110%; left: 50%; transform: translateX(-50%); background-color: #3e3e3e; color: white; padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: normal; white-space: nowrap; z-index: 9999; pointer-events: none; box-shadow: 0px 4px 6px rgba(0,0,0,0.2);
@@ -964,50 +970,70 @@ with tab_edit:
             if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
             return " I", " (Index)"
 
+        # --- DÉBUT MODIFICATION ONGLET BOUTONS (COMPACT) ---
         with subtab_btn:
-            afficher_header_style("⌨️ Mode Rapide")
-            st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="btn_mode_doigt", horizontal=True)
-            
+            # 1. Header compact + Doigté sur la même ligne pour gagner de la hauteur
+            c_head, c_doigt = st.columns([1, 2])
+            with c_head:
+                st.caption("🎹 **Saisie Rapide**") # Plus petit que le header style
+            with c_doigt:
+                # Horizontal radio takes less vertical space
+                st.radio("Doigté :", ["🖐️ Auto", "👍 P", "👆 I"], key="btn_mode_doigt", horizontal=True, label_visibility="collapsed")
+
             def ajouter_note_boutons(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
                 ajouter_texte(f"+ {corde}{suffixe}")
                 st.toast(f"✅ {corde} ajoutée", icon="🎵")
             
-            st.markdown("""<style>div[data-testid="column"] .stButton button { width: 100%; margin: 0; }</style>""", unsafe_allow_html=True)
-            c_notes = st.columns(2)
-            with c_notes[0]: 
-                st.caption("Gauche")
-                for c in ['1G','2G','3G','4G','5G','6G']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
-            with c_notes[1]:
-                st.caption("Droite")
-                for c in ['1D','2D','3D','4D','5D','6D']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
-            st.write("") 
-            
-            # --- MODIFICATION LAYOUT BAS ---
-            c_rythme, c_outils, c_structure = st.columns(3)
-            
             def add_symbol_only(s): st.session_state.code_actuel += f"\n{s} "
-            
-            with c_rythme:
-                st.caption("Rythme")
-                st.button("Noire (+)", on_click=add_symbol_only, args=("+",), use_container_width=True)
-                st.button("Croche (♪)", on_click=add_symbol_only, args=("♪",), use_container_width=True)
-                st.button("Triolet (🎶)", on_click=add_symbol_only, args=("🎶",), use_container_width=True)
-                st.button("Double (♬)", on_click=add_symbol_only, args=("♬",), use_container_width=True)
 
-            with c_outils:
-                st.caption("Outils")
-                st.button("↩️ Effacer", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
-                st.button("🟰 Simultané", key="btn_simul", on_click=ajouter_avec_feedback, args=("=", "Simultané"), use_container_width=True)
-                st.button("🔁 Doubler (x2)", key="btn_x2", on_click=ajouter_avec_feedback, args=("x2", "Doublé"), use_container_width=True)
-                st.button("🔇 Silence", key="btn_silence", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True)
-                
-            with c_structure:
-                st.caption("Structure")
-                st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True)
-                st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True)
-                
-            afficher_section_sauvegarde_bloc("btn")
+            # 2. Layout en 3 Colonnes : Gauche | Droite | Outils (au lieu de tout empiler)
+            col_g, col_d, col_tools = st.columns([1, 1, 2])
+
+            # Colonne GAUCHE
+            with col_g:
+                st.markdown("**G**", unsafe_allow_html=True)
+                for c in ['1G','2G','3G','4G','5G','6G']:
+                    st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
+
+            # Colonne DROITE
+            with col_d:
+                st.markdown("**D**", unsafe_allow_html=True)
+                for c in ['1D','2D','3D','4D','5D','6D']:
+                    st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
+
+            # Colonne OUTILS (Tout regroupé ici pour éviter le scroll)
+            with col_tools:
+                # A. Rythme (Ligne du haut)
+                st.markdown("**Rythme**", unsafe_allow_html=True)
+                c_r1, c_r2, c_r3, c_r4 = st.columns(4)
+                with c_r1: st.button("+", on_click=add_symbol_only, args=("+",), use_container_width=True, help="Noire")
+                with c_r2: st.button("♪", on_click=add_symbol_only, args=("♪",), use_container_width=True, help="Croche")
+                with c_r3: st.button("🎶", on_click=add_symbol_only, args=("🎶",), use_container_width=True, help="Triolet")
+                with c_r4: st.button("♬", on_click=add_symbol_only, args=("♬",), use_container_width=True, help="Double")
+
+                # B. Actions (Grille compacte)
+                st.markdown("**Actions**", unsafe_allow_html=True)
+                c_t1, c_t2, c_t3, c_t4 = st.columns(4)
+                with c_t1: st.button("=", on_click=ajouter_avec_feedback, args=("=", "Simul."), use_container_width=True, help="Simultané")
+                with c_t2: st.button("x2", on_click=ajouter_avec_feedback, args=("x2", "x2"), use_container_width=True, help="Doubler")
+                with c_t3: st.button("S", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True, help="Silence")
+                with c_t4: st.button("⌫", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True, help="Effacer ligne")
+
+                # C. Structure
+                st.write("") # Petit espace
+                c_s1, c_s2 = st.columns(2)
+                with c_s1: st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True)
+                with c_s2: st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True)
+
+                # D. Sauvegarde Bloc (Compact)
+                with st.expander("💾 Sauver Bloc", expanded=False):
+                    b_name = st.text_input("Nom", key="name_blk_btn", label_visibility="collapsed", placeholder="Nom du bloc")
+                    if st.button("Sauver", key="btn_save_btn"):
+                        if b_name and st.session_state.code_actuel:
+                            st.session_state.stored_blocks[b_name] = st.session_state.code_actuel
+                            st.toast(f"Bloc '{b_name}' créé !", icon="📦")
+        # --- FIN MODIFICATION ---
 
         with subtab_visu:
             afficher_header_style("🎨 Mode Visuel")
