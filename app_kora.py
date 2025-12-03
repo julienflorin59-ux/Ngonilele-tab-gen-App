@@ -34,7 +34,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : MODE PAYSAGE & PORTRAIT STRICT
+# 📱 OPTIMISATION CSS : PORTRAIT AVEC PETITS BOUTONS
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
@@ -51,40 +51,59 @@ def load_css_styles():
     }
 
     /* ============================================================
-       2. RÈGLES CRITIQUES MOBILE (Portrait ET Paysage jusqu'à 950px)
+       2. RÈGLES CRITIQUES MOBILE (Portrait < 640px)
     ============================================================ */
-    @media (max-width: 950px) {
+    @media (max-width: 640px) {
     
-        /* A. LA STRUCTURE PRINCIPALE (ÉDITEUR / APERÇU) DOIT S'EMPILER
-           On cible les blocs qui ont exactement 2 colonnes (comme Éditeur + Aperçu).
-           On les force en COLONNE (L'un en dessous de l'autre). */
+        /* A. STRUCTURE GLOBALE : EMPILER LES GROS BLOCS
+           Force l'Aperçu à se mettre EN DESSOUS de l'Éditeur. */
         div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2)):not(:has(div[data-testid="column"]:nth-child(3))) {
             flex-direction: column !important;
             gap: 1.5rem !important;
         }
 
-        /* B. LES CORDES ET OUTILS DOIVENT RESTER CÔTE À CÔTE
-           On cible les blocs qui ont 3 colonnes ou plus (Boutons G/D/Tools, Séquenceur, Visuel).
-           On les force en LIGNE (Row). */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)) {
+        /* B. ÉDITEUR VISUEL (Guitare) : MODE COMPACT HORIZONTAL
+           Cible les blocs de cordes (ceux avec beaucoup de colonnes).
+           On force l'affichage en LIGNE (Row) avec défilement horizontal. */
+        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(6)) {
             flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important; /* Scroll horizontal si besoin */
+            flex-wrap: nowrap !important;   /* Interdit le retour à la ligne */
+            overflow-x: auto !important;    /* Active le scroll horizontal */
             gap: 0.2rem !important;
+            padding-bottom: 5px !important;
             align-items: center !important;
+            justify-content: flex-start !important; /* Colle les boutons à gauche */
         }
 
-        /* C. AJUSTEMENT DES COLONNES DE CORDES
-           On s'assure qu'elles ne prennent pas toute la largeur pour éviter l'empilement visuel */
-        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(3)) div[data-testid="column"] {
-            min-width: 0px !important;
-            width: auto !important;
-            flex: 1 1 0 !important;
+        /* C. TAILLE RÉDUITE DES BOUTONS EN PORTRAIT
+           C'est ici qu'on empêche les boutons d'être énormes (4cm).
+           On leur donne une taille fixe (environ 1cm / 45px). */
+        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(6)) div[data-testid="column"] {
+            min-width: 45px !important;  /* Largeur minimum fixe */
+            max-width: 50px !important;  /* Largeur maximum fixe */
+            flex: 0 0 auto !important;   /* Empêche le bouton de s'étirer */
+        }
+        
+        /* Ajustement du texte à l'intérieur des petits boutons */
+        div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(6)) button {
+            padding: 0.2rem 0 !important;
+            font-size: 0.75rem !important;
+        }
+    }
+    
+    /* ============================================================
+       3. RÈGLES MOBILE PAYSAGE (640px - 950px)
+    ============================================================ */
+    @media (min-width: 641px) and (max-width: 950px) {
+         /* Même logique : Aperçu sous l'éditeur */
+         div[data-testid="stHorizontalBlock"]:has(div[data-testid="column"]:nth-child(2)):not(:has(div[data-testid="column"]:nth-child(3))) {
+            flex-direction: column !important;
+            gap: 1.5rem !important;
         }
     }
 
     /* ============================================================
-       3. BOUTONS & ESTHÉTIQUE
+       4. ESTHÉTIQUE GÉNÉRALE
     ============================================================ */
     .stButton button {
         width: 100% !important; padding: 0.2rem 0.1rem !important; 
