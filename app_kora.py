@@ -135,7 +135,11 @@ BANQUE_TABLATURES = {
     "--- Nouveau / Vide ---": "",
     "Exercice Débutant 1 : Montée et descente de Gamme": "1   1D\n+   S\n+   1G\n+   S\n+   2D\n+   S\n+   2G\n+   S\n+   3D\n+   S\n+   3G\n+   S\n+   4D\n+   S\n+   4G\n+   S\n+   5D\n+   S\n+   5G\n+   S\n+   6D\n+   S\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   S\n+   6D\n+   S\n+   5G\n+   S\n+   5D\n+   S\n+   4G\n+   S\n+   4D\n+   S\n+   3G\n+   S\n+   3D\n+   S\n+   2G\n+   S\n+   2D\n+   S\n+   1G\n+   S\n+   1D",
     "Exercice Débutant 2 : Montée et descente de Gamme en triolets": "1   1D\n+   1G\n+   2D\n+   S\n+   1G\n+   2D\n+   2G\n+   S\n+   2D\n+   2G\n+   3D\n+   S\n+   2G\n+   3D\n+   3G\n+   S\n+   3D\n+   3G\n+   4D\n+   S\n+   3G\n+   4D\n+   4G\n+   S\n+   4D\n+   4G\n+   5D\n+   S\n+   4G\n+   5D\n+   5G\n+   S\n+   5D\n+   5G\n+   6D\n+   S\n+   5G\n+   6D\n+   6G\n+   S\n+   TXT  DESCENTE\n+   6G\n+   6D\n+   5G\n+   S\n+   6D\n+   5G\n+   5D\n+   S\n+   5G\n+   5D\n+   4G\n+   S\n+   5D\n+   4G\n+   4D\n+   S\n+   4G\n+   4D\n+   3G\n+   S\n+   4D\n+   3G\n+   3D\n+   S\n+   3G\n+   3D\n+   2G\n+   S\n+   3D\n+   2G\n+   2D\n+   S\n+   2G\n+   2D\n+   1G\n+   S\n+   2D\n+   1G\n+   1D",
-    "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G"
+    "Manitoumani -M- & Lamomali": "1   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G\n+   TXT  REPETER 2x\n+   PAGE\n+   4D\n+   4G\n+   5D\n+   5G\n+   4G\n=   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+   1D\n+   2G\n+   6D   x2\n+   2G\n=   4G\n+ S\n+ S\n+ PAGE\n+   1G\n+   3D\n+   3G\n+   5D\n+   1G\n+   3D\n+   3G\n+   5D\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ S\n+ 4D\n+ PAGE\n+   4G\n+   5D\n+   5G\n+   4G\n=   2D\n+   3G\n+   6D   x2\n+   2G\n=   5G\n+  3G\n+  6D   x2\n+  2G\n=  5G\n+ 3G\n+ 6D   x2\n+ 2G\n= 5G",
+    "Exercice 3 : Coordination (Ping-Pong)": "1   6G\n+   6D\n+   5G\n+   5D\n+   4G\n+   4D\n+   3G\n+   3D\n+   2G\n+   2D\n+   1G\n+   1D\n+   S\n+   TXT  REMONTEE\n+   1D\n+   1G\n+   2D\n+   2G\n+   3D\n+   3G\n+   4D\n+   4G\n+   5D\n+   5G\n+   6D\n+   6G",
+    "Exercice 4 : Les Tierces": "1   1G\n+   3G\n+   2G\n+   4G\n+   3G\n+   5G\n+   4G\n+   6G\n+   S\n+   TXT  COTE DROIT\n+   1D\n+   3D\n+   2D\n+   4D\n+   3D\n+   5D\n+   4D\n+   6D\n+   S\n+   TXT  FINAL\n+   6G\n=   6D",
+    "Exercice 5 : Accords et Silences": "1   6G\n=   6D\n+   S\n+   5G\n=   5D\n+   S\n+   4G\n=   4D\n+   S\n+   3G\n=   3D\n+   S\n+   2G\n=   2D\n+   S\n+   1G\n=   1D\n+   S\n+   TXT  ARPEGE RAPIDE\n+   6G\n+   6D\n+   5G\n+   5D\n+   4G\n=   4D",
+    "Démonstration Rythmes": "1   6G\n+   TXT  NOIRES (+)\n+   6D\n+   5G\n+   5D\n+   S\n+   TXT  CROCHES (♪)\n♪   4G\n♪   4D\n♪   3G\n♪   3D\n+   S\n+   TXT  TRIOLETS (🎶)\n🎶   2G\n🎶   2D\n🎶   1G\n🎶   1D\n🎶   2G\n🎶   2D\n+   S\n+   TXT  DOUBLES (♬)\n♬ 6G\n♬ 6D\n♬ 5G\n♬ 5D\n♬ 4G\n♬ 4D\n♬ 3G\n♬ 3D"
 }
 
 # ==============================================================================
@@ -964,16 +968,6 @@ with tab_edit:
             afficher_header_style("⌨️ Mode Rapide")
             st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="btn_mode_doigt", horizontal=True)
             
-            # --- MODIFICATION BOUTONS POUR NOUVEAU RYTHME ---
-            st.write("**Rythme :**")
-            c_r1, c_r2, c_r3, c_r4 = st.columns(4)
-            def add_symbol_only(s): st.session_state.code_actuel += f"\n{s} "
-            with c_r1: st.button("Noire (+)", on_click=add_symbol_only, args=("+",), use_container_width=True)
-            with c_r2: st.button("Croche (♪)", on_click=add_symbol_only, args=("♪",), use_container_width=True)
-            with c_r3: st.button("Triolet (🎶)", on_click=add_symbol_only, args=("🎶",), use_container_width=True)
-            with c_r4: st.button("Double (♬)", on_click=add_symbol_only, args=("♬",), use_container_width=True)
-            st.markdown("---")
-
             def ajouter_note_boutons(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
                 ajouter_texte(f"+ {corde}{suffixe}")
@@ -988,30 +982,54 @@ with tab_edit:
                 st.caption("Droite")
                 for c in ['1D','2D','3D','4D','5D','6D']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
             st.write("") 
-            c_tools = st.columns(2)
-            with c_tools[0]:
+            
+            # --- MODIFICATION LAYOUT BAS ---
+            c_rythme, c_outils, c_structure = st.columns(3)
+            
+            def add_symbol_only(s): st.session_state.code_actuel += f"\n{s} "
+            
+            with c_rythme:
+                st.caption("Rythme")
+                st.button("Noire (+)", on_click=add_symbol_only, args=("+",), use_container_width=True)
+                st.button("Croche (♪)", on_click=add_symbol_only, args=("♪",), use_container_width=True)
+                st.button("Triolet (🎶)", on_click=add_symbol_only, args=("🎶",), use_container_width=True)
+                st.button("Double (♬)", on_click=add_symbol_only, args=("♬",), use_container_width=True)
+
+            with c_outils:
                 st.caption("Outils")
                 st.button("↩️ Effacer", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
                 st.button("🟰 Simultané", key="btn_simul", on_click=ajouter_avec_feedback, args=("=", "Simultané"), use_container_width=True)
                 st.button("🔁 Doubler (x2)", key="btn_x2", on_click=ajouter_avec_feedback, args=("x2", "Doublé"), use_container_width=True)
                 st.button("🔇 Silence", key="btn_silence", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True)
-            with c_tools[1]:
+                
+            with c_structure:
                 st.caption("Structure")
                 st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True)
                 st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True)
+                
             afficher_section_sauvegarde_bloc("btn")
 
         with subtab_visu:
             afficher_header_style("🎨 Mode Visuel")
-            st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True)
+            
+            # --- AJOUT SELECTEUR RYTHME ---
+            c_doigt, c_rythme = st.columns(2)
+            with c_doigt:
+                st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True)
+            with c_rythme:
+                st.radio("Rythme par défaut :", ["+", "♪", "🎶", "♬"], key="visu_mode_rythme", horizontal=True, index=0)
+            
             def ajouter_note_visuelle(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "visu_mode_doigt")
-                ajouter_texte(f"+ {corde}{suffixe}")
-                st.toast(f"✅ {corde} ajoutée", icon="🎵")
+                symbol = st.session_state.visu_mode_rythme
+                ajouter_texte(f"{symbol} {corde}{suffixe}")
+                st.toast(f"✅ {corde} ajoutée ({symbol})", icon="🎵")
+                
             def outil_visuel_wrapper(action, txt_code, msg_toast):
                 if action == "ajouter": ajouter_texte(txt_code)
                 elif action == "undo": annuler_derniere_ligne()
                 st.toast(msg_toast, icon="🛠️")
+                
             st.write("G ________________________________ D")
             cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
             cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
@@ -1041,7 +1059,13 @@ with tab_edit:
 
         with subtab_seq:
             afficher_header_style("🎹 Séquenceur")
-            nb_temps = st.number_input("Nombre de temps", min_value=4, max_value=64, value=8, step=4)
+            
+            # --- AJOUT SELECTEUR PAS DE GRILLE ---
+            seq_res = st.radio("Pas de la grille :", ["Noire (+)", "Croche (♪)", "Triolet (🎶)", "Double (♬)"], horizontal=True, key="seq_resolution")
+            symbol_map = {"Noire (+)": "+", "Croche (♪)": "♪", "Triolet (🎶)": "🎶", "Double (♬)": "♬"}
+            current_seq_symbol = symbol_map[seq_res]
+            
+            nb_temps = st.number_input("Nombre de colonnes", min_value=4, max_value=64, value=8, step=4)
             cols = st.columns([0.8] + [1]*12) 
             cordes_list = ['6G', '5G', '4G', '3G', '2G', '1G', '1D', '2D', '3D', '4D', '5D', '6D']
             with cols[0]: st.write("**T**")
@@ -1064,11 +1088,13 @@ with tab_edit:
                         notes_activees = []
                         for c in cordes_list:
                             if st.session_state.seq_grid[f"T{t}_{c}"]: notes_activees.append(c)
-                        if not notes_activees: texte_genere += "+ S\n"
+                        
+                        # --- UTILISATION DU SYMBOLE CHOISI ---
+                        if not notes_activees: texte_genere += f"{current_seq_symbol} S\n"
                         else:
                             premier = True
                             for note in notes_activees:
-                                prefix = "+ " if premier else "= "
+                                prefix = current_seq_symbol if premier else "= "
                                 doigt = " P" if note in ['1G','2G','3G','1D','2D','3D'] else " I"
                                 texte_genere += f"{prefix}{note}{doigt}\n"
                                 premier = False
