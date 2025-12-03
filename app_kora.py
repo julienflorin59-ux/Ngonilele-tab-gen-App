@@ -1279,7 +1279,7 @@ with tab_edit:
                 elif item['type'] == 'page': st.markdown(f"#### Page {item['idx']}"); st.pyplot(item['img_ecran'])
     def afficher_bouton_pdf(container):
         with container:
-                if st.session_state.pdf_buffer:
+             if st.session_state.pdf_buffer:
                 st.markdown("---")
                 st.download_button(label="📕 Télécharger PDF", data=st.session_state.pdf_buffer, file_name=f"{titre_partition}.pdf", mime="application/pdf", type="primary", use_container_width=True)
 
