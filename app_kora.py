@@ -4,6 +4,7 @@ import io
 import re
 import gc
 import json
+import glob
 import random
 import base64
 import urllib.parse
@@ -33,13 +34,13 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 CSS ULTRA-AGRESSIF POUR MOBILE PORTRAIT (CÔTE À CÔTE FORCÉ)
+# 📱 OPTIMISATION CSS : CIBLAGE CHIRURGICAL
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
     return """
 <style>
-    /* Reset de base */
+    /* 1. RESET */
     .stApp { overflow-x: hidden !important; }
     div[data-testid="block-container"] {
         padding-top: 1rem !important;
@@ -48,62 +49,74 @@ def load_css_styles():
     }
 
     /* ==========================================================================
-       🚨 ZONE CRITIQUE : MOBILE PORTRAIT UNIQUEMENT 🚨
-       C'est ici qu'on force le "côte à côte" contre la volonté de Streamlit.
+       2. RÈGLES CRITIQUES MOBILE (< 900px)
     ========================================================================== */
-    @media only screen and (max-width: 768px) and (orientation: portrait) {
-        
-        /* 1. LA RÈGLE D'OR : INTERDICTION D'EMPILER */
-        /* On cible TOUS les blocs horizontaux et on les force à rester en LIGNE (row) */
-        div[data-testid="stHorizontalBlock"] {
+    @media (max-width: 900px) {
+    
+        /* A. LA STRUCTURE PRINCIPALE (Éditeur + Aperçu)
+           On détecte le bloc qui contient la zone de texte (textarea).
+           On le force en COLONNE pour que l'aperçu passe dessous. */
+        div[data-testid="stHorizontalBlock"]:has(textarea) {
+            flex-direction: column !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(textarea) > div[data-testid="column"] {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+
+        /* B. LES CORDES (GAUCHE ET DROITE) CÔTE À CÔTE
+           On cible le bloc qui contient les boutons "G" ou "D".
+           On force l'affichage en LIGNE. */
+        div[data-testid="stHorizontalBlock"]:has(button p:contains("G")) {
             flex-direction: row !important;
-            flex-wrap: nowrap !important; /* Interdit le retour à la ligne */
-            align-items: center !important;
+            align-items: flex-start !important;
+            gap: 5px !important;
         }
 
-        /* 2. LA COMPRESSION : Forcer les colonnes à se partager l'espace */
-        /* "flex: 1 1 0" signifie : grandis si tu peux, rétrécis si tu dois, pars d'une base de 0px */
-        div[data-testid="column"] {
-            flex: 1 1 0px !important;
-            width: auto !important;
-            min-width: 0px !important; /* CRUCIAL : Autorise la colonne à être minuscule */
-            padding: 0 1px !important; /* Espace minimal entre colonnes */
-        }
-
-        /* 3. LES BOUTONS : Ils doivent être minuscules pour rentrer */
-        /* On cible les boutons à l'intérieur des colonnes */
-        div[data-testid="column"] button {
-             padding: 0px !important;       /* Zéro marge interne */
-             margin: 0px !important;
-             font-size: 9px !important;     /* Police minuscule */
-             line-height: 1 !important;
-             min-height: 35px !important;   /* Hauteur suffisante pour le doigt */
-             height: auto !important;
-             white-space: nowrap !important; /* Le texte ne doit pas passer à la ligne */
-             border-radius: 2px !important;
-        }
-
-        /* 4. GESTION DES ESPACEURS ET SÉPARATEURS */
-        /* Les colonnes vides ou séparateurs doivent être très fins */
-        div[data-testid="column"]:empty, div[data-testid="column"] > div:empty {
-            flex: 0 0 2px !important; /* Largeur fixe minuscule */
-            min-width: 2px !important;
-        }
+        /* C. METHODE NUCLÉAIRE SUR LA TAILLE DES BOUTONS
+           On cible TOUS les boutons à l'intérieur des colonnes de ce bloc. */
         
-        /* 5. EXCEPTION : L'EN-TÊTE (Logo + Titre) */
-        /* Pour éviter que le logo ne soit écrasé à 0px, on cible la première colonne du premier bloc */
-        div[data-testid="block-container"] > div:first-child > div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:first-child {
-             flex: 0 0 50px !important; /* Taille fixe pour le logo */
-             min-width: 50px !important;
+        /* 1. On réduit la colonne qui contient le bouton */
+        div[data-testid="stHorizontalBlock"]:has(button p:contains("G")) div[data-testid="column"] {
+            min-width: 0px !important;
+            width: auto !important;
+            flex: 1 1 0 !important; /* Partage équitable de l'espace */
+            padding: 0 1px !important;
         }
-         /* Et on laisse plus de place au titre */
-        div[data-testid="block-container"] > div:first-child > div[data-testid="stHorizontalBlock"] > div[data-testid="column"]:nth-child(2) {
-             flex: 3 1 0px !important; /* Le titre prend 3x plus de place que le reste */
+
+        /* 2. On écrase le style du bouton lui-même */
+        div[data-testid="stHorizontalBlock"]:has(button p:contains("G")) button,
+        div[data-testid="stHorizontalBlock"]:has(button p:contains("D")) button {
+            width: 100% !important;          /* Prend la largeur de la petite colonne */
+            min-width: 30px !important;      /* Minimum vital */
+            max-width: 50px !important;      /* MAXIMUM 1.5cm environ */
+            padding: 0px !important;         /* Pas de gras autour */
+            font-size: 10px !important;      /* Texte petit */
+            min-height: 35px !important;     /* Hauteur tactile */
+            height: auto !important;
+            margin: 0 auto !important;       /* Centré */
+        }
+
+        /* D. LES OUTILS (Rythme, Actions)
+           On veut qu'ils soient en ligne aussi avec scroll si besoin */
+        div[data-testid="stHorizontalBlock"]:has(button p:contains("=")) {
+            flex-direction: row !important;
+            overflow-x: auto !important;
+            padding-bottom: 5px !important;
+        }
+        /* Petits boutons pour les outils aussi */
+        div[data-testid="stHorizontalBlock"]:has(button p:contains("=")) button {
+            padding: 0 5px !important;
+            font-size: 12px !important;
+            min-width: 40px !important;
         }
     }
 
-    /* Styles Généraux (PC et Mobile) */
-    .stButton button { width: 100%; border-radius: 4px; }
+    /* ============================================================
+       3. ESTHÉTIQUE GÉNÉRALE
+    ============================================================ */
+    .stButton button { width: 100%; line-height: 1.2; white-space: nowrap; border-radius: 4px; }
+    div[data-testid="column"] button p { font-weight: bold; }
     
     /* Onglets */
     button[data-testid="stTab"] { 
@@ -114,6 +127,10 @@ def load_css_styles():
     button[data-testid="stTab"][aria-selected="true"] { 
         background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
     }
+    
+    /* Upload */
+    [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
+    [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
 </style>
 """
 
