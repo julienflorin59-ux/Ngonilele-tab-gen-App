@@ -700,9 +700,6 @@ def ajouter_texte(txt):
     else: st.session_state.code_actuel = txt
     st.session_state.widget_input = st.session_state.code_actuel
 
-def ajouter_avec_feedback(txt, label_toast):
-    ajouter_texte(txt); st.toast(f"Ajouté : {label_toast}", icon="✅")
-
 def annuler_derniere_ligne():
     lines = st.session_state.code_actuel.strip().split('\n')
     if len(lines) > 0:
@@ -871,7 +868,6 @@ with tab_edit:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        # --- MODIFICATION : Suppression de subtab_btn ---
         subtab_visu, subtab_seq, subtab_blocs = st.tabs(["🎨 Visuel", "🎹 Séquenceur", "📦 Structure"])
 
         def get_suffixe_doigt(corde, mode_key):
@@ -880,8 +876,6 @@ with tab_edit:
             if mode == "👆 Force Index (I)": return " I", " (Index)"
             if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
             return " I", " (Index)"
-
-        # --- MODIFICATION : Bloc subtab_btn supprimé ---
 
         with subtab_visu:
             afficher_header_style("🎨 Mode Visuel")
