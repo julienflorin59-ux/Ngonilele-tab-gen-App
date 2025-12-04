@@ -77,7 +77,10 @@ def load_css_styles():
             font-weight: bold;
             font-size: 1.1rem;
             padding: 10px;
-            background-color: #f0f0f0;
+            /* CHANGEMENT ICI : COULEUR BEIGE + BORDURE */
+            background-color: #e5c4a3; 
+            border: 1px solid #A67C52;
+            color: black;
             border-radius: 8px;
             line-height: 1.8 !important;
         }
