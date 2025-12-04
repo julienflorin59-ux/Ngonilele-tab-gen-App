@@ -871,7 +871,8 @@ with tab_edit:
     col_input, col_view = st.columns([1, 1.5])
     with col_input:
         st.subheader("Éditeur")
-        subtab_btn, subtab_visu, subtab_seq, subtab_blocs = st.tabs(["🔘 Boutons", "🎨 Visuel", "🎹 Séquenceur", "📦 Structure"])
+        # --- MODIFICATION : Suppression de subtab_btn ---
+        subtab_visu, subtab_seq, subtab_blocs = st.tabs(["🎨 Visuel", "🎹 Séquenceur", "📦 Structure"])
 
         def get_suffixe_doigt(corde, mode_key):
             mode = st.session_state[mode_key]
@@ -880,51 +881,7 @@ with tab_edit:
             if corde in ['1G','2G','3G','1D','2D','3D']: return " P", " (Pouce)"
             return " I", " (Index)"
 
-        with subtab_btn:
-            c_head, c_doigt = st.columns([1, 2])
-            with c_head: st.caption("🎹 **Saisie Rapide**") 
-            with c_doigt: st.radio("Doigté :", ["🖐️ Auto", "👍 P", "👆 I"], key="btn_mode_doigt", horizontal=True, label_visibility="collapsed")
-
-            def ajouter_note_boutons(corde):
-                suffixe, nom_doigt = get_suffixe_doigt(corde, "btn_mode_doigt")
-                ajouter_texte(f"+ {corde}{suffixe}"); st.toast(f"✅ {corde} ajoutée", icon="🎵")
-            
-            def add_symbol_only(s): st.session_state.code_actuel += f"\n{s} "
-
-            col_g, col_d, col_tools = st.columns([1, 1, 2])
-            with col_g:
-                st.markdown("**Gauche**", unsafe_allow_html=True)
-                for c in ['1G','2G','3G','4G','5G','6G']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
-            with col_d:
-                st.markdown("**Droite**", unsafe_allow_html=True)
-                for c in ['1D','2D','3D','4D','5D','6D']: st.button(c, key=f"btn_{c}", on_click=ajouter_note_boutons, args=(c,), use_container_width=True)
-
-            with col_tools:
-                st.markdown("**Rythme**", unsafe_allow_html=True)
-                c_r1, c_r2, c_r3, c_r4 = st.columns(4)
-                with c_r1: st.button("♩", on_click=add_symbol_only, args=("+",), use_container_width=True)
-                with c_r2: st.button("♪", on_click=add_symbol_only, args=("♪",), use_container_width=True)
-                with c_r3: st.button("🎶", on_click=add_symbol_only, args=("🎶",), use_container_width=True)
-                with c_r4: st.button("♬", on_click=add_symbol_only, args=("♬",), use_container_width=True)
-
-                st.markdown("**Actions**", unsafe_allow_html=True)
-                c_t1, c_t2, c_t3, c_t4 = st.columns(4)
-                with c_t1: st.button("=", on_click=ajouter_avec_feedback, args=("=", "Simul."), use_container_width=True)
-                with c_t2: st.button("x2", on_click=ajouter_avec_feedback, args=("x2", "x2"), use_container_width=True)
-                with c_t3: st.button("S", on_click=ajouter_avec_feedback, args=("+ S", "Silence"), use_container_width=True)
-                with c_t4: st.button("⌫", key="btn_undo", on_click=annuler_derniere_ligne, use_container_width=True)
-
-                st.write("") 
-                c_s1, c_s2 = st.columns(2)
-                with c_s1: st.button("📄 Page", key="btn_page", on_click=ajouter_avec_feedback, args=("+ PAGE", "Page"), use_container_width=True)
-                with c_s2: st.button("📝 Texte", key="btn_txt", on_click=ajouter_avec_feedback, args=("+ TXT Msg", "Texte"), use_container_width=True)
-
-                with st.expander("💾 Sauver Bloc", expanded=False):
-                    b_name = st.text_input("Nom", key="name_blk_btn", label_visibility="collapsed", placeholder="Nom du bloc")
-                    if st.button("Sauver", key="btn_save_btn"):
-                        if b_name and st.session_state.code_actuel:
-                            st.session_state.stored_blocks[b_name] = st.session_state.code_actuel
-                            st.toast(f"Bloc '{b_name}' créé !", icon="📦")
+        # --- MODIFICATION : Bloc subtab_btn supprimé ---
 
         with subtab_visu:
             afficher_header_style("🎨 Mode Visuel")
