@@ -33,7 +33,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : LOOK "CORDES VERTICALES" (STYLE PHOTO)
+# 📱 OPTIMISATION CSS : LOOK "CORDES VERTICALES" (FORCE BRUTE)
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
@@ -48,95 +48,135 @@ def load_css_styles():
     }
 
     /* ============================================================
-       DESIGN DES BOUTONS "CORDES" (STYLE PHOTO)
-       Cible : Le bloc horizontal contenant les 13 colonnes (6G + Sep + 6D)
+       TRANSFORMATION DES BOUTONS EN CORDES VERTICALES
+       Cible : Le bloc horizontal qui contient exactement 13 colonnes 
+       (C'est la structure unique de l'éditeur visuel)
     ============================================================ */
     
-    /* On cible spécifiquement le bloc qui contient beaucoup de colonnes (les cordes) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) button {
-        height: 180px !important;           /* Hauteur de la corde */
-        border-radius: 50px !important;     /* Forme de pilule complète */
+    /* 1. FORME GÉNÉRALE DES BOUTONS DANS CETTE ZONE */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) button {
+        height: 220px !important;           /* Hauteur de la corde */
+        width: 100% !important;             /* Largeur remplie la colonne */
+        min-width: 40px !important;         /* Largeur min */
+        border-radius: 999px !important;    /* Arrondi max (Pilule) */
         border: none !important;
-        color: white !important;
+        color: white !important;            /* Texte blanc */
         font-weight: bold !important;
-        font-size: 16px !important;
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.3) !important;
-        transition: transform 0.1s, filter 0.1s !important;
+        font-size: 18px !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.2) !important;
+        transition: all 0.2s ease-in-out !important;
+        
+        /* Alignement du texte en BAS de la corde */
         display: flex !important;
-        align-items: flex-end !important;   /* Texte en bas */
-        padding-bottom: 20px !important;
+        align-items: flex-end !important;
         justify-content: center !important;
-        text-shadow: 0px 1px 2px rgba(0,0,0,0.5);
+        padding-bottom: 20px !important;
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.6);
     }
 
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) button:hover {
-        transform: translateY(2px);
-        filter: brightness(1.1);
+    /* Effet au survol */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) button:hover {
+        transform: translateY(-5px) !important;
+        filter: brightness(1.2) !important;
+        box-shadow: 0px 8px 15px rgba(0,0,0,0.3) !important;
     }
 
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) button:active {
-        transform: translateY(4px);
-        box-shadow: inset 0px 4px 6px rgba(0,0,0,0.3) !important;
+    /* Effet au clic */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) button:active {
+        transform: scale(0.95) !important;
     }
 
-    /* --- COULEURS DES CORDES (GAUCHE) - Selon ton code couleur --- */
-    /* 6G (#00BFFF - Bleu) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(1) button { background: linear-gradient(to bottom, #00BFFF, #009ACD) !important; }
-    /* 5G (#FF4B4B - Rouge) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(2) button { background: linear-gradient(to bottom, #FF4B4B, #CD3C3C) !important; }
-    /* 4G (#00008B - Bleu Foncé) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(3) button { background: linear-gradient(to bottom, #4169E1, #00008B) !important; }
-    /* 3G (#FFD700 - Jaune/Or) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(4) button { background: linear-gradient(to bottom, #FFD700, #DAA520) !important; color: #333 !important; text-shadow: none !important; }
-    /* 2G (#FF4B4B - Rouge) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(5) button { background: linear-gradient(to bottom, #FF4B4B, #CD3C3C) !important; }
-    /* 1G (#00BFFF - Bleu) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(6) button { background: linear-gradient(to bottom, #00BFFF, #009ACD) !important; }
+    /* 2. APPLICATION DES COULEURS (SELON VOTRE CODE COULEUR) */
+    
+    /* --- GAUCHE --- */
+    /* Col 1 : 6G (#00BFFF - Bleu) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(1) button {
+        background: linear-gradient(180deg, #00BFFF 0%, #0080AA 100%) !important;
+    }
+    /* Col 2 : 5G (#FF4B4B - Rouge) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(2) button {
+        background: linear-gradient(180deg, #FF4B4B 0%, #A60000 100%) !important;
+    }
+    /* Col 3 : 4G (#00008B - Bleu Foncé) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(3) button {
+        background: linear-gradient(180deg, #4169E1 0%, #00008B 100%) !important;
+    }
+    /* Col 4 : 3G (#FFD700 - Jaune) -> Texte Noir pour lisibilité */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(4) button {
+        background: linear-gradient(180deg, #FFD700 0%, #B8860B 100%) !important;
+        color: #444 !important; text-shadow: none !important;
+    }
+    /* Col 5 : 2G (#FF4B4B - Rouge) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(5) button {
+        background: linear-gradient(180deg, #FF4B4B 0%, #A60000 100%) !important;
+    }
+    /* Col 6 : 1G (#00BFFF - Bleu) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(6) button {
+        background: linear-gradient(180deg, #00BFFF 0%, #0080AA 100%) !important;
+    }
 
-    /* --- COULEURS DES CORDES (DROITE) - Selon ton code couleur --- */
-    /* 1D (#32CD32 - Vert) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(8) button { background: linear-gradient(to bottom, #32CD32, #228B22) !important; }
-    /* 2D (#00008B - Bleu Foncé) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(9) button { background: linear-gradient(to bottom, #4169E1, #00008B) !important; }
-    /* 3D (#FFA500 - Orange) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(10) button { background: linear-gradient(to bottom, #FFA500, #FF8C00) !important; }
-    /* 4D (#00BFFF - Bleu) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(11) button { background: linear-gradient(to bottom, #00BFFF, #009ACD) !important; }
-    /* 5D (#9400D3 - Violet) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(12) button { background: linear-gradient(to bottom, #BA55D3, #9400D3) !important; }
-    /* 6D (#FFD700 - Jaune/Or) */
-    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(13) button { background: linear-gradient(to bottom, #FFD700, #DAA520) !important; color: #333 !important; text-shadow: none !important; }
+    /* --- DROITE (On saute la colonne 7 qui est le séparateur) --- */
+    
+    /* Col 8 : 1D (#32CD32 - Vert) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(8) button {
+        background: linear-gradient(180deg, #32CD32 0%, #006400 100%) !important;
+    }
+    /* Col 9 : 2D (#00008B - Bleu Foncé) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(9) button {
+        background: linear-gradient(180deg, #4169E1 0%, #00008B 100%) !important;
+    }
+    /* Col 10 : 3D (#FFA500 - Orange) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(10) button {
+        background: linear-gradient(180deg, #FFA500 0%, #8B4500 100%) !important;
+    }
+    /* Col 11 : 4D (#00BFFF - Bleu) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(11) button {
+        background: linear-gradient(180deg, #00BFFF 0%, #0080AA 100%) !important;
+    }
+    /* Col 12 : 5D (#9400D3 - Violet) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(12) button {
+        background: linear-gradient(180deg, #DA70D6 0%, #9400D3 100%) !important;
+    }
+    /* Col 13 : 6D (#FFD700 - Jaune) -> Texte Noir */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(13) button {
+        background: linear-gradient(180deg, #FFD700 0%, #B8860B 100%) !important;
+        color: #444 !important; text-shadow: none !important;
+    }
 
+    /* 3. LE SÉPARATEUR CENTRAL (Col 7) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div:nth-child(7) {
+        display: flex; align-items: center; justify-content: center;
+    }
 
     /* ============================================================
        MOBILE OPTIMIZATIONS
     ============================================================ */
     @media (max-width: 950px) {
-        /* Force la structure verticale générale */
+        /* Force la structure en colonne pour l'app globale */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) {
             flex-direction: column !important;
         }
         
         /* Grille des boutons : Scroll horizontal sur mobile */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) {
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) {
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             overflow-x: auto !important;
             justify-content: flex-start !important;
             padding-bottom: 20px !important;
-            gap: 5px !important;
+            gap: 8px !important;
         }
         
-        /* Taille fixe pour les colonnes cordes sur mobile pour garder la forme pilule */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div[data-testid="column"] {
-            min-width: 55px !important;
-            max-width: 55px !important;
+        /* Taille fixe pour les colonnes cordes sur mobile */
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(13)) > div[data-testid="column"] {
+            min-width: 50px !important;
+            max-width: 50px !important;
             flex: 0 0 auto !important;
         }
     }
 
-    /* ESTHÉTIQUE GÉNÉRALE */
-    .stButton button { width: 100%; line-height: 1.2; white-space: nowrap; }
+    /* ESTHÉTIQUE GÉNÉRALE DES AUTRES BOUTONS */
+    .stButton button { width: 100%; line-height: 1.2; white-space: nowrap; border-radius: 8px; }
     
     /* Couleur Onglets */
     button[data-testid="stTab"] { 
@@ -147,7 +187,6 @@ def load_css_styles():
     button[data-testid="stTab"][aria-selected="true"] { 
         background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
     }
-    
     [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
     [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
 </style>
@@ -993,60 +1032,65 @@ with tab_edit:
             return " I", " (Index)"
 
         with subtab_visu:
-            afficher_header_style("🎨 Mode Visuel")
+            # --- En-têtes explicites ---
+            col_head_g, col_head_sep, col_head_d = st.columns([6, 0.2, 6])
+            with col_head_g:
+                st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52; margin-bottom:5px; text-transform:uppercase;'>Gauche</div>", unsafe_allow_html=True)
+            with col_head_d:
+                st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52; margin-bottom:5px; text-transform:uppercase;'>Droite</div>", unsafe_allow_html=True)
+            # ----------------------------------------------
+
+            cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
             
-            # --- AJOUT SELECTEUR RYTHME ---
-            c_doigt, c_rythme = st.columns(2)
-            with c_doigt:
-                st.radio("Doigté :", ["🖐️ Auto", "👍 Pouce (P)", "👆 Index (I)"], key="visu_mode_doigt", horizontal=True, help="Doigté par défaut pour les notes visuelles")
-            with c_rythme:
-                st.radio("Rythme par défaut :", ["+", "♪", "🎶", "♬"], key="visu_mode_rythme", horizontal=True, index=0, help="Durée de la note qui sera ajoutée en cliquant sur les cordes")
+            # --- AJOUT SELECTEUR RYTHME (Au dessus des cordes) ---
+            st.caption("Cliquez sur une corde pour ajouter une note")
             
             def ajouter_note_visuelle(corde):
                 suffixe, nom_doigt = get_suffixe_doigt(corde, "visu_mode_doigt")
                 symbol = st.session_state.visu_mode_rythme
                 ajouter_texte(f"{symbol} {corde}{suffixe}")
                 st.toast(f"✅ {corde} ajoutée ({symbol})", icon="🎵")
-                
+            
+            # GAUCHE
+            cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
+            for i, corde in enumerate(cordes_gauche):
+                with cols_visu[i]:
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True)
+            
+            # SEPARATEUR
+            with cols_visu[6]: 
+                # Ligne grise centrale verticale pour le look
+                st.markdown("<div style='height:220px; width:6px; background-color:#ddd; margin:0 auto; border-radius:3px;'></div>", unsafe_allow_html=True)
+            
+            # DROITE
+            cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
+            for i, corde in enumerate(cordes_droite):
+                with cols_visu[i+7]:
+                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True)
+            
+            st.write("")
+            
+            # --- BARRE D'OUTILS ET OPTIONS EN DESSOUS ---
+            c_opts, c_tools = st.columns([1, 2])
+            with c_opts:
+                st.caption("Options")
+                st.radio("Doigté :", ["🖐️ Auto", "👍 P", "👆 I"], key="visu_mode_doigt", horizontal=True)
+                st.radio("Rythme :", ["+", "♪", "🎶", "♬"], key="visu_mode_rythme", horizontal=True, index=0)
+
             def outil_visuel_wrapper(action, txt_code, msg_toast):
                 if action == "ajouter": ajouter_texte(txt_code)
                 elif action == "undo": annuler_derniere_ligne()
                 st.toast(msg_toast, icon="🛠️")
-                
-            st.write("") # Petit espacement
-            
-            # --- En-têtes explicites ---
-            col_head_g, col_head_sep, col_head_d = st.columns([6, 0.2, 6])
-            with col_head_g:
-                st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52; margin-bottom:5px;'>Cordes de gauche</div>", unsafe_allow_html=True)
-            with col_head_d:
-                st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52; margin-bottom:5px;'>Cordes de droite</div>", unsafe_allow_html=True)
-            # ----------------------------------------------
 
-            cols_visu = st.columns([1,1,1,1,1,1, 0.2, 1,1,1,1,1,1])
-            
-            cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
-            for i, corde in enumerate(cordes_gauche):
-                with cols_visu[i]:
-                    # Les boutons sont maintenant stylisés par le CSS injecté plus haut
-                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True, help=f"Ajoute la note {corde}")
-            
-            with cols_visu[6]: 
-                st.markdown("<div style='height:180px; width:4px; background-color:#ccc; margin:0 auto; border-radius:2px;'></div>", unsafe_allow_html=True)
-            
-            cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
-            for i, corde in enumerate(cordes_droite):
-                with cols_visu[i+7]:
-                    st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True, help=f"Ajoute la note {corde}")
-            
-            st.write("")
-            c_tools = st.columns(6)
-            with c_tools[0]: st.button("↩️", key="v_undo", on_click=outil_visuel_wrapper, args=("undo", "", "Annulé !"), use_container_width=True, help="Annuler la dernière action")
-            with c_tools[1]: st.button("🟰", key="v_simul", on_click=outil_visuel_wrapper, args=("ajouter", "=", "Simultané"), use_container_width=True, help="Notes simultanées (=)")
-            with c_tools[2]: st.button("🔁", key="v_x2", on_click=outil_visuel_wrapper, args=("ajouter", "x2", "Doublé"), use_container_width=True, help="Répéter la note (x2)")
-            with c_tools[3]: st.button("🔇", key="v_sil", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True, help="Ajouter un silence (S)")
-            with c_tools[4]: st.button("📄", key="v_page", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Page"), use_container_width=True, help="Saut de page")
-            with c_tools[5]: st.button("📝", key="v_txt", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT Message", "Texte"), use_container_width=True, help="Annotation texte")
+            with c_tools:
+                st.caption("Outils")
+                c1, c2, c3, c4, c5 = st.columns(5)
+                with c1: st.button("⌫", key="v_undo", on_click=outil_visuel_wrapper, args=("undo", "", "Annulé"), use_container_width=True)
+                with c2: st.button("=", key="v_simul", on_click=outil_visuel_wrapper, args=("ajouter", "=", "Simul."), use_container_width=True)
+                with c3: st.button("S", key="v_sil", on_click=outil_visuel_wrapper, args=("ajouter", "+ S", "Silence"), use_container_width=True)
+                with c4: st.button("TXT", key="v_txt", on_click=outil_visuel_wrapper, args=("ajouter", "+ TXT ...", "Texte"), use_container_width=True)
+                with c5: st.button("Pg", key="v_page", on_click=outil_visuel_wrapper, args=("ajouter", "+ PAGE", "Page"), use_container_width=True)
+
             afficher_section_sauvegarde_bloc("visu")
 
         with subtab_seq:
