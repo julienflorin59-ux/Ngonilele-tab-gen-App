@@ -34,7 +34,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : HYBRIDE PC / MOBILE
+# 📱 OPTIMISATION CSS : HYBRIDE PC / MOBILE + FIX CENTRAGE
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
@@ -75,40 +75,21 @@ def load_css_styles():
 
     /* ============================================================
        3. MOBILE UNIQUEMENT (< 950px)
-       C'est ici qu'on active le scroll horizontal et les petits boutons
     ============================================================ */
     @media (max-width: 950px) {
-        /* Structure (Editeur/Aperçu) en colonne */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) {
             flex-direction: column !important; gap: 2rem !important;
         }
-
-        /* Grilles de boutons en ligne avec scroll */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) {
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-            justify-content: flex-start !important;
-            gap: 2px !important;
-            padding-bottom: 10px !important;
+            flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto !important;
+            justify-content: flex-start !important; gap: 2px !important; padding-bottom: 10px !important;
         }
-        
-        /* Réduire la largeur des colonnes pour le mobile */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) > div[data-testid="column"] {
-            min-width: 45px !important;
-            max-width: 45px !important;
-            width: 45px !important;
-            flex: 0 0 auto !important;
+            min-width: 45px !important; max-width: 45px !important; width: 45px !important; flex: 0 0 auto !important;
         }
-        
-        /* Réduire le texte des boutons pour le mobile */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) button {
-            padding: 0px !important;
-            font-size: 0.7rem !important;
-            overflow: hidden !important;
+            padding: 0px !important; font-size: 0.7rem !important; overflow: hidden !important;
         }
-
-        /* Exception onglet boutons (3 colonnes plus larges) */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) > div[data-testid="column"] {
              min-width: 30vw !important; width: 30vw !important; max-width: none !important;
         }
@@ -116,33 +97,29 @@ def load_css_styles():
 
     /* ============================================================
        4. PC / DESKTOP UNIQUEMENT (> 950px)
-       C'est ici qu'on remet tout propre pour l'ordinateur
     ============================================================ */
     @media (min-width: 951px) {
-        /* Centrage du texte dans les boutons */
         .stButton button {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            text-align: center !important;
-            margin: 0 auto !important;
-            width: 100% !important;
+            display: flex !important; justify-content: center !important; align-items: center !important;
+            text-align: center !important; margin: 0 auto !important; width: 100% !important;
         }
-        
-        /* Centrage du contenu des colonnes (pour la ligne noire) */
         div[data-testid="column"] {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            display: flex; flex-direction: column; align-items: center;
         }
-        
-        /* On s'assure que la ligne noire n'est pas décalée */
         div[data-testid="stMarkdownContainer"] {
-            width: 100%;
-            text-align: center;
-            display: flex;
-            justify-content: center;
+            width: 100%; text-align: center; display: flex; justify-content: center;
         }
+
+        /* --- FIX CHIRURGICAL POUR LA LIGNE NOIRE CENTRALE --- */
+        /* On cible spécifiquement la colonne qui contient la div noire de 4px de large */
+        div[data-testid="column"]:has(div[style*="background-color:black"][style*="width:4px"]) {
+            align-items: center !important;
+            justify-content: center !important;
+            padding-left: 0px !important; /* Force le retrait du padding standard qui décentre */
+            padding-right: 0px !important;
+            display: flex !important;
+        }
+        /* ---------------------------------------------------- */
     }
 
     /* ============================================================
