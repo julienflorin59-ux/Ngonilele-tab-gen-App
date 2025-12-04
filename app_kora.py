@@ -4,7 +4,6 @@ import io
 import re
 import gc
 import json
-import glob
 import random
 import base64
 import urllib.parse
@@ -34,7 +33,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 📱 OPTIMISATION CSS : METHODE "FORCE BRUTE" (NOUVELLE VERSION)
+# 📱 OPTIMISATION CSS : LOOK "CORDES VERTICALES" (STYLE PHOTO)
 # ==============================================================================
 @st.cache_resource
 def load_css_styles():
@@ -48,73 +47,95 @@ def load_css_styles():
         max-width: 100% !important;
     }
 
-    /* ==========================================================================
-       REGLES CRITIQUES POUR MOBILE (Jusqu'à 950px - Portrait & Paysage)
-    ========================================================================== */
-    @media (max-width: 950px) {
+    /* ============================================================
+       DESIGN DES BOUTONS "CORDES" (STYLE PHOTO)
+       Cible : Le bloc horizontal contenant les 13 colonnes (6G + Sep + 6D)
+    ============================================================ */
     
-        /* 1. LA STRUCTURE PRINCIPALE (Éditeur + Aperçu)
-           Cible : Un bloc horizontal qui contient exactement 2 colonnes.
-           Action : ON LE FORCE EN COLONNE (VERTICAL) pour mettre l'aperçu en dessous. */
+    /* On cible spécifiquement le bloc qui contient beaucoup de colonnes (les cordes) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) button {
+        height: 180px !important;           /* Hauteur de la corde */
+        border-radius: 50px !important;     /* Forme de pilule complète */
+        border: none !important;
+        color: white !important;
+        font-weight: bold !important;
+        font-size: 16px !important;
+        box-shadow: 0px 4px 6px rgba(0,0,0,0.3) !important;
+        transition: transform 0.1s, filter 0.1s !important;
+        display: flex !important;
+        align-items: flex-end !important;   /* Texte en bas */
+        padding-bottom: 20px !important;
+        justify-content: center !important;
+        text-shadow: 0px 1px 2px rgba(0,0,0,0.5);
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) button:hover {
+        transform: translateY(2px);
+        filter: brightness(1.1);
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) button:active {
+        transform: translateY(4px);
+        box-shadow: inset 0px 4px 6px rgba(0,0,0,0.3) !important;
+    }
+
+    /* --- COULEURS DES CORDES (GAUCHE) - Selon ton code couleur --- */
+    /* 6G (#00BFFF - Bleu) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(1) button { background: linear-gradient(to bottom, #00BFFF, #009ACD) !important; }
+    /* 5G (#FF4B4B - Rouge) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(2) button { background: linear-gradient(to bottom, #FF4B4B, #CD3C3C) !important; }
+    /* 4G (#00008B - Bleu Foncé) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(3) button { background: linear-gradient(to bottom, #4169E1, #00008B) !important; }
+    /* 3G (#FFD700 - Jaune/Or) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(4) button { background: linear-gradient(to bottom, #FFD700, #DAA520) !important; color: #333 !important; text-shadow: none !important; }
+    /* 2G (#FF4B4B - Rouge) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(5) button { background: linear-gradient(to bottom, #FF4B4B, #CD3C3C) !important; }
+    /* 1G (#00BFFF - Bleu) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(6) button { background: linear-gradient(to bottom, #00BFFF, #009ACD) !important; }
+
+    /* --- COULEURS DES CORDES (DROITE) - Selon ton code couleur --- */
+    /* 1D (#32CD32 - Vert) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(8) button { background: linear-gradient(to bottom, #32CD32, #228B22) !important; }
+    /* 2D (#00008B - Bleu Foncé) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(9) button { background: linear-gradient(to bottom, #4169E1, #00008B) !important; }
+    /* 3D (#FFA500 - Orange) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(10) button { background: linear-gradient(to bottom, #FFA500, #FF8C00) !important; }
+    /* 4D (#00BFFF - Bleu) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(11) button { background: linear-gradient(to bottom, #00BFFF, #009ACD) !important; }
+    /* 5D (#9400D3 - Violet) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(12) button { background: linear-gradient(to bottom, #BA55D3, #9400D3) !important; }
+    /* 6D (#FFD700 - Jaune/Or) */
+    div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div:nth-child(13) button { background: linear-gradient(to bottom, #FFD700, #DAA520) !important; color: #333 !important; text-shadow: none !important; }
+
+
+    /* ============================================================
+       MOBILE OPTIMIZATIONS
+    ============================================================ */
+    @media (max-width: 950px) {
+        /* Force la structure verticale générale */
         div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) {
             flex-direction: column !important;
-            width: 100% !important;
         }
-        /* Les colonnes à l'intérieur prennent toute la largeur */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(2)):not(:has(> div[data-testid="column"]:nth-child(3))) > div[data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
-        }
-
-        /* 2. LES GRILLES DE BOUTONS (Visuel, Séquenceur)
-           Cible : Un bloc qui contient au moins 6 colonnes (vos 13 boutons).
-           Action : ON LE FORCE EN LIGNE (HORIZONTAL) avec SCROLL. */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) {
+        
+        /* Grille des boutons : Scroll horizontal sur mobile */
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) {
             flex-direction: row !important;
-            flex-wrap: nowrap !important;        /* Interdit le retour à la ligne */
-            overflow-x: auto !important;         /* Active le scroll horizontal */
-            display: flex !important;
-            align-items: center !important;
-            gap: 2px !important;
-            padding-bottom: 10px !important;     /* Place pour scroller */
-        }
-
-        /* 3. TAILLE DES BOUTONS "CORDES" (Le problème de largeur)
-           On force chaque colonne de ces grilles à faire ~42px fixe. */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) > div[data-testid="column"] {
-            min-width: 42px !important;
-            max-width: 42px !important;
-            width: 42px !important;
-            flex: 0 0 auto !important; /* Fixe */
-        }
-
-        /* Réduction du texte à l'intérieur pour que ça rentre */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(6)) button {
-            padding: 0px !important;
-            font-size: 0.7rem !important;
-            width: 100% !important;
-            overflow: hidden !important;
-        }
-
-        /* 4. CAS PARTICULIER : L'ONGLET "BOUTONS" (3 Colonnes : G / D / Outils)
-           Cible : Un bloc qui a 3 colonnes mais pas 6.
-           Action : On garde en ligne, mais on laisse plus de place (pas 42px). */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) {
-            flex-direction: row !important;
+            flex-wrap: nowrap !important;
             overflow-x: auto !important;
+            justify-content: flex-start !important;
+            padding-bottom: 20px !important;
             gap: 5px !important;
         }
-        /* Chaque colonne prend 1/3 de l'écran environ */
-        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(3)):not(:has(> div[data-testid="column"]:nth-child(6))) > div[data-testid="column"] {
-            min-width: 30vw !important;
-            width: 30vw !important;
+        
+        /* Taille fixe pour les colonnes cordes sur mobile pour garder la forme pilule */
+        div[data-testid="stHorizontalBlock"]:has(> div[data-testid="column"]:nth-child(12)) > div[data-testid="column"] {
+            min-width: 55px !important;
+            max-width: 55px !important;
             flex: 0 0 auto !important;
         }
     }
 
-    /* ============================================================
-       ESTHÉTIQUE GÉNÉRALE (PC & MOBILE)
-    ============================================================ */
+    /* ESTHÉTIQUE GÉNÉRALE */
     .stButton button { width: 100%; line-height: 1.2; white-space: nowrap; }
     
     /* Couleur Onglets */
@@ -127,7 +148,6 @@ def load_css_styles():
         background-color: #d4b08c; border: 2px solid #A67C52; font-weight: bold; opacity: 1; 
     }
     
-    /* Upload Zone */
     [data-testid='stFileDropzone'] { background-color: #e5c4a3 !important; color: black !important; border: none !important; padding: 1rem; }
     [data-testid='stFileDropzone']::after { content: "📂 Charger projet"; color: black; font-weight: bold; display: block; text-align: center; font-size: 0.8rem; }
 </style>
@@ -995,7 +1015,7 @@ with tab_edit:
                 
             st.write("") # Petit espacement
             
-            # --- MODIFICATION ICI : En-têtes explicites ---
+            # --- En-têtes explicites ---
             col_head_g, col_head_sep, col_head_d = st.columns([6, 0.2, 6])
             with col_head_g:
                 st.markdown("<div style='text-align:center; font-weight:bold; color:#A67C52; margin-bottom:5px;'>Cordes de gauche</div>", unsafe_allow_html=True)
@@ -1008,21 +1028,16 @@ with tab_edit:
             cordes_gauche = ['6G', '5G', '4G', '3G', '2G', '1G']
             for i, corde in enumerate(cordes_gauche):
                 with cols_visu[i]:
+                    # Les boutons sont maintenant stylisés par le CSS injecté plus haut
                     st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True, help=f"Ajoute la note {corde}")
-                    c = COLORS_VISU.get(corde, 'gray')
-                    st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
-                    st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
             
             with cols_visu[6]: 
-                st.markdown("<div style='height:100px; width:4px; background-color:black; margin:0 auto; border-radius:2px;'></div>", unsafe_allow_html=True)
+                st.markdown("<div style='height:180px; width:4px; background-color:#ccc; margin:0 auto; border-radius:2px;'></div>", unsafe_allow_html=True)
             
             cordes_droite = ['1D', '2D', '3D', '4D', '5D', '6D']
             for i, corde in enumerate(cordes_droite):
                 with cols_visu[i+7]:
                     st.button(corde, key=f"visu_{corde}", on_click=ajouter_note_visuelle, args=(corde,), use_container_width=True, help=f"Ajoute la note {corde}")
-                    c = COLORS_VISU.get(corde, 'gray')
-                    st.markdown(f"<div style='margin:0 auto; width:15px; height:15px; border-radius:50%; background-color:{c};'></div>", unsafe_allow_html=True)
-                    st.markdown(f"<div style='margin:0 auto; width:2px; height:60px; background-color:{c};'></div>", unsafe_allow_html=True)
             
             st.write("")
             c_tools = st.columns(6)
